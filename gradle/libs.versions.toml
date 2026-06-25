@@ -1,0 +1,59 @@
+[versions]
+shadow = "9.3.0"
+paperPluginYml = "0.6.0"
+
+lombok = "1.18.30"
+mossCommon = "1.2.2"
+mossPaper = "1.2.2"
+paper = "1.21.8-R0.1-SNAPSHOT"
+playerPoints = "3.3.3"
+vault = "1.7"
+cloudPaper = "2.0.0-beta.10"
+cloudAnnotations = "2.0.0"
+springContext = "6.2.13"
+jakarta = "3.0.0"
+configLib = "4.6.3"
+hikari = "7.0.2"
+sqlite = "3.50.3.0"
+gson = "2.13.2"
+cache = "3.2.3"
+engine = "1.3.2-SNAPSHOT"
+roseStacker = "1.5.41"
+junitJupiter = "5.14.4"
+junitPlatformLauncher = "1.14.4"
+mockbukkit = "4.91.1"
+mockito = "5.23.0"
+
+[libraries]
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+
+mossCommon = { module = "gg.moonrise.moss:moss-common", version.ref = "mossCommon" }
+mossPaper = { module = "gg.moonrise.moss:moss-paper", version.ref = "mossPaper" }
+
+paper = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+playerPoints = { module = "org.black_ixx:playerpoints", version.ref = "playerPoints" }
+vault = { module = "com.github.MilkBowl:VaultAPI", version.ref = "vault" }
+configLib = { module = "de.exlll:configlib-yaml", version.ref = "configLib" }
+
+cloudPaper = { module = "org.incendo:cloud-paper", version.ref = "cloudPaper" }
+cloudAnnotations = { module = "org.incendo:cloud-annotations", version.ref = "cloudAnnotations" }
+
+engine = { module = "gg.moonrise.engine:plugin-engine-paper", version.ref = "engine" }
+
+springContext = { module = "org.springframework:spring-context", version.ref = "springContext" }
+jakarta = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta" }
+
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+cache = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "cache" }
+roseStacker = { module = "dev.rosewood:rosestacker", version.ref = "roseStacker" }
+
+junitJupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junitJupiter" }
+junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatformLauncher" }
+mockbukkit = { module = "org.mockbukkit.mockbukkit:mockbukkit-v1.21", version.ref = "mockbukkit" }
+mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+paperPluginYml = { id = "net.minecrell.plugin-yml.paper", version.ref = "paperPluginYml" }
