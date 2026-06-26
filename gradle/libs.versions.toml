@@ -1,6 +1,7 @@
 [versions]
 shadow = "9.3.0"
 paperPluginYml = "0.6.0"
+modrinthMinotaur = "2.9.0"
 
 lombok = "1.18.30"
 mossCommon = "1.2.2"
@@ -57,3 +58,4 @@ mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 [plugins]
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 paperPluginYml = { id = "net.minecrell.plugin-yml.paper", version.ref = "paperPluginYml" }
+modrinthMinotaur = { id = "com.modrinth.minotaur", version.ref = "modrinthMinotaur" }
