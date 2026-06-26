@@ -970,9 +970,9 @@ public class Config {
         private MenuItem filler = new MenuItem("BLACK_STAINED_GLASS_PANE", " ", List.of());
         @Comment({
                 "",
-                "Petal cost, backed by PlayerPoints, charged when the player chooses Petals."
+                "Player Points cost, backed by PlayerPoints, charged when the player chooses Player Points."
         })
-        private int petalsCost = 25;
+        private int pointsCost = 25;
         @Comment({
                 "",
                 "Vault economy cost charged when the player chooses Ingame Money."
@@ -1001,13 +1001,13 @@ public class Config {
         private String statusLimitReached = "You have already used your resets for the day";
         @Comment({
                 "",
-                "Button for purchasing with Petals. Supports <completed>, <required>, <status>, <payment>, <reward>, <amount>, <resets_used>, <resets_limit>, and <resets_remaining>."
+                "Button for purchasing with Player Points. Supports <completed>, <required>, <status>, <payment>, <reward>, <amount>, <resets_used>, <resets_limit>, and <resets_remaining>."
         })
-        private MenuButton petalsButton = new MenuButton(11, new MenuItem(
+        private MenuButton pointsButton = new MenuButton(11, new MenuItem(
                 "SUNFLOWER",
-                "<gold>Petals",
+                "<gold>Player Points",
                 List.of(
-                        "<gray>Cost: <white><amount></white> Petals",
+                        "<gray>Cost: <white><amount></white> points",
                         "<gray>Resets left: <white><resets_remaining></white>/<white><resets_limit></white>",
                         "<gray>Resets <white><completed></white>/<white><required></white> completed quests.",
                         "<yellow>Click to buy and reset."

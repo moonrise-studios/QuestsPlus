@@ -1,6 +1,6 @@
 package gg.moonrise.quests.model;
 
 public enum QuestResetPaymentType {
-    PETALS,
+    PLAYER_POINTS,
     MONEY
 }

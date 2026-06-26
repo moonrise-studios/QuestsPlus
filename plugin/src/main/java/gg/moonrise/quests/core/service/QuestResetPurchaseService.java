@@ -47,14 +47,14 @@ public class QuestResetPurchaseService {
 
     public boolean isAvailable(QuestResetPaymentType type) {
         return switch (type) {
-            case PETALS -> playerPointsApi() != null;
+            case PLAYER_POINTS -> playerPointsApi() != null;
             case MONEY -> economy() != null;
         };
     }
 
     public boolean charge(Player player, QuestResetPaymentType type) {
         return switch (type) {
-            case PETALS -> chargePetals(player);
+            case PLAYER_POINTS -> chargePoints(player);
             case MONEY -> chargeMoney(player);
         };
     }
@@ -62,17 +62,17 @@ public class QuestResetPurchaseService {
     public String displayAmount(QuestResetPaymentType type) {
         Config.QuestResetMenu menu = resetMenu();
         return switch (type) {
-            case PETALS -> Integer.toString(Math.max(0, menu.getPetalsCost()));
+            case PLAYER_POINTS -> Integer.toString(Math.max(0, menu.getPointsCost()));
             case MONEY -> formatMoney(Math.max(0.0D, menu.getMoneyCost()));
         };
     }
 
     public String displayPaymentName(QuestResetPaymentType type) {
-        return type == QuestResetPaymentType.PETALS ? "Petals" : "Ingame Money";
+        return type == QuestResetPaymentType.PLAYER_POINTS ? "Player Points" : "Ingame Money";
     }
 
-    private boolean chargePetals(Player player) {
-        int amount = Math.max(0, resetMenu().getPetalsCost());
+    private boolean chargePoints(Player player) {
+        int amount = Math.max(0, resetMenu().getPointsCost());
         if (amount <= 0) {
             return true;
         }

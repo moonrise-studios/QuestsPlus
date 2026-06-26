@@ -23,7 +23,7 @@ public class QuestResetPurchaseUI extends ChestMenu {
         int totalSlots = rows(menu) * 9;
         Set<Integer> occupiedSlots = new HashSet<>();
 
-        addPurchaseButton(menuService, occupiedSlots, totalSlots, menu.getPetalsButton(), QuestResetPaymentType.PETALS, eligibility, Material.SUNFLOWER);
+        addPurchaseButton(menuService, occupiedSlots, totalSlots, menu.getPointsButton(), QuestResetPaymentType.PLAYER_POINTS, eligibility, Material.SUNFLOWER);
         addPurchaseButton(menuService, occupiedSlots, totalSlots, menu.getMoneyButton(), QuestResetPaymentType.MONEY, eligibility, Material.EMERALD);
 
         Config.BackButton backButton = menu.getBackButton();
