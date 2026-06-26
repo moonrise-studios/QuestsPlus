@@ -1,22 +1,16 @@
 package gg.moonrise.quests.model;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
 
-public class PlayerQuestState {
-
-    private final UUID playerId;
-    private final String resetKey;
-    private final List<GeneratedQuest> quests;
-    private final Map<String, Integer> difficultyCompletions;
-    private final Set<String> executedMilestones;
+public record PlayerQuestState(
+        UUID playerId,
+        String resetKey,
+        List<GeneratedQuest> quests,
+        Map<String, Integer> difficultyCompletions,
+        Set<String> executedMilestones) {
 
     public PlayerQuestState(UUID playerId, String resetKey, List<GeneratedQuest> quests) {
         this(playerId, resetKey, quests, Map.of(), Set.of());
@@ -30,17 +24,10 @@ public class PlayerQuestState {
         this.executedMilestones = new LinkedHashSet<>(executedMilestones);
     }
 
-    public UUID playerId() {
-        return playerId;
-    }
-
-    public String resetKey() {
-        return resetKey;
-    }
-
+    @Override
     public List<GeneratedQuest> quests() {
         return quests.stream()
-                .sorted(java.util.Comparator.comparingInt(GeneratedQuest::slotIndex))
+                .sorted(Comparator.comparingInt(GeneratedQuest::slotIndex))
                 .toList();
     }
 
@@ -48,6 +35,7 @@ public class PlayerQuestState {
         return difficultyCompletions.values().stream().mapToInt(Integer::intValue).sum();
     }
 
+    @Override
     public Map<String, Integer> difficultyCompletions() {
         return Map.copyOf(difficultyCompletions);
     }
@@ -56,6 +44,7 @@ public class PlayerQuestState {
         return difficultyCompletions.getOrDefault(difficultyId, 0);
     }
 
+    @Override
     public Set<String> executedMilestones() {
         return Set.copyOf(executedMilestones);
     }
