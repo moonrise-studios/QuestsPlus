@@ -197,7 +197,7 @@ public class QuestService {
             if (key.isBlank() || limit <= highest) {
                 continue;
             }
-            if (player.hasPermission("moonrise.quests.premium." + key)) {
+            if (player.hasPermission("questsplus.premium." + key)) {
                 highest = limit;
             }
         }
@@ -308,7 +308,7 @@ public class QuestService {
             if (key.isBlank() || limit <= highest) {
                 continue;
             }
-            if (player.hasPermission("moonrise.quests.reroll." + key)) {
+            if (player.hasPermission("questsplus.reroll." + key)) {
                 highest = limit;
             }
         }

@@ -237,13 +237,13 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void admin(CommandSourceStack source) {
         configProvider.get().getMessages().getAdminUsage().send(source.getSender());
     }
 
     @Command("qa|questsadmin reload")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void reload(CommandSourceStack source) {
         try {
             configProvider.reload();
@@ -260,7 +260,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin listtypes")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void listTypes(CommandSourceStack source) {
         for (Map.Entry<String, List<QuestType>> entry : definitionService.registeredTypesByOwner().entrySet()) {
             source.getSender().sendMessage(typeListLine(entry.getKey(), entry.getValue()));
@@ -268,7 +268,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin reset <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void reset(CommandSourceStack source, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -288,7 +288,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin complete <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void completeDaily(CommandSourceStack source, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -309,7 +309,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin add <amount> <quest-type> <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void add(
             CommandSourceStack source,
             @Argument("amount") int amount,
@@ -354,7 +354,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin global add <quest-type> <amount> <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void globalAdd(
             CommandSourceStack source,
             @Argument(value = "quest-type", suggestions = "quest-types") String questType,
@@ -397,7 +397,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin global refresh")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void globalRefresh(CommandSourceStack source) {
         globalQuestService.refreshActiveQuest()
                 .thenRun(() -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getGlobalQuestRefreshed().send(source.getSender())))
@@ -409,7 +409,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin dailyrerolls reset <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void resetRerolls(CommandSourceStack source, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -429,7 +429,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin shield give <amount> <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void shieldGive(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         if (amount <= 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
@@ -439,7 +439,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin shield take <amount> <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void shieldTake(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         if (amount <= 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
@@ -449,7 +449,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin recovery give <amount> <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void recoveryGive(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         if (amount <= 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
@@ -459,7 +459,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     @Command("qa|questsadmin recovery take <amount> <player>")
-    @Permission("moonrise.quests.admin")
+    @Permission("questsplus.admin")
     public void recoveryTake(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
         if (amount <= 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());

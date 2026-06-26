@@ -17,19 +17,19 @@ title: QuestsPlus
 | `/quests milestones <difficulty>`, `/q milestones <difficulty>` | - | Open one difficulty's milestone GUI |
 | `/quests streaks`, `/q streaks` | - | Open the quest streak GUI |
 | `/quests indicator <main\|global\|both> <type\|off\|default>`, `/q indicator <main\|global\|both> <type\|off\|default>` | - | Set or disable progress indicators separately for personal and global quests |
-| `/questsadmin`, `/qa` | `moonrise.quests.admin` | Show admin usage |
-| `/questsadmin reload`, `/qa reload` | `moonrise.quests.admin` | Reload config and validate quest definitions |
-| `/questsadmin listtypes`, `/qa listtypes` | `moonrise.quests.admin` | List registered quest types grouped by provider, with click-to-copy type keys |
-| `/questsadmin reset <player>`, `/qa reset <player>` | `moonrise.quests.admin` | Clear the player's current daily quest set |
-| `/questsadmin complete <player>`, `/qa complete <player>` | `moonrise.quests.admin` | Complete the player's current accessible daily quest set |
-| `/questsadmin dailyrerolls reset <player>`, `/qa dailyrerolls reset <player>` | `moonrise.quests.admin` | Reset the player's used reroll count for the current reset window |
-| `/questsadmin add <amount> <quest-type> <player>`, `/qa add <amount> <quest-type> <player>` | `moonrise.quests.admin` | Add admin-command progress to active quests of the selected quest type |
-| `/questsadmin global add <quest-type> <amount> <player>`, `/qa global add <quest-type> <amount> <player>` | `moonrise.quests.admin` | Add admin progress to the active global quest when its type matches |
-| `/questsadmin global refresh`, `/qa global refresh` | `moonrise.quests.admin` | Delete and regenerate the active global quest for testing |
-| `/questsadmin shield give <amount> <player>`, `/qa shield give <amount> <player>` | `moonrise.quests.admin` | Add virtual Streak Shields |
-| `/questsadmin shield take <amount> <player>`, `/qa shield take <amount> <player>` | `moonrise.quests.admin` | Remove virtual Streak Shields |
-| `/questsadmin recovery give <amount> <player>`, `/qa recovery give <amount> <player>` | `moonrise.quests.admin` | Add virtual Streak Recoveries |
-| `/questsadmin recovery take <amount> <player>`, `/qa recovery take <amount> <player>` | `moonrise.quests.admin` | Remove virtual Streak Recoveries |
+| `/questsadmin`, `/qa` | `questsplus.admin` | Show admin usage |
+| `/questsadmin reload`, `/qa reload` | `questsplus.admin` | Reload config and validate quest definitions |
+| `/questsadmin listtypes`, `/qa listtypes` | `questsplus.admin` | List registered quest types grouped by provider, with click-to-copy type keys |
+| `/questsadmin reset <player>`, `/qa reset <player>` | `questsplus.admin` | Clear the player's current daily quest set |
+| `/questsadmin complete <player>`, `/qa complete <player>` | `questsplus.admin` | Complete the player's current accessible daily quest set |
+| `/questsadmin dailyrerolls reset <player>`, `/qa dailyrerolls reset <player>` | `questsplus.admin` | Reset the player's used reroll count for the current reset window |
+| `/questsadmin add <amount> <quest-type> <player>`, `/qa add <amount> <quest-type> <player>` | `questsplus.admin` | Add admin-command progress to active quests of the selected quest type |
+| `/questsadmin global add <quest-type> <amount> <player>`, `/qa global add <quest-type> <amount> <player>` | `questsplus.admin` | Add admin progress to the active global quest when its type matches |
+| `/questsadmin global refresh`, `/qa global refresh` | `questsplus.admin` | Delete and regenerate the active global quest for testing |
+| `/questsadmin shield give <amount> <player>`, `/qa shield give <amount> <player>` | `questsplus.admin` | Add virtual Streak Shields |
+| `/questsadmin shield take <amount> <player>`, `/qa shield take <amount> <player>` | `questsplus.admin` | Remove virtual Streak Shields |
+| `/questsadmin recovery give <amount> <player>`, `/qa recovery give <amount> <player>` | `questsplus.admin` | Add virtual Streak Recoveries |
+| `/questsadmin recovery take <amount> <player>`, `/qa recovery take <amount> <player>` | `questsplus.admin` | Remove virtual Streak Recoveries |
 
 Admin player arguments are trailing greedy strings for Bedrock-safe command entry.
 
@@ -331,7 +331,7 @@ The daily difficulty picker lists configured difficulty folders. Choosing one fo
 
 ### Daily Rerolls
 
-`rerolls.permission-limits` in `daily.yml` maps config keys to `moonrise.quests.reroll.<key>` permissions. A player with `moonrise.quests.reroll.vipplus` and the sample config has `2` rerolls per reset window. If multiple configured permissions match, QuestsPlus uses the highest limit rather than summing them. Players without a matching permission have `0` rerolls.
+`rerolls.permission-limits` in `daily.yml` maps config keys to `questsplus.reroll.<key>` permissions. A player with `questsplus.reroll.vipplus` and the sample config has `2` rerolls per reset window. If multiple configured permissions match, QuestsPlus uses the highest limit rather than summing them. Players without a matching permission have `0` rerolls.
 
 Rerolling is menu-driven only. Clicking an incomplete selected quest opens the difficulty picker in reroll mode. Completed quests cannot be rerolled. A successful reroll deletes the old generated quest row, persists a new quest in the same `slot_index`, increments `player_quest_rerolls.used_count`, and returns to the daily menu. If the selected difficulty has no available enabled quest, the original quest remains and no reroll is consumed.
 
@@ -339,7 +339,7 @@ Rerolling is menu-driven only. Clicking an incomplete selected quest opens the d
 
 The main daily quest menu reset button is configured under `daily.yml` `menu.reset-button`; the submenu is configured under `menu.reset-menu`. The reset button can use `<completed>`, `<required>`, `<status>`, `<resets_used>`, `<resets_limit>`, and `<resets_remaining>`. `<status>` is controlled by `menu.reset-menu.status-ready`, `menu.reset-menu.status-incomplete`, and `menu.reset-menu.status-limit-reached`. Purchase buttons can use `<completed>`, `<required>`, `<status>`, `<payment>`, `<reward>`, `<amount>`, `<resets_used>`, `<resets_limit>`, and `<resets_remaining>`.
 
-The reset purchase menu opens only when every slot the player can access is selected and complete. Normal slots come from `daily.quest-count`; premium slots come from the player's highest matching `moonrise.quests.premium.<key>` permission in `premium_quests.yml`. Locked premium slots do not count, but unlocked premium slots must be complete.
+The reset purchase menu opens only when every slot the player can access is selected and complete. Normal slots come from `daily.quest-count`; premium slots come from the player's highest matching `questsplus.premium.<key>` permission in `premium_quests.yml`. Locked premium slots do not count, but unlocked premium slots must be complete.
 
 `menu.reset-menu.daily-limit` controls how many Quest Reset purchases each player can make in the active reset window. It defaults to `1`, is keyed by the same daily or weekly reset key as generated quests, and values below `0` are treated as `0`. The limit applies only to player purchases from the reset purchase menu. Admin commands such as `/qa reset`, `/qa complete`, and `/qa dailyrerolls reset` do not consume or check purchased reset usage. When a player has no resets remaining, the reset purchase menu does not open and QuestsPlus sends `quest-reset-limit-reached`.
 
@@ -347,7 +347,7 @@ QuestsPlus declares PlayerPoints and Vault as required server dependencies for Q
 
 ### Premium Quest Slots
 
-`premium_quests.yml` adds visible extra personal quest slots based on the highest configured value in `permission-limits`. `permission-limits.vip: 1` maps to `moonrise.quests.premium.vip`; if a player has multiple configured premium permissions, QuestsPlus uses the highest matching slot count rather than summing them.
+`premium_quests.yml` adds visible extra personal quest slots based on the highest configured value in `permission-limits`. `permission-limits.vip: 1` maps to `questsplus.premium.vip`; if a player has multiple configured premium permissions, QuestsPlus uses the highest matching slot count rather than summing them.
 
 Premium slots are appended after normal `daily.quest-count` slots. Locked premium slots render `menu.locked-quest` and do not open the difficulty picker or reroll picker. Once the player has enough premium-slot permission, empty premium slots use the same difficulty picker and reroll flow as normal slots. Generated premium quests persist a `premium` flag. Premium bonus rewards are configured per difficulty under `premium_quests.yml rewards`, and run only for accessible premium quests. If `menu.tooltip-style` is blank, QuestsPlus does not set a tooltip style; otherwise premium quest item stacks use that Paper tooltip style key. `menu.display-name-suffix` appends MiniMessage text to active and completed premium quest item names; blank disables the suffix. `menu.lore` maps difficulty ids to premium-only quest item lore lines, rendered where the active or completed quest item template includes `<premium_lore>`.
 
