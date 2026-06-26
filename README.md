@@ -1,8 +1,5 @@
 # QuestsPlus
-
-## License
-
-See [LICENSE.MD](LICENSE.MD) before using, modifying, or redistributing this plugin.
+> See [LICENSE.MD](LICENSE.MD) before using, modifying, or redistributing this plugin.
 
 QuestsPlus is a Paper quest plugin for servers that want configurable daily
 quests, premium quest slots, quest reset purchases, streak systems, milestones,
