@@ -2,14 +2,16 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.QuestResetPaymentType;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
-import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -83,9 +85,44 @@ class QuestResetPurchaseServiceTest {
         assertEquals("DIAMOND", service.button(QuestResetPaymentType.MONEY).getItem().getMaterial());
     }
 
+    @Test
+    void beginBlocksDuplicateAttemptsUntilFinish() {
+        QuestResetPurchaseService service = new QuestResetPurchaseService(mock(ConfigProvider.class));
+        Player player = player(UUID.randomUUID());
+
+        assertTrue(service.begin(player));
+        assertFalse(service.begin(player));
+        assertTrue(service.isProcessing(player));
+
+        service.finish(player);
+
+        assertFalse(service.isProcessing(player));
+        assertTrue(service.begin(player));
+    }
+
+    @Test
+    void finishIsIdempotentForRetiredAndCompletionCallbacks() {
+        QuestResetPurchaseService service = new QuestResetPurchaseService(mock(ConfigProvider.class));
+        Player player = player(UUID.randomUUID());
+
+        assertTrue(service.begin(player));
+
+        service.finish(player);
+        service.finish(player);
+
+        assertFalse(service.isProcessing(player));
+        assertTrue(service.begin(player));
+    }
+
     private static QuestResetPurchaseService service(Config config) {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);
         return new QuestResetPurchaseService(configProvider);
+    }
+
+    private static Player player(UUID playerId) {
+        Player player = mock(Player.class);
+        when(player.getUniqueId()).thenReturn(playerId);
+        return player;
     }
 }

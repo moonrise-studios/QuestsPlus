@@ -150,7 +150,7 @@ Reroll limits are configured in `daily.yml` under `rerolls.permission-limits`.
 Each key maps to a permission using this format:
 
 ```text
-moonrise.quests.reroll.<key>
+questsplus.reroll.<key>
 ```
 
 If a player has multiple matching reroll permissions, QuestsPlus uses the
@@ -167,7 +167,7 @@ Premium slots are configured in `premium_quests.yml`.
 Each permission limit key maps to:
 
 ```text
-moonrise.quests.premium.<key>
+questsplus.premium.<key>
 ```
 
 Premium slots are appended after normal daily quest slots. Locked slots show the
@@ -271,9 +271,9 @@ style.
 
 | Permission | Purpose |
 |---|---|
-| `moonrise.quests.admin` | Allows `/questsadmin` and `/qa` commands |
-| `moonrise.quests.reroll.<key>` | Grants the matching configured reroll limit |
-| `moonrise.quests.premium.<key>` | Grants the matching configured premium slot count |
+| `questsplus.admin` | Allows `/questsadmin` and `/qa` commands |
+| `questsplus.reroll.<key>` | Grants the matching configured reroll limit |
+| `questsplus.premium.<key>` | Grants the matching configured premium slot count |
 
 The `<key>` values come from `daily.yml` reroll limits and
 `premium_quests.yml` premium slot limits.
@@ -294,7 +294,7 @@ The `<key>` values come from `daily.yml` reroll limits and
 
 ### Admin Commands
 
-All admin commands require `moonrise.quests.admin`.
+All admin commands require `questsplus.admin`.
 
 | Command | Purpose |
 |---|---|

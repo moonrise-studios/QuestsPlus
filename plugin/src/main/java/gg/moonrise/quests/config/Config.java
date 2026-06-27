@@ -204,7 +204,7 @@ public class Config {
     public static class Rerolls {
         @Comment({
                 "",
-                "Maps each key to permission moonrise.quests.reroll.<key>; the highest matching value is used."
+                "Maps each key to permission questsplus.reroll.<key>; the highest matching value is used."
         })
         private Map<String, Integer> permissionLimits = defaultRerollLimits();
     }
@@ -538,7 +538,7 @@ public class Config {
         private boolean enabled = true;
         @Comment({
                 "",
-                "Maps each key to permission moonrise.quests.premium.<key>; the highest matching value is used."
+                "Maps each key to permission questsplus.premium.<key>; the highest matching value is used."
         })
         private Map<String, Integer> permissionLimits = defaultPremiumLimits();
         @Comment({

@@ -50,7 +50,7 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         ));
         Player player = mock(Player.class);
-        when(player.hasPermission("moonrise.quests.premium.vipplus")).thenReturn(true);
+        when(player.hasPermission("questsplus.premium.vipplus")).thenReturn(true);
 
         assertEquals(2, service.premiumSlotLimit(player));
         assertTrue(service.canAccessSlot(player, 3));
@@ -66,7 +66,7 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         ));
         Player player = mock(Player.class);
-        when(player.hasPermission("moonrise.quests.premium.vip")).thenReturn(true);
+        when(player.hasPermission("questsplus.premium.vip")).thenReturn(true);
 
         assertTrue(service.canAccessQuest(player, premiumQuest(3)));
         assertFalse(service.canAccessQuest(player, premiumQuest(4)));
@@ -87,7 +87,7 @@ class QuestPremiumSlotAccessTest {
         Player player = mock(Player.class);
         when(configProvider.get()).thenReturn(config);
         when(player.getUniqueId()).thenReturn(playerId);
-        when(player.hasPermission("moonrise.quests.premium.vip")).thenReturn(true);
+        when(player.hasPermission("questsplus.premium.vip")).thenReturn(true);
         when(repository.loadQuests(playerId, "daily")).thenReturn(CompletableFuture.completedFuture(List.of()));
         when(repository.loadDifficultyCompletedCounts(playerId)).thenReturn(CompletableFuture.completedFuture(Map.of()));
         when(repository.loadExecutedMilestones(playerId)).thenReturn(CompletableFuture.completedFuture(Set.of()));
@@ -141,7 +141,7 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         ));
         Player player = mock(Player.class);
-        when(player.hasPermission("moonrise.quests.premium.vip")).thenReturn(true);
+        when(player.hasPermission("questsplus.premium.vip")).thenReturn(true);
         PlayerQuestState state = new PlayerQuestState(UUID.randomUUID(), "daily", List.of(
                 normalQuest(0, true),
                 normalQuest(1, true),
@@ -165,7 +165,7 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         ));
         Player player = mock(Player.class);
-        when(player.hasPermission("moonrise.quests.premium.vipplus")).thenReturn(true);
+        when(player.hasPermission("questsplus.premium.vipplus")).thenReturn(true);
         PlayerQuestState state = new PlayerQuestState(UUID.randomUUID(), "daily", List.of(
                 normalQuest(0, true),
                 normalQuest(1, true),
