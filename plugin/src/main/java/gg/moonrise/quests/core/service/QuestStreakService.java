@@ -241,7 +241,7 @@ public class QuestStreakService {
         return configProvider.get().getDaily().isWeekly() ? 7 : 1;
     }
 
-    private QuestStreakState applyMissedWindow(QuestStreakState state, String missedResetKey) {
+    QuestStreakState applyMissedWindow(QuestStreakState state, String missedResetKey) {
         if (state.currentStreak() <= 0) {
             return state;
         }

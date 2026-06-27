@@ -23,8 +23,8 @@ public class QuestResetPurchaseUI extends ChestMenu {
         int totalSlots = rows(menu) * 9;
         Set<Integer> occupiedSlots = new HashSet<>();
 
-        addPurchaseButton(menuService, occupiedSlots, totalSlots, menu.getPointsButton(), QuestResetPaymentType.PLAYER_POINTS, eligibility, Material.SUNFLOWER);
-        addPurchaseButton(menuService, occupiedSlots, totalSlots, menu.getMoneyButton(), QuestResetPaymentType.MONEY, eligibility, Material.EMERALD);
+        addPurchaseButton(menuService, occupiedSlots, totalSlots, QuestResetPaymentType.PLAYER_POINTS, eligibility, Material.SUNFLOWER);
+        addPurchaseButton(menuService, occupiedSlots, totalSlots, QuestResetPaymentType.MONEY, eligibility, Material.EMERALD);
 
         Config.BackButton backButton = menu.getBackButton();
         if (backButton != null && backButton.isEnabled()) {
@@ -41,12 +41,15 @@ public class QuestResetPurchaseUI extends ChestMenu {
             QuestMenuService menuService,
             Set<Integer> occupiedSlots,
             int totalSlots,
-            Config.MenuButton button,
             QuestResetPaymentType type,
             QuestResetEligibility eligibility,
             Material fallback
     ) {
+        Config.MenuButton button = menuService.questResetPaymentButton(type);
         if (button == null || !button.isEnabled()) {
+            return;
+        }
+        if (!menuService.canShowQuestResetPayment(type)) {
             return;
         }
         addTrackedButton(occupiedSlots, totalSlots, button.getSlot(), Button.builder()

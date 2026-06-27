@@ -1,7 +1,8 @@
 package gg.moonrise.quests.core.service;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -9,7 +10,6 @@ import gg.moonrise.quests.model.GlobalQuestContribution;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.QuestType;
 
-import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,10 +28,6 @@ import java.util.concurrent.CompletableFuture;
 public class GlobalQuestRepository {
 
     private static final UUID GLOBAL_PLAYER_ID = new UUID(0L, 0L);
-    private static final Type STRING_LIST = new TypeToken<List<String>>() {
-    }.getType();
-    private static final Type STRING_MAP = new TypeToken<Map<String, String>>() {
-    }.getType();
 
     private final SqliteProvider sqliteProvider;
     private final Gson gson = new Gson();
@@ -240,8 +236,8 @@ public class GlobalQuestRepository {
                 fallback(resultSet.getString("difficulty_id"), "easy"),
                 fallback(resultSet.getString("difficulty_display_name"), "<green><b>EASY"),
                 resultSet.getString("display_name"),
-                gson.fromJson(resultSet.getString("description"), STRING_LIST),
-                gson.fromJson(resultSet.getString("variables"), STRING_MAP),
+                stringList(resultSet.getString("description")),
+                stringMap(resultSet.getString("variables")),
                 -1,
                 resultSet.getInt("goal_amount"),
                 resultSet.getInt("progress"),
@@ -291,6 +287,24 @@ public class GlobalQuestRepository {
         statement.setInt(13, quest.progress());
         statement.setInt(14, quest.completed() ? 1 : 0);
         statement.setInt(15, state.rewardsExecuted() ? 1 : 0);
+    }
+
+    private List<String> stringList(String json) {
+        String[] values = gson.fromJson(json, String[].class);
+        return values == null ? List.of() : List.of(values);
+    }
+
+    private Map<String, String> stringMap(String json) {
+        JsonObject object = gson.fromJson(json, JsonObject.class);
+        if (object == null) {
+            return Map.of();
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            JsonElement value = entry.getValue();
+            values.put(entry.getKey(), value == null || value.isJsonNull() ? null : value.getAsString());
+        }
+        return values;
     }
 
     private String fallback(String value, String fallback) {

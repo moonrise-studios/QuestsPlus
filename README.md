@@ -14,13 +14,15 @@ and staff tools from modular files under `plugins/QuestsPlus/`.
 
 - Paper `1.21.x`
 - Java 21
-- PlayerPoints, required for points-based Quest Reset purchases
-- Vault, required for money-based Quest Reset purchases
+- PlayerPoints, optional; enables points-based Quest Reset purchases
+- Vault, optional; enables money-based Quest Reset purchases when an economy
+  provider is registered
 - RoseStacker, optional; stacked mob kills can count toward matching mob-kill
   quests when the plugin is installed
 
-QuestsPlus declares PlayerPoints and Vault as required plugin dependencies.
-RoseStacker is optional and only enables the stacked-kill integration.
+QuestsPlus declares PlayerPoints, Vault, and RoseStacker as optional plugin
+dependencies. Currency-backed reset purchases only appear for the enabled
+currency integrations that are present on the server.
 
 ## What QuestsPlus Adds
 
@@ -28,7 +30,7 @@ RoseStacker is optional and only enables the stacked-kill integration.
 - Daily or weekly personal quest reset schedules.
 - Permission-based daily reroll limits.
 - Permission-based premium quest slots with locked-slot display items.
-- Quest Reset purchases using PlayerPoints or Vault.
+- Quest Reset purchases using optional PlayerPoints and/or Vault currency.
 - Per-difficulty lifetime completion milestones.
 - Quest streaks with shields, recovery, and streak milestone rewards.
 - Weekly global quests with contribution tracking and percentile reward tiers.
@@ -39,8 +41,9 @@ RoseStacker is optional and only enables the stacked-kill integration.
 ## First Setup
 
 1. Install QuestsPlus on a Paper server running Java 21.
-2. Install PlayerPoints and Vault. Add RoseStacker if stacked mob kills should
-   count toward combat quests.
+2. Install PlayerPoints, Vault, or both if quest reset purchases should use
+   external currency. Add RoseStacker if stacked mob kills should count toward
+   combat quests.
 3. Start the server once so QuestsPlus can generate its default files.
 4. Edit the files under `plugins/QuestsPlus/`.
 5. Run `/qa reload` after config changes.
@@ -56,6 +59,8 @@ installs use the modular layout below.
 | File or folder | Owns |
 |---|---|
 | `daily.yml` | Daily/weekly reset mode, quest count, reroll limits, daily menu, difficulty picker, and daily messages |
+| `currencies/playerpoints.yml` | PlayerPoints enablement, display name, Quest Reset cost, and purchase button |
+| `currencies/vault.yml` | Vault economy enablement, display name, Quest Reset cost, and purchase button |
 | `difficulty/<id>/settings.yml` | Difficulty display name, lore, menu placement, requirements, and baseline rewards |
 | `difficulty/<id>/quests.yml` | Personal quest definitions for that difficulty |
 | `difficulty/<id>/milestones.yml` | Lifetime completion milestones for that difficulty |
@@ -175,14 +180,18 @@ Unlocked premium slots do count.
 
 ## Quest Reset Purchases
 
-Quest Reset purchases are configured in the daily menu section. They let a
-player clear their current reset-window quest slots after completing every slot
-they can access.
+Quest Reset purchase menu limits and shared status text are configured in
+`daily.yml`. Currency-specific costs and buttons are configured under
+`currencies/`. They let a player clear their current reset-window quest slots
+after completing every slot they can access.
 
 Supported payment paths:
 
-- PlayerPoints for points purchases
-- Vault economy for money purchases
+- Optional PlayerPoints in `currencies/playerpoints.yml`
+- Optional Vault economy in `currencies/vault.yml`
+
+Each currency file has its own `enabled`, `display-name`, `quest-reset-cost`,
+and `button` settings.
 
 Reset purchase limits are per reset window. A successful purchase clears the
 current generated quests but preserves lifetime completions, milestones, streaks,

@@ -120,11 +120,11 @@ configure<PaperPluginDescription> {
         }
         register("PlayerPoints") {
             load = PaperPluginDescription.RelativeLoadOrder.BEFORE
-            required = true
+            required = false
         }
         register("Vault") {
             load = PaperPluginDescription.RelativeLoadOrder.BEFORE
-            required = true
+            required = false
         }
     }
 }

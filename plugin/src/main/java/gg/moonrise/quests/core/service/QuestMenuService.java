@@ -189,6 +189,11 @@ public class QuestMenuService {
                         new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
                         return;
                     }
+                    if (!resetPurchaseService.hasAvailablePaymentMethods()) {
+                        sendPurchaseUnavailable(player, null, eligibility);
+                        new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                        return;
+                    }
                     new QuestResetPurchaseUI(player, this, eligibility).open();
                 }))
                 .exceptionally(throwable -> {
@@ -363,7 +368,15 @@ public class QuestMenuService {
 
     public boolean canShowQuestResetButton() {
         Config.QuestResetButton button = config().getMenu().getResetButton();
-        return button != null && button.isEnabled();
+        return button != null && button.isEnabled() && resetPurchaseService.hasAvailablePaymentMethods();
+    }
+
+    public boolean canShowQuestResetPayment(QuestResetPaymentType type) {
+        return resetPurchaseService.isAvailable(type);
+    }
+
+    public Config.MenuButton questResetPaymentButton(QuestResetPaymentType type) {
+        return resetPurchaseService.button(type);
     }
 
     public ItemStack buildQuestResetButtonItem(Player viewer, PlayerQuestState state) {
@@ -757,9 +770,9 @@ public class QuestMenuService {
     private void sendPurchaseUnavailable(Player player, QuestResetPaymentType paymentType, QuestResetEligibility eligibility) {
         config().getMessages().getQuestResetPurchaseUnavailable().send(
                 player,
-                Placeholder.unparsed("payment", resetPurchaseService.displayPaymentName(paymentType)),
-                Placeholder.unparsed("reward", resetPurchaseService.displayPaymentName(paymentType)),
-                Placeholder.unparsed("amount", resetPurchaseService.displayAmount(paymentType)),
+                Placeholder.unparsed("payment", paymentType == null ? "Quest Reset currency" : resetPurchaseService.displayPaymentName(paymentType)),
+                Placeholder.unparsed("reward", paymentType == null ? "Quest Reset currency" : resetPurchaseService.displayPaymentName(paymentType)),
+                Placeholder.unparsed("amount", paymentType == null ? "" : resetPurchaseService.displayAmount(paymentType)),
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                 Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
                 Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetService.currentResetKey()))),

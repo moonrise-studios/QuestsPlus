@@ -3,7 +3,6 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.quests.model.QuestStreakState;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -20,7 +19,7 @@ class QuestStreakServiceTest {
         QuestStreakService service = service();
         QuestStreakState state = state(5, 2);
 
-        QuestStreakState updated = applyMissedWindow(service, state, "2026-06-20");
+        QuestStreakState updated = service.applyMissedWindow(state, "2026-06-20");
 
         assertEquals(5, updated.currentStreak());
         assertEquals(1, updated.shieldBalance());
@@ -33,7 +32,7 @@ class QuestStreakServiceTest {
         QuestStreakService service = service();
         QuestStreakState state = state(5, 0);
 
-        QuestStreakState updated = applyMissedWindow(service, state, "2026-06-20");
+        QuestStreakState updated = service.applyMissedWindow(state, "2026-06-20");
 
         assertEquals(0, updated.currentStreak());
         assertEquals(0, updated.shieldBalance());
@@ -46,9 +45,9 @@ class QuestStreakServiceTest {
         QuestStreakService service = service();
         QuestStreakState state = state(5, 2);
 
-        QuestStreakState first = applyMissedWindow(service, state, "2026-06-20");
-        QuestStreakState second = applyMissedWindow(service, first, "2026-06-21");
-        QuestStreakState third = applyMissedWindow(service, second, "2026-06-22");
+        QuestStreakState first = service.applyMissedWindow(state, "2026-06-20");
+        QuestStreakState second = service.applyMissedWindow(first, "2026-06-21");
+        QuestStreakState third = service.applyMissedWindow(second, "2026-06-22");
 
         assertEquals(5, first.currentStreak());
         assertEquals(1, first.shieldBalance());
@@ -91,9 +90,4 @@ class QuestStreakServiceTest {
         );
     }
 
-    private static QuestStreakState applyMissedWindow(QuestStreakService service, QuestStreakState state, String resetKey) throws Exception {
-        Method method = QuestStreakService.class.getDeclaredMethod("applyMissedWindow", QuestStreakState.class, String.class);
-        method.setAccessible(true);
-        return (QuestStreakState) method.invoke(service, state, resetKey);
-    }
 }

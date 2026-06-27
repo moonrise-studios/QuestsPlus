@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
-import java.lang.reflect.Field;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,7 +66,7 @@ class GlobalQuestServiceTest {
         when(definitionService.selector("LIST")).thenReturn(selector);
         when(definitionService.handler(any())).thenReturn(goalHandler);
         when(repository.updateProgressAndContribution(any(), eq(player.getUniqueId()), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
-        setActiveState(service, activeState);
+        service.cachedActiveState(activeState);
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 5);
 
@@ -122,7 +121,7 @@ class GlobalQuestServiceTest {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         GlobalQuestService service = serviceWithConfig(configProvider);
         Config config = configWithRewardTiers();
-        setField(config.getGlobalQuests(), "reducedRewardMinimumPercent", 75.0D);
+        config = configWithRewardTiers(75.0D);
         when(configProvider.get()).thenReturn(config);
 
         assertTrue(service.rewardTiersForProgress(globalQuest(74, 100, false)).isEmpty());
@@ -162,12 +161,6 @@ class GlobalQuestServiceTest {
         return now.isBefore(start) ? start.minusDays(7) : start;
     }
 
-    private static void setActiveState(GlobalQuestService service, GlobalQuestState state) throws ReflectiveOperationException {
-        Field field = GlobalQuestService.class.getDeclaredField("activeState");
-        field.setAccessible(true);
-        field.set(service, state);
-    }
-
     private static GlobalQuestService serviceWithConfig(ConfigProvider configProvider) {
         return new GlobalQuestService(
                 configProvider,
@@ -177,17 +170,16 @@ class GlobalQuestServiceTest {
         );
     }
 
-    private static Config configWithRewardTiers() throws ReflectiveOperationException {
-        Config config = new Config();
-        Config.GlobalQuestsFile globalQuests = config.getGlobalQuests();
-        setField(globalQuests, "rewardTiers", List.of(new Config.GlobalRewardTierConfig(10, "Full Top 10%", List.of("eco give <player> 100"))));
-        setField(globalQuests, "reducedRewardTiers", List.of(new Config.GlobalRewardTierConfig(10, "Reduced Top 10%", List.of("eco give <player> 50"))));
-        return config;
+    private static Config configWithRewardTiers() {
+        return configWithRewardTiers(50.0D);
     }
 
-    private static void setField(Object target, String fieldName, Object value) throws ReflectiveOperationException {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+    private static Config configWithRewardTiers(double reducedRewardMinimumPercent) {
+        Config.GlobalQuestsFile globalQuests = new Config.GlobalQuestsFile(
+                List.of(new Config.GlobalRewardTierConfig(10, "Full Top 10%", List.of("eco give <player> 100"))),
+                reducedRewardMinimumPercent,
+                List.of(new Config.GlobalRewardTierConfig(10, "Reduced Top 10%", List.of("eco give <player> 50")))
+        );
+        return Config.compose(null, null, null, null, null, globalQuests, null);
     }
 }
