@@ -4,6 +4,7 @@ import gg.moonrise.engine.paper.item.ItemBuilder;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.kyori.adventure.key.Key;
@@ -40,6 +41,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.List;
 import java.util.Map;
 
@@ -654,55 +656,55 @@ public class QuestMenuService {
         String resetKey = resetService.currentResetKey();
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(state -> questService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
-                .thenAccept(state -> Scheduler.entity(player).run(task -> {
-                    if (!player.isOnline()) {
-                        resetPurchaseService.finish(player);
-                        return;
-                    }
-                    QuestResetEligibility eligibility = questService.resetEligibility(player, state);
-                    if (!eligibility.eligible()) {
-                        try {
-                            config().getMessages().getQuestResetNotReady().send(
-                                    player,
-                                    Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
-                                    Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
-                            );
-                            openDailyQuests(player);
-                        } finally {
+                .thenAccept(state -> scheduleResetPurchaseTask(player, task -> {
+                    try {
+                        if (!player.isOnline()) {
                             resetPurchaseService.finish(player);
+                            return;
                         }
-                        return;
-                    }
-                    if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
-                        try {
-                            sendResetLimitReached(player, eligibility);
-                            openDailyQuests(player);
-                        } finally {
-                            resetPurchaseService.finish(player);
+                        QuestResetEligibility eligibility = questService.resetEligibility(player, state);
+                        if (!eligibility.eligible()) {
+                            try {
+                                config().getMessages().getQuestResetNotReady().send(
+                                        player,
+                                        Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
+                                        Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
+                                );
+                                openDailyQuests(player);
+                            } finally {
+                                resetPurchaseService.finish(player);
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    if (!resetPurchaseService.isAvailable(paymentType)) {
-                        try {
-                            sendPurchaseUnavailable(player, paymentType, eligibility);
-                            openQuestResetPurchase(player);
-                        } finally {
-                            resetPurchaseService.finish(player);
+                        if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
+                            try {
+                                sendResetLimitReached(player, eligibility);
+                                openDailyQuests(player);
+                            } finally {
+                                resetPurchaseService.finish(player);
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    if (!resetPurchaseService.charge(player, paymentType)) {
-                        try {
-                            sendPurchaseUnavailable(player, paymentType, eligibility);
-                            openQuestResetPurchase(player);
-                        } finally {
-                            resetPurchaseService.finish(player);
+                        if (!resetPurchaseService.isAvailable(paymentType)) {
+                            try {
+                                sendPurchaseUnavailable(player, paymentType, eligibility);
+                                openQuestResetPurchase(player);
+                            } finally {
+                                resetPurchaseService.finish(player);
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey)
-                            .thenAccept(applied -> Scheduler.entity(player).run(doneTask -> {
-                                try {
+                        if (!resetPurchaseService.charge(player, paymentType)) {
+                            try {
+                                sendPurchaseUnavailable(player, paymentType, eligibility);
+                                openQuestResetPurchase(player);
+                            } finally {
+                                resetPurchaseService.finish(player);
+                            }
+                            return;
+                        }
+                        questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey)
+                                .thenAccept(applied -> scheduleResetPurchaseCompletion(player, doneTask -> {
                                     if (player.isOnline()) {
                                         if (applied) {
                                             config().getMessages().getQuestResetSuccess().send(
@@ -721,37 +723,56 @@ public class QuestMenuService {
                                         }
                                         openDailyQuests(player);
                                     }
-                                } finally {
-                                    resetPurchaseService.finish(player);
-                                }
-                            }))
-                            .exceptionally(throwable -> {
-                                log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", paymentType, player.getUniqueId(), throwable);
-                                Scheduler.entity(player).run(failedTask -> {
-                                    try {
+                                }))
+                                .exceptionally(throwable -> {
+                                    log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", paymentType, player.getUniqueId(), throwable);
+                                    scheduleResetPurchaseCompletion(player, failedTask -> {
                                         if (player.isOnline()) {
                                             config().getMessages().getQuestResetFailed().send(player);
                                         }
-                                    } finally {
-                                        resetPurchaseService.finish(player);
-                                    }
+                                    });
+                                    return null;
                                 });
-                                return null;
-                            });
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", paymentType, player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
+                    } catch (RuntimeException exception) {
                         try {
+                            log.error("Failed to process QuestsPlus reset purchase choice {} for {}.", paymentType, player.getUniqueId(), exception);
                             if (player.isOnline()) {
                                 config().getMessages().getQuestResetFailed().send(player);
                             }
                         } finally {
                             resetPurchaseService.finish(player);
                         }
+                        throw exception;
+                    }
+                }))
+                .exceptionally(throwable -> {
+                    log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", paymentType, player.getUniqueId(), throwable);
+                    scheduleResetPurchaseCompletion(player, task -> {
+                        if (player.isOnline()) {
+                            config().getMessages().getQuestResetFailed().send(player);
+                        }
                     });
                     return null;
                 });
+    }
+
+    private void scheduleResetPurchaseTask(Player player, Consumer<ScheduledTask> action) {
+        try {
+            Scheduler.entity(player).run(action, () -> resetPurchaseService.finish(player));
+        } catch (RuntimeException exception) {
+            resetPurchaseService.finish(player);
+            log.error("Failed to schedule QuestsPlus reset purchase continuation for {}.", player.getUniqueId(), exception);
+        }
+    }
+
+    private void scheduleResetPurchaseCompletion(Player player, Consumer<ScheduledTask> action) {
+        scheduleResetPurchaseTask(player, task -> {
+            try {
+                action.accept(task);
+            } finally {
+                resetPurchaseService.finish(player);
+            }
+        });
     }
 
     private void sendPurchaseUnavailable(Player player, QuestResetPaymentType paymentType, QuestResetEligibility eligibility) {
