@@ -47,7 +47,19 @@ public class QuestStreakService {
     private final SqliteProvider sqliteProvider;
     private final Cache<UUID, QuestStreakState> cache = Caffeine.newBuilder().maximumSize(10_000).build();
 
+    public boolean isEnabled() {
+        Config config = configProvider.get();
+        if (config == null) {
+            return true;
+        }
+        Config.Streaks streaks = config.getStreaks();
+        return streaks != null && streaks.isEnabled();
+    }
+
     public CompletableFuture<QuestStreakState> ensureState(Player player, String currentResetKey) {
+        if (!isEnabled()) {
+            return CompletableFuture.completedFuture(cachedOrEmpty(player.getUniqueId()));
+        }
         return loadState(player.getUniqueId())
                 .thenCompose(state -> evaluateMissedWindows(state, currentResetKey))
                 .thenApply(state -> {
@@ -65,6 +77,9 @@ public class QuestStreakService {
     }
 
     public CompletableFuture<QuestStreakEvaluation> evaluateQuestCompletion(Player player, PlayerQuestState questState, List<GeneratedQuest> eligibleQuests) {
+        if (!isEnabled()) {
+            return CompletableFuture.completedFuture(new QuestStreakEvaluation(cachedOrEmpty(player.getUniqueId()), List.of()));
+        }
         int required = dailyRequiredCompletions(questState, eligibleQuests);
         int completed = dailyCompleted(eligibleQuests);
         if (required <= 0 || completed < required) {
@@ -86,6 +101,9 @@ public class QuestStreakService {
     }
 
     public CompletableFuture<StreakRecoveryResult> recoverStreak(Player player, String currentResetKey) {
+        if (!isEnabled()) {
+            return CompletableFuture.completedFuture(new StreakRecoveryResult(false, new QuestStreakEvaluation(cachedOrEmpty(player.getUniqueId()), List.of())));
+        }
         return ensureState(player, currentResetKey)
                 .thenCompose(state -> {
                     if (!canRecover(state, currentResetKey) || state.recoveryBalance() <= 0) {
@@ -116,6 +134,9 @@ public class QuestStreakService {
     }
 
     public CompletableFuture<Integer> adjustCurrency(UUID playerId, StreakCurrency currency, int delta) {
+        if (!isEnabled()) {
+            return CompletableFuture.completedFuture(0);
+        }
         return loadState(playerId)
                 .thenCompose(state -> {
                     int shieldBalance = state.shieldBalance();
@@ -149,6 +170,9 @@ public class QuestStreakService {
     }
 
     public int dailyRequiredCompletions(PlayerQuestState state, List<GeneratedQuest> eligibleQuests) {
+        if (!isEnabled()) {
+            return 0;
+        }
         int configured = configProvider.get().getStreaks().getDailyRequiredCompletions();
         if (configured > 0) {
             return configured;
@@ -169,6 +193,9 @@ public class QuestStreakService {
     }
 
     public int recoveryDaysRemaining(QuestStreakState state, String currentResetKey) {
+        if (!isEnabled()) {
+            return 0;
+        }
         if (state.lostResetKey() == null || state.lostResetKey().isBlank()) {
             return 0;
         }
@@ -186,6 +213,9 @@ public class QuestStreakService {
     }
 
     public List<QuestStreakMilestone> milestones() {
+        if (!isEnabled()) {
+            return List.of();
+        }
         List<QuestStreakMilestone> milestones = new ArrayList<>();
         Set<Integer> seen = new LinkedHashSet<>();
         List<Config.StreakMilestoneConfig> configured = configProvider.get().getStreaks().getMilestones();

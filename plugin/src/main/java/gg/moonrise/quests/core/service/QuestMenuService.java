@@ -86,6 +86,10 @@ public class QuestMenuService {
     }
 
     public void openMilestoneSelector(Player player) {
+        if (!questService.questMilestonesEnabled()) {
+            player.sendRichMessage("<red>Quest milestones are disabled.");
+            return;
+        }
         String resetKey = resetService.currentResetKey();
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenAccept(state -> Scheduler.entity(player).run(task -> {
@@ -105,6 +109,10 @@ public class QuestMenuService {
     }
 
     public void openMilestones(Player player, String difficultyId) {
+        if (!questService.questMilestonesEnabled()) {
+            player.sendRichMessage("<red>Quest milestones are disabled.");
+            return;
+        }
         String normalizedDifficulty = QuestNames.normalize(difficultyId);
         QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
         if (difficulty == null || !difficulty.id().equals(normalizedDifficulty)) {
@@ -131,6 +139,10 @@ public class QuestMenuService {
     }
 
     public void openStreaks(Player player) {
+        if (!streakService.isEnabled()) {
+            player.sendRichMessage("<red>Quest streaks are disabled.");
+            return;
+        }
         String resetKey = resetService.currentResetKey();
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(questState -> streakService.stateForMenu(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)))
@@ -151,6 +163,10 @@ public class QuestMenuService {
     }
 
     public void openStreakConfirmation(Player player) {
+        if (!streakService.isEnabled()) {
+            player.sendRichMessage("<red>Quest streaks are disabled.");
+            return;
+        }
         String resetKey = resetService.currentResetKey();
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(questState -> streakService.stateForMenu(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)))
@@ -434,6 +450,14 @@ public class QuestMenuService {
 
     public List<QuestStreakMilestone> streakMilestones() {
         return streakService.milestones();
+    }
+
+    public boolean canShowMilestoneButton() {
+        return questService.questMilestonesEnabled() && config().getMenu().getMilestoneButton().isEnabled();
+    }
+
+    public boolean canShowStreakButton() {
+        return streakService.isEnabled() && config().getMenu().getStreakButton().isEnabled();
     }
 
     public ItemStack buildQuestItem(Player viewer, GeneratedQuest quest) {
@@ -733,6 +757,10 @@ public class QuestMenuService {
     }
 
     public void applyStreakRecovery(Player player) {
+        if (!streakService.isEnabled()) {
+            player.sendRichMessage("<red>Quest streaks are disabled.");
+            return;
+        }
         streakService.recoverStreak(player, resetService.currentResetKey())
                 .thenAccept(result -> Scheduler.entity(player).run(task -> {
                     if (!player.isOnline()) {
