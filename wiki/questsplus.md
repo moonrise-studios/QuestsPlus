@@ -289,7 +289,6 @@ reduced-reward-tiers:
 # progress-indicators.yml
 progress-indicators:
   enabled: true
-  types: [BOSS_BAR]
   boss-bar:
     enabled: true
     duration-seconds: 10

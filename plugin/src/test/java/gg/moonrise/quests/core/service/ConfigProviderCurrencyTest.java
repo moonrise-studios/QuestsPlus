@@ -50,7 +50,9 @@ class ConfigProviderCurrencyTest {
         assertEquals("<dark_gray>Quest Milestones", config.getMilestoneMenu().getSelectorTitle());
         assertEquals("<green>Milestone complete: <white><milestone_display_name></white> <gray>(<quest_difficulty>, <milestone_completed> quests).", config.getMessages().getMilestoneCompleted().content());
         assertTrue(config.getProgressIndicators().isEnabled());
-        assertEquals(List.of("BOSS_BAR"), config.getProgressIndicators().getTypes());
+        assertTrue(config.getProgressIndicators().getBossBar().isEnabled());
+        assertTrue(config.getProgressIndicators().getChat().isEnabled());
+        assertTrue(config.getProgressIndicators().getActionBar().isEnabled());
 
         String daily = Files.readString(tempDir.resolve("daily.yml"));
         String messages = Files.readString(tempDir.resolve("messages.yml"));
