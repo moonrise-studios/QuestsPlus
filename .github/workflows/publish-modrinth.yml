@@ -4,31 +4,9 @@ on:
   release:
     types:
       - published
-  workflow_dispatch:
-    inputs:
-      version_number:
-        description: Version number to publish.
-        required: true
-      version_type:
-        description: Modrinth release type.
-        required: true
-        default: release
-        type: choice
-        options:
-          - release
-          - beta
-          - alpha
-      game_versions:
-        description: Comma-separated Minecraft versions.
-        required: true
-        default: "1.21.8"
-      loaders:
-        description: Comma-separated Modrinth loaders.
-        required: true
-        default: paper
-      changelog:
-        description: Release changelog.
-        required: false
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -39,13 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-      MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID || 'questsplus' }}
-      MODRINTH_VERSION_NUMBER: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.version_number }}
-      MODRINTH_VERSION_NAME: ${{ github.event_name == 'release' && github.event.release.name || format('QuestsPlus {0}', inputs.version_number) }}
-      MODRINTH_VERSION_TYPE: ${{ github.event_name == 'release' && 'release' || inputs.version_type }}
-      MODRINTH_GAME_VERSIONS: ${{ inputs.game_versions || vars.MODRINTH_GAME_VERSIONS || '1.21.8' }}
-      MODRINTH_LOADERS: ${{ inputs.loaders || vars.MODRINTH_LOADERS || 'paper' }}
-      MODRINTH_CHANGELOG: ${{ github.event_name == 'release' && github.event.release.body || inputs.changelog || 'Automated release.' }}
+      MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+      MODRINTH_GAME_VERSIONS: ${{ vars.MODRINTH_GAME_VERSIONS || '1.21.8' }}
+      MODRINTH_LOADERS: ${{ vars.MODRINTH_LOADERS || 'paper' }}
 
     steps:
       - name: Checkout
@@ -63,10 +37,45 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Validate Modrinth token
+      - name: Prepare Modrinth metadata
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "release" ]; then
+            version_number="$(jq -r '.release.tag_name // ""' "${GITHUB_EVENT_PATH}")"
+            version_name="$(jq -r '.release.name // ""' "${GITHUB_EVENT_PATH}")"
+            version_type="release"
+            changelog="$(jq -r '.release.body // ""' "${GITHUB_EVENT_PATH}")"
+
+            if [ -z "${version_name}" ]; then
+              version_name="${version_number}"
+            fi
+            if [ -z "${changelog}" ]; then
+              changelog="Release ${version_number}."
+            fi
+          else
+            short_sha="${GITHUB_SHA::7}"
+            version_number="QuestsPlus-${short_sha}"
+            version_name="${version_number}"
+            version_type="alpha"
+            changelog="Alpha build from commit ${GITHUB_SHA}."
+          fi
+
+          {
+            echo "MODRINTH_VERSION_NUMBER=${version_number}"
+            echo "MODRINTH_VERSION_NAME=${version_name}"
+            echo "MODRINTH_VERSION_TYPE=${version_type}"
+            echo "MODRINTH_CHANGELOG<<EOF"
+            echo "${changelog}"
+            echo "EOF"
+          } >> "${GITHUB_ENV}"
+
+      - name: Validate Modrinth configuration
         run: |
           if [ -z "${MODRINTH_TOKEN}" ]; then
             echo "MODRINTH_TOKEN repository secret is required." >&2
+            exit 1
+          fi
+          if [ -z "${MODRINTH_PROJECT_ID}" ]; then
+            echo "MODRINTH_PROJECT_ID repository variable is required." >&2
             exit 1
           fi
 
