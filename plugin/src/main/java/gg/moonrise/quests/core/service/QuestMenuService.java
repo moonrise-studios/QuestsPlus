@@ -19,11 +19,13 @@ import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.model.QuestMilestone;
 import gg.moonrise.quests.model.QuestResetEligibility;
-import gg.moonrise.quests.model.QuestResetPaymentType;
 import gg.moonrise.quests.model.QuestSelectionResult;
 import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.model.QuestStreakMilestone;
 import gg.moonrise.quests.model.QuestStreakState;
+import gg.moonrise.quests.sdk.currency.QuestCurrency;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import gg.moonrise.quests.ui.GlobalRewardPreviewUI;
 import gg.moonrise.quests.ui.QuestDifficultyPickerUI;
 import gg.moonrise.quests.ui.QuestResetPurchaseUI;
@@ -191,7 +193,7 @@ public class QuestMenuService {
                         new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
                         return;
                     }
-                    if (!resetPurchaseService.hasAvailablePaymentMethods()) {
+                    if (!hasAvailableQuestResetCurrency()) {
                         sendPurchaseUnavailable(player, null, eligibility);
                         new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
                         return;
@@ -370,15 +372,26 @@ public class QuestMenuService {
 
     public boolean canShowQuestResetButton() {
         Config.QuestResetButton button = config().getMenu().getResetButton();
-        return button != null && button.isEnabled() && resetPurchaseService.hasAvailablePaymentMethods();
+        return button != null && button.isEnabled() && hasAvailableQuestResetCurrency();
     }
 
-    public boolean canShowQuestResetPayment(QuestResetPaymentType type) {
-        return resetPurchaseService.isAvailable(type);
+    public List<QuestCurrency> questResetCurrencies() {
+        return resetPurchaseService.registeredCurrencies().stream()
+                .filter(this::canShowQuestResetPayment)
+                .toList();
     }
 
-    public Config.MenuButton questResetPaymentButton(QuestResetPaymentType type) {
-        return resetPurchaseService.button(type);
+    public boolean canShowQuestResetPayment(QuestCurrency currency) {
+        return currency != null && currencyEnabled(currency) && currencyAvailable(currency) && questResetPaymentButton(currency) != null;
+    }
+
+    public QuestCurrencyButton questResetPaymentButton(QuestCurrency currency) {
+        try {
+            return currency == null ? null : currency.button();
+        } catch (RuntimeException exception) {
+            log.warn("QuestsPlus currency {} failed to render its purchase button.", currencyKey(currency), exception);
+            return null;
+        }
     }
 
     public ItemStack buildQuestResetButtonItem(Player viewer, PlayerQuestState state) {
@@ -390,11 +403,11 @@ public class QuestMenuService {
         return buildTokenItem(item, resetTokens(viewer, eligibility, null), Material.AMETHYST_SHARD);
     }
 
-    public ItemStack buildQuestResetPurchaseItem(Player viewer, Config.MenuItem item, QuestResetPaymentType type, QuestResetEligibility eligibility, Material fallback) {
-        Config.MenuItem template = item == null
-                ? new Config.MenuItem(fallback.name(), "<gold><payment>", List.of("<gray>Cost: <white><amount></white>"))
-                : item;
-        return buildTokenItem(template, resetTokens(viewer, eligibility, type), fallback);
+    public ItemStack buildQuestResetPurchaseItem(Player viewer, QuestCurrencyButton button, QuestCurrency currency, QuestResetEligibility eligibility) {
+        Config.MenuItem template = button == null
+                ? new Config.MenuItem("PAPER", "<gold><payment>", List.of("<gray>Cost: <white><amount></white>"))
+                : new Config.MenuItem(button.material(), button.name(), button.lore());
+        return buildTokenItem(template, resetTokens(viewer, eligibility, currency), Material.PAPER);
     }
 
     public List<QuestDifficulty> difficulties() {
@@ -615,7 +628,7 @@ public class QuestMenuService {
                 .putNumber("recovery_days_remaining", streakService.recoveryDaysRemaining(streakState, resetService.currentResetKey()));
     }
 
-    private MapTokens resetTokens(Player viewer, QuestResetEligibility eligibility, QuestResetPaymentType paymentType) {
+    private MapTokens resetTokens(Player viewer, QuestResetEligibility eligibility, QuestCurrency currency) {
         String resetKey = resetService.currentResetKey();
         int used = viewer == null ? 0 : questService.cachedQuestResetPurchasesUsed(viewer.getUniqueId(), resetKey);
         int limit = questService.questResetDailyLimit();
@@ -627,9 +640,9 @@ public class QuestMenuService {
                 .putNumber("resets_limit", limit)
                 .putNumber("resets_remaining", remaining)
                 .put("status", questResetStatus(eligibility, remaining))
-                .put("payment", paymentType == null ? "" : resetPurchaseService.displayPaymentName(paymentType))
-                .put("reward", paymentType == null ? "" : resetPurchaseService.displayPaymentName(paymentType))
-                .put("amount", paymentType == null ? "" : resetPurchaseService.displayAmount(paymentType));
+                .put("payment", currencyDisplayName(currency, ""))
+                .put("reward", currencyDisplayName(currency, ""))
+                .put("amount", currencyDisplayAmount(currency, viewer));
     }
 
     private String questResetStatus(QuestResetEligibility eligibility, int remainingResets) {
@@ -639,6 +652,84 @@ public class QuestMenuService {
             return resetMenu.getStatusLimitReached();
         }
         return eligibility.eligible() ? resetMenu.getStatusReady() : resetMenu.getStatusIncomplete();
+    }
+
+    private boolean hasAvailableQuestResetCurrency() {
+        for (QuestCurrency currency : resetPurchaseService.registeredCurrencies()) {
+            if (canShowQuestResetPayment(currency)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean currencyAvailable(QuestCurrency currency) {
+        try {
+            return currency != null && currency.isAvailable();
+        } catch (RuntimeException exception) {
+            log.warn("QuestsPlus currency {} failed its availability check.", currencyKey(currency), exception);
+            return false;
+        }
+    }
+
+    private boolean currencyEnabled(QuestCurrency currency) {
+        if (currency == null || currency.key() == null) {
+            return false;
+        }
+        Config.Currencies currencies = config().getCurrencies();
+        List<String> enabledCurrencies = currencies == null || currencies.getEnabledCurrencies() == null
+                ? List.of()
+                : currencies.getEnabledCurrencies();
+        for (String enabledCurrency : enabledCurrencies) {
+            try {
+                if (currency.key().equals(QuestCurrencyKey.of(enabledCurrency))) {
+                    return true;
+                }
+            } catch (IllegalArgumentException exception) {
+                log.warn("Ignoring invalid currency key '{}' in currencies.yml enabled-currencies.", enabledCurrency);
+            }
+        }
+        return false;
+    }
+
+    private boolean chargeCurrency(Player player, QuestCurrency currency) {
+        try {
+            return currency != null && currency.charge(player, Math.max(0.0D, currency.questResetCost()));
+        } catch (RuntimeException exception) {
+            log.warn("QuestsPlus currency {} failed to charge {}.", currencyKey(currency), player.getUniqueId(), exception);
+            return false;
+        }
+    }
+
+    private String currencyDisplayName(QuestCurrency currency, String fallback) {
+        if (currency == null) {
+            return fallback;
+        }
+        try {
+            return java.util.Objects.requireNonNullElse(currency.displayName(), fallback);
+        } catch (RuntimeException exception) {
+            log.warn("QuestsPlus currency {} failed to render its display name.", currencyKey(currency), exception);
+            return fallback;
+        }
+    }
+
+    private String currencyDisplayAmount(QuestCurrency currency, Player player) {
+        if (currency == null) {
+            return "";
+        }
+        try {
+            return java.util.Objects.requireNonNullElse(currency.displayAmount(player), "");
+        } catch (RuntimeException exception) {
+            log.warn("QuestsPlus currency {} failed to render its display amount.", currencyKey(currency), exception);
+            return "";
+        }
+    }
+
+    private String currencyKey(QuestCurrency currency) {
+        if (currency == null || currency.key() == null) {
+            return "unknown";
+        }
+        return currency.key().key();
     }
 
     public void applyStreakRecovery(Player player) {
@@ -660,7 +751,7 @@ public class QuestMenuService {
                 });
     }
 
-    public void applyQuestResetPurchase(Player player, QuestResetPaymentType paymentType) {
+    public void applyQuestResetPurchase(Player player, QuestCurrencyKey currencyKey) {
         if (resetPurchaseService.isProcessing(player) || !resetPurchaseService.begin(player)) {
             config().getMessages().getQuestResetProcessing().send(player);
             return;
@@ -698,18 +789,19 @@ public class QuestMenuService {
                             }
                             return;
                         }
-                        if (!resetPurchaseService.isAvailable(paymentType)) {
+                        QuestCurrency currency = resetPurchaseService.registeredCurrency(currencyKey);
+                        if (!canShowQuestResetPayment(currency)) {
                             try {
-                                sendPurchaseUnavailable(player, paymentType, eligibility);
+                                sendPurchaseUnavailable(player, currency, eligibility);
                                 openQuestResetPurchase(player);
                             } finally {
                                 resetPurchaseService.finish(player);
                             }
                             return;
                         }
-                        if (!resetPurchaseService.charge(player, paymentType)) {
+                        if (!chargeCurrency(player, currency)) {
                             try {
-                                sendPurchaseUnavailable(player, paymentType, eligibility);
+                                sendPurchaseUnavailable(player, currency, eligibility);
                                 openQuestResetPurchase(player);
                             } finally {
                                 resetPurchaseService.finish(player);
@@ -722,9 +814,9 @@ public class QuestMenuService {
                                         if (applied) {
                                             config().getMessages().getQuestResetSuccess().send(
                                                     player,
-                                                    Placeholder.unparsed("payment", resetPurchaseService.displayPaymentName(paymentType)),
-                                                    Placeholder.unparsed("reward", resetPurchaseService.displayPaymentName(paymentType)),
-                                                    Placeholder.unparsed("amount", resetPurchaseService.displayAmount(paymentType)),
+                                                    Placeholder.unparsed("payment", currencyDisplayName(currency, "")),
+                                                    Placeholder.unparsed("reward", currencyDisplayName(currency, "")),
+                                                    Placeholder.unparsed("amount", currencyDisplayAmount(currency, player)),
                                                     Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                                                     Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
                                                     Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
@@ -738,7 +830,7 @@ public class QuestMenuService {
                                     }
                                 }))
                                 .exceptionally(throwable -> {
-                                    log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", paymentType, player.getUniqueId(), throwable);
+                                    log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
                                     scheduleResetPurchaseCompletion(player, failedTask -> {
                                         if (player.isOnline()) {
                                             config().getMessages().getQuestResetFailed().send(player);
@@ -748,7 +840,7 @@ public class QuestMenuService {
                                 });
                     } catch (RuntimeException exception) {
                         try {
-                            log.error("Failed to process QuestsPlus reset purchase choice {} for {}.", paymentType, player.getUniqueId(), exception);
+                            log.error("Failed to process QuestsPlus reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), exception);
                             if (player.isOnline()) {
                                 config().getMessages().getQuestResetFailed().send(player);
                             }
@@ -759,7 +851,7 @@ public class QuestMenuService {
                     }
                 }))
                 .exceptionally(throwable -> {
-                    log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", paymentType, player.getUniqueId(), throwable);
+                    log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
                     scheduleResetPurchaseCompletion(player, task -> {
                         if (player.isOnline()) {
                             config().getMessages().getQuestResetFailed().send(player);
@@ -788,12 +880,12 @@ public class QuestMenuService {
         });
     }
 
-    private void sendPurchaseUnavailable(Player player, QuestResetPaymentType paymentType, QuestResetEligibility eligibility) {
+    private void sendPurchaseUnavailable(Player player, QuestCurrency currency, QuestResetEligibility eligibility) {
         config().getMessages().getQuestResetPurchaseUnavailable().send(
                 player,
-                Placeholder.unparsed("payment", paymentType == null ? "Quest Reset currency" : resetPurchaseService.displayPaymentName(paymentType)),
-                Placeholder.unparsed("reward", paymentType == null ? "Quest Reset currency" : resetPurchaseService.displayPaymentName(paymentType)),
-                Placeholder.unparsed("amount", paymentType == null ? "" : resetPurchaseService.displayAmount(paymentType)),
+                Placeholder.unparsed("payment", currencyDisplayName(currency, "Quest Reset currency")),
+                Placeholder.unparsed("reward", currencyDisplayName(currency, "Quest Reset currency")),
+                Placeholder.unparsed("amount", currencyDisplayAmount(currency, player)),
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                 Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
                 Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetService.currentResetKey()))),

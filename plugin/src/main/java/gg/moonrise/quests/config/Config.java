@@ -129,6 +129,28 @@ public class Config {
             PlayerPointsCurrency playerPointsCurrency,
             VaultCurrency vaultCurrency
     ) {
+        return compose(
+                storage,
+                dailyFile,
+                difficultyDirectories,
+                streaksFile,
+                sharedMessagesFile,
+                globalQuestsFile,
+                premiumQuestsFile,
+                new Currencies(null, playerPointsCurrency, vaultCurrency)
+        );
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            Currencies currenciesFile
+    ) {
         Config config = new Config();
         DailyFile daily = dailyFile == null ? new DailyFile() : dailyFile;
         DifficultyComposition difficulties = composeDifficultyDirectories(difficultyDirectories);
@@ -136,10 +158,7 @@ public class Config {
         SharedMessagesFile sharedMessages = sharedMessagesFile == null ? new SharedMessagesFile() : sharedMessagesFile;
         GlobalQuestsFile globalQuests = globalQuestsFile == null ? new GlobalQuestsFile() : globalQuestsFile;
         PremiumQuestsFile premiumQuests = premiumQuestsFile == null ? new PremiumQuestsFile() : premiumQuestsFile;
-        Currencies currencies = new Currencies(
-                playerPointsCurrency == null ? new PlayerPointsCurrency() : playerPointsCurrency,
-                vaultCurrency == null ? new VaultCurrency() : vaultCurrency
-        );
+        Currencies currencies = currenciesFile == null ? new Currencies() : currenciesFile;
 
         config.storage = storage == null ? new Storage() : storage;
         config.daily = daily.toDaily();
@@ -1092,12 +1111,17 @@ public class Config {
     public static class Currencies {
         @Comment({
                 "",
-                "PlayerPoints currency settings loaded from currencies/playerpoints.yml."
+                "Currency keys QuestsPlus may show for purchases. Loaded from currencies.yml."
+        })
+        private List<String> enabledCurrencies = List.of("vault", "playerpoints");
+        @Comment({
+                "",
+                "PlayerPoints currency settings."
         })
         private PlayerPointsCurrency playerPoints = new PlayerPointsCurrency();
         @Comment({
                 "",
-                "Vault currency settings loaded from currencies/vault.yml."
+                "Vault currency settings."
         })
         private VaultCurrency vault = new VaultCurrency();
 
@@ -1105,6 +1129,11 @@ public class Config {
         }
 
         public Currencies(PlayerPointsCurrency playerPoints, VaultCurrency vault) {
+            this(null, playerPoints, vault);
+        }
+
+        public Currencies(List<String> enabledCurrencies, PlayerPointsCurrency playerPoints, VaultCurrency vault) {
+            this.enabledCurrencies = enabledCurrencies == null ? List.of("vault", "playerpoints") : List.copyOf(enabledCurrencies);
             this.playerPoints = playerPoints == null ? new PlayerPointsCurrency() : playerPoints;
             this.vault = vault == null ? new VaultCurrency() : vault;
         }
@@ -1113,11 +1142,6 @@ public class Config {
     @Getter
     @Configuration
     public static class PlayerPointsCurrency {
-        @Comment({
-                "",
-                "Whether PlayerPoints may be used for configured QuestsPlus currency purchases."
-        })
-        private boolean enabled = true;
         @Comment({
                 "",
                 "Display name used by menus and messages for this currency."
@@ -1146,8 +1170,7 @@ public class Config {
         public PlayerPointsCurrency() {
         }
 
-        public PlayerPointsCurrency(boolean enabled, String displayName, int questResetCost, MenuButton button) {
-            this.enabled = enabled;
+        public PlayerPointsCurrency(String displayName, int questResetCost, MenuButton button) {
             this.displayName = displayName;
             this.questResetCost = questResetCost;
             this.button = button;
@@ -1157,11 +1180,6 @@ public class Config {
     @Getter
     @Configuration
     public static class VaultCurrency {
-        @Comment({
-                "",
-                "Whether Vault economy may be used for configured QuestsPlus currency purchases."
-        })
-        private boolean enabled = true;
         @Comment({
                 "",
                 "Display name used by menus and messages for this currency."
@@ -1190,8 +1208,7 @@ public class Config {
         public VaultCurrency() {
         }
 
-        public VaultCurrency(boolean enabled, String displayName, double questResetCost, MenuButton button) {
-            this.enabled = enabled;
+        public VaultCurrency(String displayName, double questResetCost, MenuButton button) {
             this.displayName = displayName;
             this.questResetCost = questResetCost;
             this.button = button;
@@ -1811,7 +1828,7 @@ public class Config {
                 "Message sent when the chosen reset purchase integration is unavailable or rejects the payment.",
                 "Supports <payment>, <reward>, <amount>, <completed>, and <required>."
         })
-        private Message questResetPurchaseUnavailable = Message.of("<red>You do not have enough <payment> for a Quest Reset, or that payment method is unavailable.");
+        private Message questResetPurchaseUnavailable = Message.of("<red>You cannot afford to purchase a Quest Reset.");
         @Comment({
                 "",
                 "Message sent when a player has reached the configured reset purchase limit for the active reset window.",
@@ -2187,7 +2204,7 @@ public class Config {
                 "Message sent when the chosen reset purchase integration is unavailable or rejects the payment.",
                 "Supports <payment>, <reward>, <amount>, <completed>, and <required>."
         })
-        private Message questResetPurchaseUnavailable = Message.of("<red>You do not have enough <payment> for a Quest Reset, or that payment method is unavailable.");
+        private Message questResetPurchaseUnavailable = Message.of("<red>You cannot afford to purchase a Quest Reset.");
         @Comment({
                 "",
                 "Message sent when a player has reached the configured reset purchase limit for the active reset window.",

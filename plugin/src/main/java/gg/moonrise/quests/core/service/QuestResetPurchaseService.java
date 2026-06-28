@@ -1,37 +1,26 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.model.QuestResetPaymentType;
-import net.milkbowl.vault.economy.Economy;
-import net.milkbowl.vault.economy.EconomyResponse;
-import org.black_ixx.playerpoints.PlayerPoints;
-import org.black_ixx.playerpoints.PlayerPointsAPI;
-import org.bukkit.Bukkit;
+import gg.moonrise.quests.sdk.currency.QuestCurrencies;
+import gg.moonrise.quests.sdk.currency.QuestCurrency;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.RegisteredServiceProvider;
 
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.util.Locale;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Slf4j(topic = "QuestsPlus")
 @SpringComponent
-@RequiredArgsConstructor
 public class QuestResetPurchaseService {
 
-    private static final ThreadLocal<DecimalFormat> MONEY_FORMAT = ThreadLocal.withInitial(() ->
-            new DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance(Locale.US))
-    );
-
-    private final ConfigProvider configProvider;
     private final Set<UUID> processingPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<QuestCurrencyKey, CurrencyRegistration> currencies = new LinkedHashMap<>();
 
     public boolean begin(Player player) {
         return processingPlayers.add(player.getUniqueId());
@@ -45,127 +34,81 @@ public class QuestResetPurchaseService {
         return processingPlayers.contains(player.getUniqueId());
     }
 
-    public boolean hasAvailablePaymentMethods() {
-        for (QuestResetPaymentType type : QuestResetPaymentType.values()) {
-            if (isAvailable(type)) {
-                return true;
+    public synchronized void registerCurrency(Plugin owner, QuestCurrency currency) {
+        Objects.requireNonNull(owner, "owner");
+        Objects.requireNonNull(currency, "currency");
+        QuestCurrencyKey key = Objects.requireNonNull(currency.key(), "currency key");
+        if (isReserved(key)) {
+            throw new IllegalArgumentException("Currency key " + key.key() + " is reserved by QuestsPlus");
+        }
+        CurrencyRegistration existing = currencies.get(key);
+        if (existing != null) {
+            throw new IllegalArgumentException("Currency key " + key.key() + " is already registered by " + existing.owner().getName());
+        }
+        currencies.put(key, new CurrencyRegistration(owner, currency, false));
+    }
+
+    public synchronized void registerBuiltInCurrency(QuestCurrency currency) {
+        Objects.requireNonNull(currency, "currency");
+        QuestCurrencyKey key = Objects.requireNonNull(currency.key(), "currency key");
+        if (!isReserved(key)) {
+            throw new IllegalArgumentException("Currency key " + key.key() + " is not a QuestsPlus built-in currency");
+        }
+        currencies.put(key, new CurrencyRegistration(null, currency, true));
+    }
+
+    public synchronized void unregisterCurrency(Plugin owner, QuestCurrencyKey key) {
+        Objects.requireNonNull(owner, "owner");
+        Objects.requireNonNull(key, "key");
+        CurrencyRegistration registration = currencies.get(key);
+        if (registration != null && !registration.builtIn() && registration.owner().equals(owner)) {
+            currencies.remove(key);
+        }
+    }
+
+    public synchronized void unregisterCurrencies(Plugin owner) {
+        Objects.requireNonNull(owner, "owner");
+        Iterator<Map.Entry<QuestCurrencyKey, CurrencyRegistration>> iterator = currencies.entrySet().iterator();
+        while (iterator.hasNext()) {
+            CurrencyRegistration registration = iterator.next().getValue();
+            if (!registration.builtIn() && registration.owner().equals(owner)) {
+                iterator.remove();
             }
         }
-        return false;
     }
 
-    public boolean isEnabled(QuestResetPaymentType type) {
-        return switch (type) {
-            case PLAYER_POINTS -> playerPointsConfig().isEnabled();
-            case MONEY -> vaultConfig().isEnabled();
-        };
-    }
-
-    public boolean isAvailable(QuestResetPaymentType type) {
-        if (!isEnabled(type)) {
-            return false;
+    public List<QuestCurrencyKey> registeredCurrencyKeys() {
+        synchronized (this) {
+            return List.copyOf(currencies.keySet());
         }
-        return switch (type) {
-            case PLAYER_POINTS -> playerPointsApi() != null;
-            case MONEY -> economy() != null;
-        };
     }
 
-    public boolean charge(Player player, QuestResetPaymentType type) {
-        if (!isEnabled(type)) {
-            return false;
+    public List<QuestCurrency> registeredCurrencies() {
+        synchronized (this) {
+            return currencies.values().stream()
+                    .filter(this::isEnabled)
+                    .map(CurrencyRegistration::currency)
+                    .toList();
         }
-        return switch (type) {
-            case PLAYER_POINTS -> chargePoints(player);
-            case MONEY -> chargeMoney(player);
-        };
     }
 
-    public String displayAmount(QuestResetPaymentType type) {
-        return switch (type) {
-            case PLAYER_POINTS -> Integer.toString(Math.max(0, playerPointsConfig().getQuestResetCost()));
-            case MONEY -> formatMoney(Math.max(0.0D, vaultConfig().getQuestResetCost()));
-        };
+    public QuestCurrency registeredCurrency(QuestCurrencyKey key) {
+        CurrencyRegistration registration = currency(key);
+        return isEnabled(registration) ? registration.currency() : null;
     }
 
-    public String displayPaymentName(QuestResetPaymentType type) {
-        return switch (type) {
-            case PLAYER_POINTS -> playerPointsConfig().getDisplayName();
-            case MONEY -> vaultConfig().getDisplayName();
-        };
+    private boolean isEnabled(CurrencyRegistration registration) {
+        return registration != null && (registration.builtIn() || registration.owner().isEnabled());
     }
 
-    public Config.MenuButton button(QuestResetPaymentType type) {
-        return switch (type) {
-            case PLAYER_POINTS -> playerPointsConfig().getButton();
-            case MONEY -> vaultConfig().getButton();
-        };
+    private boolean isReserved(QuestCurrencyKey key) {
+        return QuestCurrencies.PLAYER_POINTS.equals(key) || QuestCurrencies.VAULT.equals(key);
     }
 
-    private boolean chargePoints(Player player) {
-        int amount = Math.max(0, playerPointsConfig().getQuestResetCost());
-        if (amount <= 0) {
-            return true;
-        }
-        PlayerPointsAPI api = playerPointsApi();
-        if (api == null) {
-            return false;
-        }
-        boolean charged = api.take(player.getUniqueId(), amount);
-        if (!charged) {
-            log.warn("PlayerPoints quest reset purchase failed for {} amount {}.", player.getUniqueId(), amount);
-        }
-        return charged;
+    private synchronized CurrencyRegistration currency(QuestCurrencyKey key) {
+        return key == null ? null : currencies.get(key);
     }
 
-    private boolean chargeMoney(Player player) {
-        double amount = Math.max(0.0D, vaultConfig().getQuestResetCost());
-        if (amount <= 0.0D) {
-            return true;
-        }
-        Economy economy = economy();
-        if (economy == null) {
-            return false;
-        }
-        EconomyResponse response = economy.withdrawPlayer(player, amount);
-        if (!response.transactionSuccess()) {
-            log.warn("Vault quest reset purchase failed for {} amount {}: {}", player.getUniqueId(), amount, response.errorMessage);
-        }
-        return response.transactionSuccess();
-    }
-
-    private PlayerPointsAPI playerPointsApi() {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("PlayerPoints");
-        if (!(plugin instanceof PlayerPoints playerPoints) || !plugin.isEnabled()) {
-            return null;
-        }
-        return playerPoints.getAPI();
-    }
-
-    private Economy economy() {
-        Plugin vault = Bukkit.getPluginManager().getPlugin("Vault");
-        if (vault == null || !vault.isEnabled()) {
-            return null;
-        }
-        RegisteredServiceProvider<Economy> provider = Bukkit.getServicesManager().getRegistration(Economy.class);
-        return provider == null ? null : provider.getProvider();
-    }
-
-    private Config.PlayerPointsCurrency playerPointsConfig() {
-        Config.Currencies currencies = configProvider.get().getCurrencies();
-        return currencies == null || currencies.getPlayerPoints() == null ? new Config.PlayerPointsCurrency() : currencies.getPlayerPoints();
-    }
-
-    private Config.VaultCurrency vaultConfig() {
-        Config.Currencies currencies = configProvider.get().getCurrencies();
-        return currencies == null || currencies.getVault() == null ? new Config.VaultCurrency() : currencies.getVault();
-    }
-
-    private String formatMoney(double amount) {
-        Economy economy = economy();
-        if (economy == null) {
-            return "$" + MONEY_FORMAT.get().format(amount);
-        }
-        return economy.format(amount);
+    private record CurrencyRegistration(Plugin owner, QuestCurrency currency, boolean builtIn) {
     }
 }

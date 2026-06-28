@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,7 +20,7 @@ class ConfigProviderCurrencyTest {
     private Path tempDir;
 
     @Test
-    void loadsDefaultCurrencyConfigFilesFromCurrenciesFolder() {
+    void loadsDefaultCurrencyConfigFromCurrenciesYml() {
         QuestsPlusPlugin plugin = mock(QuestsPlusPlugin.class);
         when(plugin.getDataFolder()).thenReturn(tempDir.toFile());
         ConfigProvider provider = new ConfigProvider(plugin);
@@ -27,8 +28,8 @@ class ConfigProviderCurrencyTest {
         provider.init();
 
         Config config = provider.get();
-        assertTrue(Files.exists(tempDir.resolve("currencies/playerpoints.yml")));
-        assertTrue(Files.exists(tempDir.resolve("currencies/vault.yml")));
+        assertTrue(Files.exists(tempDir.resolve("currencies.yml")));
+        assertEquals(List.of("vault", "playerpoints"), config.getCurrencies().getEnabledCurrencies());
         assertEquals("Player Points", config.getCurrencies().getPlayerPoints().getDisplayName());
         assertEquals(25, config.getCurrencies().getPlayerPoints().getQuestResetCost());
         assertEquals(11, config.getCurrencies().getPlayerPoints().getButton().getSlot());

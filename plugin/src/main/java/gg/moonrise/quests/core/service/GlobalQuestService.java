@@ -42,8 +42,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
-import java.util.random.RandomGenerator;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -55,7 +55,6 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private final QuestDefinitionService definitionService;
     private final GlobalQuestRepository repository;
     private final QuestProgressIndicatorService progressIndicatorService;
-    private final RandomGenerator random = RandomGenerator.getDefault();
 
     private volatile DayOfWeek startDay = DayOfWeek.FRIDAY;
     private volatile LocalTime startTime = LocalTime.of(5, 0);
@@ -264,7 +263,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
             log.warn("No enabled QuestsPlus global quest definitions are available.");
             return null;
         }
-        QuestDefinition definition = enabled.get(random.nextInt(enabled.size()));
+        QuestDefinition definition = enabled.get(ThreadLocalRandom.current().nextInt(enabled.size()));
         Map<String, String> variables = resolveVariables(definition);
         GeneratedQuest quest = definitionService.handler(definition.type())
                 .createGeneratedQuest(definition, GLOBAL_PLAYER_ID, period.key(), variables);
@@ -326,7 +325,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         for (Map.Entry<String, String> entry : definition.selectorTypes().entrySet()) {
             String key = entry.getKey();
             QuestVariableSelector selector = definitionService.selector(entry.getValue());
-            resolved.put(key, selector.select(definition.selectorValues().get(key), random));
+            resolved.put(key, selector.select(definition.selectorValues().get(key), ThreadLocalRandom.current()));
         }
         return Map.copyOf(resolved);
     }
