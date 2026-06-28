@@ -100,6 +100,11 @@ public class Config {
             "Premium personal quest slot settings and bonus rewards."
     })
     private PremiumQuestsFile premiumQuests = new PremiumQuestsFile();
+    @Comment({
+            "",
+            "External currency integrations used by QuestsPlus features."
+    })
+    private Currencies currencies = new Currencies();
 
     public static Config compose(
             Storage storage,
@@ -110,6 +115,20 @@ public class Config {
             GlobalQuestsFile globalQuestsFile,
             PremiumQuestsFile premiumQuestsFile
     ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, null);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            PlayerPointsCurrency playerPointsCurrency,
+            VaultCurrency vaultCurrency
+    ) {
         Config config = new Config();
         DailyFile daily = dailyFile == null ? new DailyFile() : dailyFile;
         DifficultyComposition difficulties = composeDifficultyDirectories(difficultyDirectories);
@@ -117,6 +136,10 @@ public class Config {
         SharedMessagesFile sharedMessages = sharedMessagesFile == null ? new SharedMessagesFile() : sharedMessagesFile;
         GlobalQuestsFile globalQuests = globalQuestsFile == null ? new GlobalQuestsFile() : globalQuestsFile;
         PremiumQuestsFile premiumQuests = premiumQuestsFile == null ? new PremiumQuestsFile() : premiumQuestsFile;
+        Currencies currencies = new Currencies(
+                playerPointsCurrency == null ? new PlayerPointsCurrency() : playerPointsCurrency,
+                vaultCurrency == null ? new VaultCurrency() : vaultCurrency
+        );
 
         config.storage = storage == null ? new Storage() : storage;
         config.daily = daily.toDaily();
@@ -128,6 +151,7 @@ public class Config {
         config.messages = composeMessages(sharedMessages, daily.messages, sharedMessages.milestoneMessages, streaks.messages);
         config.globalQuests = globalQuests;
         config.premiumQuests = premiumQuests;
+        config.currencies = currencies;
         return config;
     }
 
@@ -233,6 +257,18 @@ public class Config {
                 "Daily quest, progress, reset, and reroll messages."
         })
         private DailyMessages messages = new DailyMessages();
+
+        public DailyFile() {
+        }
+
+        public DailyFile(int questCount) {
+            this.questCount = questCount;
+        }
+
+        public DailyFile(int questCount, QuestMenu menu) {
+            this.questCount = questCount;
+            this.menu = menu == null ? new QuestMenu() : menu;
+        }
 
         private Daily toDaily() {
             Daily daily = new Daily();
@@ -416,6 +452,13 @@ public class Config {
                 "Progress indicator UI settings used when personal or global quest progress is applied."
         })
         private ProgressIndicators progressIndicators = new ProgressIndicators();
+
+        public SharedMessagesFile() {
+        }
+
+        public SharedMessagesFile(MilestoneMessages milestoneMessages) {
+            this.milestoneMessages = milestoneMessages == null ? new MilestoneMessages() : milestoneMessages;
+        }
     }
 
     @Getter
@@ -470,6 +513,19 @@ public class Config {
                 "Messages used by global quest progress, command progress, and period rollover."
         })
         private GlobalQuestMessages messages = new GlobalQuestMessages();
+
+        public GlobalQuestsFile() {
+        }
+
+        public GlobalQuestsFile(
+                List<GlobalRewardTierConfig> rewardTiers,
+                double reducedRewardMinimumPercent,
+                List<GlobalRewardTierConfig> reducedRewardTiers
+        ) {
+            this.rewardTiers = rewardTiers == null ? List.of() : rewardTiers;
+            this.reducedRewardMinimumPercent = reducedRewardMinimumPercent;
+            this.reducedRewardTiers = reducedRewardTiers == null ? List.of() : reducedRewardTiers;
+        }
     }
 
     @Getter
@@ -495,6 +551,14 @@ public class Config {
                 "Premium quest menu display settings."
         })
         private PremiumQuestMenu menu = new PremiumQuestMenu();
+
+        public PremiumQuestsFile() {
+        }
+
+        public PremiumQuestsFile(Map<String, Integer> permissionLimits, PremiumQuestMenu menu) {
+            this.permissionLimits = permissionLimits == null ? Map.of() : permissionLimits;
+            this.menu = menu == null ? new PremiumQuestMenu() : menu;
+        }
     }
 
     @Getter
@@ -534,6 +598,13 @@ public class Config {
                 "Rank text used by locked premium quest slots, keyed by the one-based displayed quest slot number."
         })
         private Map<String, String> lockedRanks = defaultPremiumLockedRanks();
+
+        public PremiumQuestMenu() {
+        }
+
+        public PremiumQuestMenu(Map<String, String> lockedRanks) {
+            this.lockedRanks = lockedRanks == null ? Map.of() : lockedRanks;
+        }
     }
 
     @Getter
@@ -825,6 +896,13 @@ public class Config {
                         "<gray><quest_reset_timer>"
                 )
         );
+
+        public QuestMenu() {
+        }
+
+        public QuestMenu(QuestResetMenu resetMenu) {
+            this.resetMenu = resetMenu == null ? new QuestResetMenu() : resetMenu;
+        }
     }
 
     @Getter
@@ -970,16 +1048,6 @@ public class Config {
         private MenuItem filler = new MenuItem("BLACK_STAINED_GLASS_PANE", " ", List.of());
         @Comment({
                 "",
-                "Player Points cost, backed by PlayerPoints, charged when the player chooses Player Points."
-        })
-        private int pointsCost = 25;
-        @Comment({
-                "",
-                "Vault economy cost charged when the player chooses Ingame Money."
-        })
-        private double moneyCost = 1000.0D;
-        @Comment({
-                "",
                 "Maximum quest reset purchases each player may make per active reset window.",
                 "Values below 0 are treated as 0."
         })
@@ -1001,9 +1069,70 @@ public class Config {
         private String statusLimitReached = "You have already used your resets for the day";
         @Comment({
                 "",
-                "Button for purchasing with Player Points. Supports <completed>, <required>, <status>, <payment>, <reward>, <amount>, <resets_used>, <resets_limit>, and <resets_remaining>."
+                "Back button used to return from the reset purchase choice menu to daily quests."
         })
-        private MenuButton pointsButton = new MenuButton(11, new MenuItem(
+        private BackButton backButton = new BackButton(22, new MenuItem("ARROW", "<yellow>Back", List.of("<gray>Return to quests.")));
+
+        public QuestResetMenu() {
+        }
+
+        public QuestResetMenu(int dailyLimit) {
+            this.dailyLimit = dailyLimit;
+        }
+
+        public QuestResetMenu(String statusReady, String statusIncomplete, String statusLimitReached) {
+            this.statusReady = statusReady;
+            this.statusIncomplete = statusIncomplete;
+            this.statusLimitReached = statusLimitReached;
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class Currencies {
+        @Comment({
+                "",
+                "PlayerPoints currency settings loaded from currencies/playerpoints.yml."
+        })
+        private PlayerPointsCurrency playerPoints = new PlayerPointsCurrency();
+        @Comment({
+                "",
+                "Vault currency settings loaded from currencies/vault.yml."
+        })
+        private VaultCurrency vault = new VaultCurrency();
+
+        public Currencies() {
+        }
+
+        public Currencies(PlayerPointsCurrency playerPoints, VaultCurrency vault) {
+            this.playerPoints = playerPoints == null ? new PlayerPointsCurrency() : playerPoints;
+            this.vault = vault == null ? new VaultCurrency() : vault;
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class PlayerPointsCurrency {
+        @Comment({
+                "",
+                "Whether PlayerPoints may be used for configured QuestsPlus currency purchases."
+        })
+        private boolean enabled = true;
+        @Comment({
+                "",
+                "Display name used by menus and messages for this currency."
+        })
+        private String displayName = "Player Points";
+        @Comment({
+                "",
+                "PlayerPoints amount charged when purchasing a Quest Reset."
+        })
+        private int questResetCost = 25;
+        @Comment({
+                "",
+                "Button for purchasing a Quest Reset with PlayerPoints. Supports <completed>, <required>, <status>, <payment>, <reward>, <amount>, <resets_used>, <resets_limit>, and <resets_remaining>."
+        })
+        private MenuButton button = new MenuButton(11, new MenuItem(
                 "SUNFLOWER",
                 "<gold>Player Points",
                 List.of(
@@ -1013,11 +1142,41 @@ public class Config {
                         "<yellow>Click to buy and reset."
                 )
         ));
+
+        public PlayerPointsCurrency() {
+        }
+
+        public PlayerPointsCurrency(boolean enabled, String displayName, int questResetCost, MenuButton button) {
+            this.enabled = enabled;
+            this.displayName = displayName;
+            this.questResetCost = questResetCost;
+            this.button = button;
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class VaultCurrency {
         @Comment({
                 "",
-                "Button for purchasing with Vault ingame money. Supports <completed>, <required>, <status>, <payment>, <reward>, <amount>, <resets_used>, <resets_limit>, and <resets_remaining>."
+                "Whether Vault economy may be used for configured QuestsPlus currency purchases."
         })
-        private MenuButton moneyButton = new MenuButton(15, new MenuItem(
+        private boolean enabled = true;
+        @Comment({
+                "",
+                "Display name used by menus and messages for this currency."
+        })
+        private String displayName = "Ingame Money";
+        @Comment({
+                "",
+                "Vault economy amount charged when purchasing a Quest Reset."
+        })
+        private double questResetCost = 1000.0D;
+        @Comment({
+                "",
+                "Button for purchasing a Quest Reset with Vault economy. Supports <completed>, <required>, <status>, <payment>, <reward>, <amount>, <resets_used>, <resets_limit>, and <resets_remaining>."
+        })
+        private MenuButton button = new MenuButton(15, new MenuItem(
                 "EMERALD",
                 "<green>Ingame Money",
                 List.of(
@@ -1027,11 +1186,16 @@ public class Config {
                         "<yellow>Click to buy and reset."
                 )
         ));
-        @Comment({
-                "",
-                "Back button used to return from the reset purchase choice menu to daily quests."
-        })
-        private BackButton backButton = new BackButton(22, new MenuItem("ARROW", "<yellow>Back", List.of("<gray>Return to quests.")));
+
+        public VaultCurrency() {
+        }
+
+        public VaultCurrency(boolean enabled, String displayName, double questResetCost, MenuButton button) {
+            this.enabled = enabled;
+            this.displayName = displayName;
+            this.questResetCost = questResetCost;
+            this.button = button;
+        }
     }
 
     @Getter
@@ -2062,6 +2226,14 @@ public class Config {
                 "Supports <quest_difficulty>, <difficulty>, <difficulty_id>, <completed>, <milestone_completed>, and <milestone_display_name>."
         })
         private Message milestoneClaimed = Message.of("<green>Milestone reward claimed: <white><milestone_display_name></white> <gray>(<quest_difficulty>, <milestone_completed> quests).");
+
+        public MilestoneMessages() {
+        }
+
+        public MilestoneMessages(Message milestoneCompleted, Message milestoneClaimed) {
+            this.milestoneCompleted = milestoneCompleted;
+            this.milestoneClaimed = milestoneClaimed;
+        }
     }
 
     @Getter

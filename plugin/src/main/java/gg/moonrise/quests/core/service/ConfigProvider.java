@@ -48,7 +48,10 @@ public class ConfigProvider implements Reloadable {
         Config.SharedMessagesFile messages = load("messages.yml", Config.SharedMessagesFile.class);
         Config.GlobalQuestsFile globalQuests = load("global-quests.yml", Config.GlobalQuestsFile.class);
         Config.PremiumQuestsFile premiumQuests = load("premium_quests.yml", Config.PremiumQuestsFile.class);
-        return Config.compose(null, daily, difficulties, streaks, messages, globalQuests, premiumQuests);
+        File currenciesFolder = new File(plugin.getDataFolder(), "currencies");
+        Config.PlayerPointsCurrency playerPoints = load(currenciesFolder, "playerpoints.yml", Config.PlayerPointsCurrency.class);
+        Config.VaultCurrency vault = load(currenciesFolder, "vault.yml", Config.VaultCurrency.class);
+        return Config.compose(null, daily, difficulties, streaks, messages, globalQuests, premiumQuests, playerPoints, vault);
     }
 
     private List<Config.DifficultyDirectory> loadDifficulties() {

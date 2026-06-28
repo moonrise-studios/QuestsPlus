@@ -10,7 +10,6 @@ import gg.moonrise.quests.sdk.model.QuestType;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -194,29 +193,27 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetPurchaseLimitClampsNegativeToZero() throws Exception {
+    void questResetPurchaseLimitClampsNegativeToZero() {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
-                Map.of()
+                Map.of(),
+                new Config.QuestResetMenu(-1)
         );
-        set(config.getMenu().getResetMenu(), "dailyLimit", -1);
         QuestService service = questService(config);
 
         assertEquals(0, service.questResetDailyLimit());
     }
 
     @Test
-    void questResetStatusOutputsAreConfigurable() throws Exception {
+    void questResetStatusOutputsAreConfigurable() {
         Config.QuestResetMenu menu = new Config.QuestResetMenu();
 
         assertEquals("Ready", menu.getStatusReady());
         assertEquals("Complete all quests", menu.getStatusIncomplete());
         assertEquals("You have already used your resets for the day", menu.getStatusLimitReached());
 
-        set(menu, "statusReady", "Can reset");
-        set(menu, "statusIncomplete", "Finish your quests");
-        set(menu, "statusLimitReached", "No resets left");
+        menu = new Config.QuestResetMenu("Can reset", "Finish your quests", "No resets left");
 
         assertEquals("Can reset", menu.getStatusReady());
         assertEquals("Finish your quests", menu.getStatusIncomplete());
@@ -298,13 +295,12 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void milestoneMessagesComposeIntoRuntimeMessages() throws Exception {
-        Config.MilestoneMessages milestoneMessages = new Config.MilestoneMessages();
-        set(milestoneMessages, "milestoneCompleted", Message.of("<green>Completed <milestone_display_name>"));
-        set(milestoneMessages, "milestoneClaimed", Message.of("<green>Claimed <milestone_display_name>"));
-
-        Config.SharedMessagesFile sharedMessages = new Config.SharedMessagesFile();
-        set(sharedMessages, "milestoneMessages", milestoneMessages);
+    void milestoneMessagesComposeIntoRuntimeMessages() {
+        Config.MilestoneMessages milestoneMessages = new Config.MilestoneMessages(
+                Message.of("<green>Completed <milestone_display_name>"),
+                Message.of("<green>Claimed <milestone_display_name>")
+        );
+        Config.SharedMessagesFile sharedMessages = new Config.SharedMessagesFile(milestoneMessages);
 
         Config config = Config.compose(null, new Config.DailyFile(), null, null, sharedMessages, null, null);
 
@@ -349,17 +345,16 @@ class QuestPremiumSlotAccessTest {
         );
     }
 
-    private static Config config(int questCount, Map<String, Integer> premiumLimits, Map<String, String> lockedRanks) throws Exception {
-        Config.DailyFile daily = new Config.DailyFile();
-        set(daily, "questCount", questCount);
+    private static Config config(int questCount, Map<String, Integer> premiumLimits, Map<String, String> lockedRanks) {
+        return config(questCount, premiumLimits, lockedRanks, null);
+    }
 
-        Config.PremiumQuestMenu menu = new Config.PremiumQuestMenu();
-        set(menu, "lockedRanks", lockedRanks);
-
-        Config.PremiumQuestsFile premium = new Config.PremiumQuestsFile();
-        set(premium, "permissionLimits", premiumLimits);
-        set(premium, "menu", menu);
-
+    private static Config config(int questCount, Map<String, Integer> premiumLimits, Map<String, String> lockedRanks, Config.QuestResetMenu resetMenu) {
+        Config.DailyFile daily = resetMenu == null
+                ? new Config.DailyFile(questCount)
+                : new Config.DailyFile(questCount, new Config.QuestMenu(resetMenu));
+        Config.PremiumQuestMenu menu = new Config.PremiumQuestMenu(lockedRanks);
+        Config.PremiumQuestsFile premium = new Config.PremiumQuestsFile(premiumLimits, menu);
         return Config.compose(null, daily, null, null, null, null, premium);
     }
 
@@ -407,11 +402,5 @@ class QuestPremiumSlotAccessTest {
                 completed ? 10 : 0,
                 completed
         );
-    }
-
-    private static void set(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 }

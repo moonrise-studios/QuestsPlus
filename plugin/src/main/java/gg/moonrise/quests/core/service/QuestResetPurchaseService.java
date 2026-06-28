@@ -3,10 +3,10 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.milkbowl.vault.economy.Economy;
-import net.milkbowl.vault.economy.EconomyResponse;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.QuestResetPaymentType;
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.black_ixx.playerpoints.PlayerPoints;
 import org.black_ixx.playerpoints.PlayerPointsAPI;
 import org.bukkit.Bukkit;
@@ -45,7 +45,26 @@ public class QuestResetPurchaseService {
         return processingPlayers.contains(player.getUniqueId());
     }
 
+    public boolean hasAvailablePaymentMethods() {
+        for (QuestResetPaymentType type : QuestResetPaymentType.values()) {
+            if (isAvailable(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isEnabled(QuestResetPaymentType type) {
+        return switch (type) {
+            case PLAYER_POINTS -> playerPointsConfig().isEnabled();
+            case MONEY -> vaultConfig().isEnabled();
+        };
+    }
+
     public boolean isAvailable(QuestResetPaymentType type) {
+        if (!isEnabled(type)) {
+            return false;
+        }
         return switch (type) {
             case PLAYER_POINTS -> playerPointsApi() != null;
             case MONEY -> economy() != null;
@@ -53,6 +72,9 @@ public class QuestResetPurchaseService {
     }
 
     public boolean charge(Player player, QuestResetPaymentType type) {
+        if (!isEnabled(type)) {
+            return false;
+        }
         return switch (type) {
             case PLAYER_POINTS -> chargePoints(player);
             case MONEY -> chargeMoney(player);
@@ -60,19 +82,28 @@ public class QuestResetPurchaseService {
     }
 
     public String displayAmount(QuestResetPaymentType type) {
-        Config.QuestResetMenu menu = resetMenu();
         return switch (type) {
-            case PLAYER_POINTS -> Integer.toString(Math.max(0, menu.getPointsCost()));
-            case MONEY -> formatMoney(Math.max(0.0D, menu.getMoneyCost()));
+            case PLAYER_POINTS -> Integer.toString(Math.max(0, playerPointsConfig().getQuestResetCost()));
+            case MONEY -> formatMoney(Math.max(0.0D, vaultConfig().getQuestResetCost()));
         };
     }
 
     public String displayPaymentName(QuestResetPaymentType type) {
-        return type == QuestResetPaymentType.PLAYER_POINTS ? "Player Points" : "Ingame Money";
+        return switch (type) {
+            case PLAYER_POINTS -> playerPointsConfig().getDisplayName();
+            case MONEY -> vaultConfig().getDisplayName();
+        };
+    }
+
+    public Config.MenuButton button(QuestResetPaymentType type) {
+        return switch (type) {
+            case PLAYER_POINTS -> playerPointsConfig().getButton();
+            case MONEY -> vaultConfig().getButton();
+        };
     }
 
     private boolean chargePoints(Player player) {
-        int amount = Math.max(0, resetMenu().getPointsCost());
+        int amount = Math.max(0, playerPointsConfig().getQuestResetCost());
         if (amount <= 0) {
             return true;
         }
@@ -88,7 +119,7 @@ public class QuestResetPurchaseService {
     }
 
     private boolean chargeMoney(Player player) {
-        double amount = Math.max(0.0D, resetMenu().getMoneyCost());
+        double amount = Math.max(0.0D, vaultConfig().getQuestResetCost());
         if (amount <= 0.0D) {
             return true;
         }
@@ -105,27 +136,36 @@ public class QuestResetPurchaseService {
 
     private PlayerPointsAPI playerPointsApi() {
         Plugin plugin = Bukkit.getPluginManager().getPlugin("PlayerPoints");
-        if (!(plugin instanceof PlayerPoints playerPoints)) {
+        if (!(plugin instanceof PlayerPoints playerPoints) || !plugin.isEnabled()) {
             return null;
         }
         return playerPoints.getAPI();
     }
 
     private Economy economy() {
-        if (Bukkit.getPluginManager().getPlugin("Vault") == null) {
+        Plugin vault = Bukkit.getPluginManager().getPlugin("Vault");
+        if (vault == null || !vault.isEnabled()) {
             return null;
         }
         RegisteredServiceProvider<Economy> provider = Bukkit.getServicesManager().getRegistration(Economy.class);
         return provider == null ? null : provider.getProvider();
     }
 
-    private Config.QuestResetMenu resetMenu() {
-        Config.QuestResetMenu menu = configProvider.get().getMenu().getResetMenu();
-        return menu == null ? new Config.QuestResetMenu() : menu;
+    private Config.PlayerPointsCurrency playerPointsConfig() {
+        Config.Currencies currencies = configProvider.get().getCurrencies();
+        return currencies == null || currencies.getPlayerPoints() == null ? new Config.PlayerPointsCurrency() : currencies.getPlayerPoints();
+    }
+
+    private Config.VaultCurrency vaultConfig() {
+        Config.Currencies currencies = configProvider.get().getCurrencies();
+        return currencies == null || currencies.getVault() == null ? new Config.VaultCurrency() : currencies.getVault();
     }
 
     private String formatMoney(double amount) {
         Economy economy = economy();
-        return economy == null ? "$" + MONEY_FORMAT.get().format(amount) : economy.format(amount);
+        if (economy == null) {
+            return "$" + MONEY_FORMAT.get().format(amount);
+        }
+        return economy.format(amount);
     }
 }
