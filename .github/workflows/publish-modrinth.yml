@@ -18,8 +18,8 @@ jobs:
     env:
       MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
       MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
-      MODRINTH_GAME_VERSIONS: ${{ secrets.MODRINTH_GAME_VERSIONS || '1.21.8' }}
-      MODRINTH_LOADERS: ${{ secrets.MODRINTH_LOADERS || 'paper' }}
+      MODRINTH_GAME_VERSIONS: ${{ vars.MODRINTH_GAME_VERSIONS || '1.21.8' }}
+      MODRINTH_LOADERS: ${{ vars.MODRINTH_LOADERS || 'paper' }}
 
     steps:
       - name: Checkout
