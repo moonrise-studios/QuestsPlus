@@ -1,5 +1,7 @@
 package gg.moonrise.quests.sdk.model;
 
+import gg.moonrise.quests.sdk.currency.QuestCurrencies;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import gg.moonrise.quests.sdk.util.QuestPlaceholders;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +24,19 @@ class QuestModelTest {
         assertEquals(QuestType.of("KILL MOBS"), QuestType.of("kill_mobs"));
         assertThrows(IllegalArgumentException.class, () -> QuestType.of(""));
         assertThrows(IllegalArgumentException.class, () -> QuestType.of("bad/key"));
+    }
+
+    @Test
+    void currencyKeyNormalizesKeysAndRejectsInvalidInput() {
+        assertTrue(QuestCurrencyKey.class.isRecord());
+        assertFalse(QuestCurrencyKey.class.isEnum());
+        assertEquals("custom-token", QuestCurrencyKey.normalize(" custom_token "));
+        assertEquals(QuestCurrencyKey.of("custom token"), QuestCurrencyKey.of("custom-token"));
+        assertEquals(QuestCurrencyKey.of("playerpoints"), QuestCurrencies.PLAYER_POINTS);
+        assertEquals(QuestCurrencyKey.of("vault"), QuestCurrencies.VAULT);
+        assertThrows(IllegalArgumentException.class, () -> QuestCurrencyKey.of(""));
+        assertThrows(IllegalArgumentException.class, () -> QuestCurrencyKey.of("-"));
+        assertThrows(IllegalArgumentException.class, () -> QuestCurrencyKey.of("bad/key"));
     }
 
     @Test

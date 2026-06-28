@@ -6,7 +6,8 @@ import gg.moonrise.engine.paper.item.ItemBuilder;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.QuestResetEligibility;
-import gg.moonrise.quests.model.QuestResetPaymentType;
+import gg.moonrise.quests.sdk.currency.QuestCurrency;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
@@ -23,8 +24,9 @@ public class QuestResetPurchaseUI extends ChestMenu {
         int totalSlots = rows(menu) * 9;
         Set<Integer> occupiedSlots = new HashSet<>();
 
-        addPurchaseButton(menuService, occupiedSlots, totalSlots, QuestResetPaymentType.PLAYER_POINTS, eligibility, Material.SUNFLOWER);
-        addPurchaseButton(menuService, occupiedSlots, totalSlots, QuestResetPaymentType.MONEY, eligibility, Material.EMERALD);
+        for (QuestCurrency currency : menuService.questResetCurrencies()) {
+            addPurchaseButton(menuService, occupiedSlots, totalSlots, currency, eligibility);
+        }
 
         Config.BackButton backButton = menu.getBackButton();
         if (backButton != null && backButton.isEnabled()) {
@@ -41,20 +43,19 @@ public class QuestResetPurchaseUI extends ChestMenu {
             QuestMenuService menuService,
             Set<Integer> occupiedSlots,
             int totalSlots,
-            QuestResetPaymentType type,
-            QuestResetEligibility eligibility,
-            Material fallback
+            QuestCurrency currency,
+            QuestResetEligibility eligibility
     ) {
-        Config.MenuButton button = menuService.questResetPaymentButton(type);
-        if (button == null || !button.isEnabled()) {
+        QuestCurrencyButton button = menuService.questResetPaymentButton(currency);
+        if (button == null) {
             return;
         }
-        if (!menuService.canShowQuestResetPayment(type)) {
+        if (!menuService.canShowQuestResetPayment(currency)) {
             return;
         }
-        addTrackedButton(occupiedSlots, totalSlots, button.getSlot(), Button.builder()
-                .item(viewer -> menuService.buildQuestResetPurchaseItem(viewer, button.getItem(), type, eligibility, fallback))
-                .action((guiButton, clicker, event) -> menuService.applyQuestResetPurchase(clicker, type))
+        addTrackedButton(occupiedSlots, totalSlots, button.slot(), Button.builder()
+                .item(viewer -> menuService.buildQuestResetPurchaseItem(viewer, button, currency, eligibility))
+                .action((guiButton, clicker, event) -> menuService.applyQuestResetPurchase(clicker, currency.key()))
                 .build());
     }
 

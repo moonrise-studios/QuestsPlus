@@ -1,6 +1,6 @@
 # QuestsPlus SDK
 
-`sdk` is the public API module for adding custom QuestsPlus goal types from other plugins. It contains only API contracts and immutable quest model records; the runtime implementation lives in the `QuestsPlus` plugin.
+`sdk` is the public API module for adding custom QuestsPlus goal types, variable selectors, and currencies from other plugins. It contains only API contracts and immutable records; the runtime implementation lives in the `QuestsPlus` plugin.
 
 ## Gradle
 
@@ -115,6 +115,68 @@ Implement `GoalHandler` for every custom quest type. QuestsPlus admin progress c
 ## Variable Selectors
 
 Custom variable selectors can be registered with `api.registerVariableSelector(plugin, selector)`. Selector type keys are used in quest definition `variables.<key>.selector`.
+
+## Currencies
+
+External plugins can add Quest Reset purchase currencies by implementing `QuestCurrency` and registering it with `QuestApi`. QuestsPlus owns the reset limit and quest reset transaction; the currency plugin owns availability checks, display amount text, and the charge operation.
+
+```java
+public final class TokenCurrency implements QuestCurrency {
+    private final QuestCurrencyKey key = QuestCurrencyKey.of("tokens");
+
+    @Override
+    public QuestCurrencyKey key() {
+        return key;
+    }
+
+    @Override
+    public String displayName() {
+        return "Tokens";
+    }
+
+    @Override
+    public String displayAmount(Player player) {
+        return "5";
+    }
+
+    @Override
+    public double questResetCost() {
+        return 5.0D;
+    }
+
+    @Override
+    public QuestCurrencyButton button() {
+        return QuestCurrencyButton.of(
+                13,
+                "SUNFLOWER",
+                "<gold>Tokens",
+                List.of("<gray>Spend <yellow>5 tokens<gray> to reset quests.")
+        );
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return tokenService != null;
+    }
+
+    @Override
+    public boolean charge(Player player, double amount) {
+        return tokenService.take(player.getUniqueId(), amount);
+    }
+}
+```
+
+Register and unregister it from your plugin:
+
+```java
+QuestApi api = Bukkit.getServicesManager().load(QuestApi.class);
+api.registerCurrency(this, new TokenCurrency());
+
+// During disable, or before replacing the provider:
+api.unregisterAll(this);
+```
+
+Built-in keys are available in `QuestCurrencies`; custom keys should use `QuestCurrencyKey.of("your-key")`.
 
 ## Artifacts
 

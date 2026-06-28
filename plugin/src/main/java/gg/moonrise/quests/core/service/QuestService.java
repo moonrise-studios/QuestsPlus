@@ -37,8 +37,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
-import java.util.random.RandomGenerator;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -55,7 +55,6 @@ public class QuestService {
     private final Cache<UUID, PlayerQuestState> stateCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<RerollUsageKey, Integer> rerollUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<ResetPurchaseUsageKey, Integer> resetPurchaseUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
-    private final RandomGenerator random = RandomGenerator.getDefault();
 
     public CompletableFuture<PlayerQuestState> ensurePlayerStateAsync(UUID playerId, String resetKey) {
         PlayerQuestState cached = stateCache.getIfPresent(playerId);
@@ -649,7 +648,7 @@ public class QuestService {
                 candidates = withoutCurrent;
             }
         }
-        QuestDefinition definition = candidates.get(random.nextInt(candidates.size()));
+        QuestDefinition definition = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
         Map<String, String> variables = resolveVariables(definition);
         return definitionService.handler(definition.type())
                 .createGeneratedQuest(definition, playerId, resetKey, variables)
@@ -662,7 +661,7 @@ public class QuestService {
         for (Map.Entry<String, String> entry : definition.selectorTypes().entrySet()) {
             String key = entry.getKey();
             QuestVariableSelector selector = definitionService.selector(entry.getValue());
-            resolved.put(key, selector.select(definition.selectorValues().get(key), random));
+            resolved.put(key, selector.select(definition.selectorValues().get(key), ThreadLocalRandom.current()));
         }
         return Map.copyOf(resolved);
     }
@@ -853,7 +852,7 @@ public class QuestService {
         if (commands == null || commands.isEmpty()) {
             return java.util.Optional.empty();
         }
-        return java.util.Optional.ofNullable(commands.get(random.nextInt(commands.size())));
+        return java.util.Optional.ofNullable(commands.get(ThreadLocalRandom.current().nextInt(commands.size())));
     }
 
     private Map<String, String> commonPlaceholders(GeneratedQuest quest, Player player) {

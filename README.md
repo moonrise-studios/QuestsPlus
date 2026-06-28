@@ -22,7 +22,8 @@ and staff tools from modular files under `plugins/QuestsPlus/`.
 
 QuestsPlus declares PlayerPoints, Vault, and RoseStacker as optional plugin
 dependencies. Currency-backed reset purchases only appear for the enabled
-currency integrations that are present on the server.
+currency integrations that are present on the server. Other plugins can also
+register Quest Reset currencies through the QuestsPlus SDK.
 
 ## What QuestsPlus Adds
 
@@ -30,7 +31,8 @@ currency integrations that are present on the server.
 - Daily or weekly personal quest reset schedules.
 - Permission-based daily reroll limits.
 - Permission-based premium quest slots with locked-slot display items.
-- Quest Reset purchases using optional PlayerPoints and/or Vault currency.
+- Quest Reset purchases using optional PlayerPoints, Vault, or SDK-registered
+  currencies.
 - Per-difficulty lifetime completion milestones.
 - Quest streaks with shields, recovery, and streak milestone rewards.
 - Weekly global quests with contribution tracking and percentile reward tiers.
@@ -41,9 +43,9 @@ currency integrations that are present on the server.
 ## First Setup
 
 1. Install QuestsPlus on a Paper server running Java 21.
-2. Install PlayerPoints, Vault, or both if quest reset purchases should use
-   external currency. Add RoseStacker if stacked mob kills should count toward
-   combat quests.
+2. Install PlayerPoints, Vault, or a custom QuestsPlus currency plugin if quest
+   reset purchases should use external currency. Add RoseStacker if stacked mob
+   kills should count toward combat quests.
 3. Start the server once so QuestsPlus can generate its default files.
 4. Edit the files under `plugins/QuestsPlus/`.
 5. Run `/qa reload` after config changes.
@@ -59,8 +61,7 @@ installs use the modular layout below.
 | File or folder | Owns |
 |---|---|
 | `daily.yml` | Daily/weekly reset mode, quest count, reroll limits, daily menu, difficulty picker, and daily messages |
-| `currencies/playerpoints.yml` | PlayerPoints enablement, display name, Quest Reset cost, and purchase button |
-| `currencies/vault.yml` | Vault economy enablement, display name, Quest Reset cost, and purchase button |
+| `currencies.yml` | Enabled currency keys plus PlayerPoints/Vault display, cost, and purchase button settings |
 | `difficulty/<id>/settings.yml` | Difficulty display name, lore, menu placement, requirements, and baseline rewards |
 | `difficulty/<id>/quests.yml` | Personal quest definitions for that difficulty |
 | `difficulty/<id>/milestones.yml` | Lifetime completion milestones for that difficulty |
@@ -181,17 +182,23 @@ Unlocked premium slots do count.
 ## Quest Reset Purchases
 
 Quest Reset purchase menu limits and shared status text are configured in
-`daily.yml`. Currency-specific costs and buttons are configured under
-`currencies/`. They let a player clear their current reset-window quest slots
-after completing every slot they can access.
+`daily.yml`. The `currencies.yml` `enabled-currencies` list controls which
+currency keys may be offered; the default keys are `vault` and `playerpoints`.
+Currency-specific costs and buttons are configured in `currencies.yml`. They let
+a player clear their current reset-window quest slots after completing every slot
+they can access.
 
 Supported payment paths:
 
-- Optional PlayerPoints in `currencies/playerpoints.yml`
-- Optional Vault economy in `currencies/vault.yml`
+- Optional PlayerPoints via the `playerpoints` section in `currencies.yml`
+- Optional Vault economy via the `vault` section in `currencies.yml`
+- Custom currencies registered by other plugins through the QuestsPlus SDK
 
-Each currency file has its own `enabled`, `display-name`, `quest-reset-cost`,
-and `button` settings.
+Each built-in currency must be listed in `currencies.yml` `enabled-currencies`
+before it can appear. If a listed currency's backing plugin is missing,
+QuestsPlus logs an error and hides that currency. SDK currencies own their cost,
+button, display text, availability, and charge logic in the plugin that
+registers them.
 
 Reset purchase limits are per reset window. A successful purchase clears the
 current generated quests but preserves lifetime completions, milestones, streaks,
