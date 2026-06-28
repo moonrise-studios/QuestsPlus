@@ -1,6 +1,9 @@
 # QuestsPlus
 > See [LICENSE.MD](LICENSE.MD) before using, modifying, or redistributing this plugin.
 
+[![Modrinth](https://img.shields.io/modrinth/v/questsplus?logo=modrinth&label=Modrinth&color=00AF5C)](https://modrinth.com/plugin/questsplus)
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/questsplus?logo=modrinth&label=Downloads&color=00AF5C)](https://modrinth.com/plugin/questsplus)
+
 QuestsPlus is a Paper quest plugin for servers that want configurable daily
 quests, premium quest slots, quest reset purchases, streak systems, milestones,
 and weekly global goals without forcing every reward or menu into one file.
