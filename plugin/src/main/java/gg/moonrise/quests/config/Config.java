@@ -2235,11 +2235,6 @@ public class Config {
         private boolean enabled = true;
         @Comment({
                 "",
-                "Enabled indicator type keys. Supported values: BOSS_BAR, ACTION_BAR, CHAT."
-        })
-        private List<String> types = List.of("BOSS_BAR");
-        @Comment({
-                "",
                 "BossBar progress indicator settings."
         })
         private BossBarProgressIndicator bossBar = new BossBarProgressIndicator();

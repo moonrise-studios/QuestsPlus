@@ -21,7 +21,6 @@ import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @SpringComponent
@@ -115,40 +114,18 @@ public class QuestProgressIndicatorService {
     }
 
     private List<String> availableIndicatorTypes(Config.ProgressIndicators config) {
-        List<String> configuredTypes = configuredTypes(config);
-        Set<String> registeredTypes = indicators.stream()
-                .map(QuestProgressIndicator::type)
-                .collect(java.util.stream.Collectors.toSet());
         LinkedHashSet<String> available = new LinkedHashSet<>();
-        if (registeredTypes.contains(QuestIndicatorPreferenceService.DEFAULT_INDICATOR)
-                && indicatorEnabled(QuestIndicatorPreferenceService.DEFAULT_INDICATOR, configuredTypes, config)) {
-            available.add(QuestIndicatorPreferenceService.DEFAULT_INDICATOR);
-        }
-        for (String configuredType : configuredTypes) {
-            if (!QuestIndicatorPreferenceService.DEFAULT_INDICATOR.equals(configuredType)
-                    && registeredTypes.contains(configuredType)
-                    && indicatorEnabled(configuredType, configuredTypes, config)) {
-                available.add(configuredType);
+        for (QuestProgressIndicator indicator : indicators) {
+            if (indicatorEnabled(indicator.type(), config)) {
+                available.add(indicator.type());
             }
         }
         return new ArrayList<>(available);
     }
 
-    private List<String> configuredTypes(Config.ProgressIndicators config) {
-        return config.getTypes() == null
-                ? List.of()
-                : config.getTypes().stream()
-                .filter(type -> type != null && !type.isBlank())
-                .map(type -> type.trim().toUpperCase(java.util.Locale.ROOT))
-                .toList();
-    }
-
-    private boolean indicatorEnabled(String type, List<String> configuredTypes, Config.ProgressIndicators config) {
+    private boolean indicatorEnabled(String type, Config.ProgressIndicators config) {
         if ("BOSS_BAR".equals(type)) {
             return bossBar(config).isEnabled();
-        }
-        if (!configuredTypes.contains(type)) {
-            return false;
         }
         if ("ACTION_BAR".equals(type)) {
             return actionBar(config).isEnabled();
