@@ -60,15 +60,20 @@ installs use the modular layout below.
 
 | File or folder | Owns |
 |---|---|
-| `daily.yml` | Daily/weekly reset mode, quest count, reroll limits, daily menu, difficulty picker, and daily messages |
+| `storage-settings.yml` | SQLite database file location |
+| `daily.yml` | Daily/weekly reset mode, quest count, reroll limits, and daily messages |
+| `quest-menu.yml` | Daily quest menu layout, empty-slot item, quest item templates, and difficulty picker |
+| `quest-resets.yml` | Quest Reset menu button, purchase menu, per-window limit, and reset status text |
 | `currencies.yml` | Enabled currency keys plus PlayerPoints/Vault display, cost, and purchase button settings |
 | `difficulty/<id>/settings.yml` | Difficulty display name, lore, menu placement, requirements, and baseline rewards |
 | `difficulty/<id>/quests.yml` | Personal quest definitions for that difficulty |
 | `difficulty/<id>/milestones.yml` | Lifetime completion milestones for that difficulty |
+| `quest-milestones.yml` | Shared completion milestone messages, selector menu, and milestone page layout |
 | `premium_quests.yml` | Premium slot permissions, locked-slot items, premium quest styling, and bonus rewards |
 | `streaks.yml` | Streak rules, shields, recovery, streak milestones, and streak menus |
 | `global-quests.yml` | Weekly global quest schedule, global definitions, contribution rewards, and preview menu |
-| `messages.yml` | Shared messages, admin messages, milestone menus, and progress indicator settings |
+| `progress-indicators.yml` | Runtime progress indicator types, templates, timing, and BossBar styling |
+| `messages.yml` | Shared command/admin messages |
 
 Most menu text, messages, quest descriptions, and reward displays support
 MiniMessage formatting. Reward and display text can use placeholders for player
@@ -181,12 +186,12 @@ Unlocked premium slots do count.
 
 ## Quest Reset Purchases
 
-Quest Reset purchase menu limits and shared status text are configured in
-`daily.yml`. The `currencies.yml` `enabled-currencies` list controls which
-currency keys may be offered; the default keys are `vault` and `playerpoints`.
-Currency-specific costs and buttons are configured in `currencies.yml`. They let
-a player clear their current reset-window quest slots after completing every slot
-they can access.
+Quest Reset menu placement, purchase menu limits, and shared status text are
+configured in `quest-resets.yml`. The `currencies.yml` `enabled-currencies` list
+controls which currency keys may be offered; the default keys are `vault` and
+`playerpoints`. Currency-specific costs and buttons are configured in
+`currencies.yml`. They let a player clear their current reset-window quest slots
+after completing every slot they can access.
 
 Supported payment paths:
 
@@ -257,7 +262,7 @@ Admins can test global quests with:
 
 ## Progress Indicators
 
-Progress indicators are configured in `messages.yml`.
+Progress indicators are configured in `progress-indicators.yml`.
 
 Supported indicator types:
 

@@ -45,6 +45,11 @@ public class Config {
             "Player and admin-facing messages."
     })
     private Messages messages = new Messages();
+    @Comment({
+            "",
+            "Runtime quest progress indicator settings."
+    })
+    private ProgressIndicators progressIndicators = new ProgressIndicators();
 
     @Comment({
             "",
@@ -115,7 +120,7 @@ public class Config {
             GlobalQuestsFile globalQuestsFile,
             PremiumQuestsFile premiumQuestsFile
     ) {
-        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, null);
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, (PlayerPointsCurrency) null, null);
     }
 
     public static Config compose(
@@ -129,16 +134,38 @@ public class Config {
             PlayerPointsCurrency playerPointsCurrency,
             VaultCurrency vaultCurrency
     ) {
-        return compose(
-                storage,
-                dailyFile,
-                difficultyDirectories,
-                streaksFile,
-                sharedMessagesFile,
-                globalQuestsFile,
-                premiumQuestsFile,
-                new Currencies(null, playerPointsCurrency, vaultCurrency)
-        );
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, playerPointsCurrency, vaultCurrency);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            QuestResetsFile questResetsFile,
+            PlayerPointsCurrency playerPointsCurrency,
+            VaultCurrency vaultCurrency
+    ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, questResetsFile, playerPointsCurrency, vaultCurrency);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            QuestMilestonesFile questMilestonesFile,
+            QuestResetsFile questResetsFile,
+            PlayerPointsCurrency playerPointsCurrency,
+            VaultCurrency vaultCurrency
+    ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, questMilestonesFile, questResetsFile, null, new Currencies(null, playerPointsCurrency, vaultCurrency));
     }
 
     public static Config compose(
@@ -151,23 +178,91 @@ public class Config {
             PremiumQuestsFile premiumQuestsFile,
             Currencies currenciesFile
     ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, currenciesFile);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            QuestResetsFile questResetsFile,
+            Currencies currenciesFile
+    ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, questResetsFile, currenciesFile);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            QuestMilestonesFile questMilestonesFile,
+            QuestResetsFile questResetsFile,
+            Currencies currenciesFile
+    ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, questMilestonesFile, questResetsFile, null, currenciesFile);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            QuestMilestonesFile questMilestonesFile,
+            QuestResetsFile questResetsFile,
+            ProgressIndicatorsFile progressIndicatorsFile,
+            Currencies currenciesFile
+    ) {
+        return compose(storage, dailyFile, difficultyDirectories, streaksFile, sharedMessagesFile, globalQuestsFile, premiumQuestsFile, null, questMilestonesFile, questResetsFile, progressIndicatorsFile, currenciesFile);
+    }
+
+    public static Config compose(
+            Storage storage,
+            DailyFile dailyFile,
+            List<DifficultyDirectory> difficultyDirectories,
+            StreaksFile streaksFile,
+            SharedMessagesFile sharedMessagesFile,
+            GlobalQuestsFile globalQuestsFile,
+            PremiumQuestsFile premiumQuestsFile,
+            QuestMenuFile questMenuFile,
+            QuestMilestonesFile questMilestonesFile,
+            QuestResetsFile questResetsFile,
+            ProgressIndicatorsFile progressIndicatorsFile,
+            Currencies currenciesFile
+    ) {
         Config config = new Config();
         DailyFile daily = dailyFile == null ? new DailyFile() : dailyFile;
         DifficultyComposition difficulties = composeDifficultyDirectories(difficultyDirectories);
         StreaksFile streaks = streaksFile == null ? new StreaksFile() : streaksFile;
         SharedMessagesFile sharedMessages = sharedMessagesFile == null ? new SharedMessagesFile() : sharedMessagesFile;
+        QuestMenuFile questMenu = questMenuFile == null ? QuestMenuFile.fromDaily(daily) : questMenuFile;
+        QuestMilestonesFile questMilestones = questMilestonesFile == null ? QuestMilestonesFile.fromSharedMessages(sharedMessages) : questMilestonesFile;
         GlobalQuestsFile globalQuests = globalQuestsFile == null ? new GlobalQuestsFile() : globalQuestsFile;
         PremiumQuestsFile premiumQuests = premiumQuestsFile == null ? new PremiumQuestsFile() : premiumQuestsFile;
+        QuestResetsFile questResets = questResetsFile == null ? QuestResetsFile.fromMenu(questMenu.getMenu()) : questResetsFile;
+        ProgressIndicatorsFile progressIndicators = progressIndicatorsFile == null ? ProgressIndicatorsFile.fromSharedMessages(sharedMessages) : progressIndicatorsFile;
         Currencies currencies = currenciesFile == null ? new Currencies() : currenciesFile;
 
         config.storage = storage == null ? new Storage() : storage;
         config.daily = daily.toDaily();
-        config.menu = daily.menu == null ? new QuestMenu() : daily.menu;
+        config.menu = questMenu.getMenu() == null ? new QuestMenu() : questMenu.getMenu();
+        config.menu.applyQuestResets(questResets);
         config.questDefinitions = difficulties.questDefinitions();
         config.questDifficulties = difficulties.questDifficulties();
-        config.milestoneMenu = sharedMessages.milestoneMenu == null ? new MilestoneMenu() : sharedMessages.milestoneMenu;
+        config.milestoneMenu = questMilestones.getMenu() == null ? new MilestoneMenu() : questMilestones.getMenu();
         config.streaks = streaks.toStreaks();
-        config.messages = composeMessages(sharedMessages, daily.messages, sharedMessages.milestoneMessages, streaks.messages);
+        config.messages = composeMessages(sharedMessages, daily.messages, questMilestones.getMessages(), streaks.messages);
+        config.progressIndicators = progressIndicators.getProgressIndicators() == null ? new ProgressIndicators() : progressIndicators.getProgressIndicators();
         config.globalQuests = globalQuests;
         config.premiumQuests = premiumQuests;
         config.currencies = currencies;
@@ -270,6 +365,7 @@ public class Config {
                 "",
                 "Daily quest menu, empty-slot item, quest item, and difficulty picker layout."
         })
+        @Ignore
         private QuestMenu menu = new QuestMenu();
         @Comment({
                 "",
@@ -460,16 +556,19 @@ public class Config {
                 "",
                 "Messages used for completed quest totals and per-difficulty summaries."
         })
+        @Ignore
         private MilestoneMessages milestoneMessages = new MilestoneMessages();
         @Comment({
                 "",
                 "Quest milestone selector and milestone page menu layout."
         })
+        @Ignore
         private MilestoneMenu milestoneMenu = new MilestoneMenu();
         @Comment({
                 "",
                 "Progress indicator UI settings used when personal or global quest progress is applied."
         })
+        @Ignore
         private ProgressIndicators progressIndicators = new ProgressIndicators();
 
         public SharedMessagesFile() {
@@ -477,6 +576,114 @@ public class Config {
 
         public SharedMessagesFile(MilestoneMessages milestoneMessages) {
             this.milestoneMessages = milestoneMessages == null ? new MilestoneMessages() : milestoneMessages;
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class QuestResetsFile {
+        @Comment({
+                "",
+                "Button shown in the daily quest menu for completed-quest reset purchases."
+        })
+        private QuestResetButton button = new QuestResetButton();
+        @Comment({
+                "",
+                "Purchase choice menu, per-window reset limit, and reset status text."
+        })
+        private QuestResetMenu menu = new QuestResetMenu();
+
+        public QuestResetsFile() {
+        }
+
+        public QuestResetsFile(QuestResetButton button, QuestResetMenu menu) {
+            this.button = button == null ? new QuestResetButton() : button;
+            this.menu = menu == null ? new QuestResetMenu() : menu;
+        }
+
+        private static QuestResetsFile fromMenu(QuestMenu menu) {
+            if (menu == null) {
+                return new QuestResetsFile();
+            }
+            return new QuestResetsFile(menu.resetButton, menu.resetMenu);
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class QuestMenuFile {
+        @Comment({
+                "",
+                "Daily quest menu, empty-slot item, active/completed quest items, and difficulty picker layout."
+        })
+        private QuestMenu menu = new QuestMenu();
+
+        public QuestMenuFile() {
+        }
+
+        public QuestMenuFile(QuestMenu menu) {
+            this.menu = menu == null ? new QuestMenu() : menu;
+        }
+
+        private static QuestMenuFile fromDaily(DailyFile daily) {
+            if (daily == null || daily.menu == null) {
+                return new QuestMenuFile();
+            }
+            return new QuestMenuFile(daily.menu);
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class QuestMilestonesFile {
+        @Comment({
+                "",
+                "Messages used when players view completed totals and receive completion milestone rewards."
+        })
+        private MilestoneMessages messages = new MilestoneMessages();
+        @Comment({
+                "",
+                "Quest milestone selector and milestone page menu layout."
+        })
+        private MilestoneMenu menu = new MilestoneMenu();
+
+        public QuestMilestonesFile() {
+        }
+
+        public QuestMilestonesFile(MilestoneMessages messages, MilestoneMenu menu) {
+            this.messages = messages == null ? new MilestoneMessages() : messages;
+            this.menu = menu == null ? new MilestoneMenu() : menu;
+        }
+
+        private static QuestMilestonesFile fromSharedMessages(SharedMessagesFile sharedMessages) {
+            if (sharedMessages == null) {
+                return new QuestMilestonesFile();
+            }
+            return new QuestMilestonesFile(sharedMessages.milestoneMessages, sharedMessages.milestoneMenu);
+        }
+    }
+
+    @Getter
+    @Configuration
+    public static class ProgressIndicatorsFile {
+        @Comment({
+                "",
+                "Runtime quest progress indicators used when personal or global quest progress is applied."
+        })
+        private ProgressIndicators progressIndicators = new ProgressIndicators();
+
+        public ProgressIndicatorsFile() {
+        }
+
+        public ProgressIndicatorsFile(ProgressIndicators progressIndicators) {
+            this.progressIndicators = progressIndicators == null ? new ProgressIndicators() : progressIndicators;
+        }
+
+        private static ProgressIndicatorsFile fromSharedMessages(SharedMessagesFile sharedMessages) {
+            if (sharedMessages == null || sharedMessages.progressIndicators == null) {
+                return new ProgressIndicatorsFile();
+            }
+            return new ProgressIndicatorsFile(sharedMessages.progressIndicators);
         }
     }
 
@@ -922,6 +1129,12 @@ public class Config {
         public QuestMenu(QuestResetMenu resetMenu) {
             this.resetMenu = resetMenu == null ? new QuestResetMenu() : resetMenu;
         }
+
+        private void applyQuestResets(QuestResetsFile questResets) {
+            QuestResetsFile resets = questResets == null ? new QuestResetsFile() : questResets;
+            this.resetButton = resets.getButton() == null ? new QuestResetButton() : resets.getButton();
+            this.resetMenu = resets.getMenu() == null ? new QuestResetMenu() : resets.getMenu();
+        }
     }
 
     @Getter
@@ -1033,7 +1246,7 @@ public class Config {
                 "",
                 "Item template for the completed-quest reset button.",
                 "Supports <completed>, <required>, <status>, <resets_used>, <resets_limit>, and <resets_remaining>.",
-                "<status> is controlled by menu.reset-menu status outputs."
+                "<status> is controlled by quest-resets.yml menu status outputs."
         })
         private MenuItem item = new MenuItem(
                 "AMETHYST_SHARD",

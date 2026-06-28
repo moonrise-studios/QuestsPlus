@@ -42,14 +42,19 @@ public class ConfigProvider implements Reloadable {
     }
 
     private Config loadConfig() {
+        Config.Storage storage = load("storage-settings.yml", Config.Storage.class);
         Config.DailyFile daily = load("daily.yml", Config.DailyFile.class);
+        Config.QuestMenuFile questMenu = load("quest-menu.yml", Config.QuestMenuFile.class);
         List<Config.DifficultyDirectory> difficulties = loadDifficulties();
         Config.StreaksFile streaks = load("streaks.yml", Config.StreaksFile.class);
         Config.SharedMessagesFile messages = load("messages.yml", Config.SharedMessagesFile.class);
+        Config.QuestMilestonesFile questMilestones = load("quest-milestones.yml", Config.QuestMilestonesFile.class);
+        Config.QuestResetsFile questResets = load("quest-resets.yml", Config.QuestResetsFile.class);
+        Config.ProgressIndicatorsFile progressIndicators = load("progress-indicators.yml", Config.ProgressIndicatorsFile.class);
         Config.GlobalQuestsFile globalQuests = load("global-quests.yml", Config.GlobalQuestsFile.class);
         Config.PremiumQuestsFile premiumQuests = load("premium_quests.yml", Config.PremiumQuestsFile.class);
         Config.Currencies currenciesFile = load("currencies.yml", Config.Currencies.class);
-        return Config.compose(null, daily, difficulties, streaks, messages, globalQuests, premiumQuests, currenciesFile);
+        return Config.compose(storage, daily, difficulties, streaks, messages, globalQuests, premiumQuests, questMenu, questMilestones, questResets, progressIndicators, currenciesFile);
     }
 
     private List<Config.DifficultyDirectory> loadDifficulties() {

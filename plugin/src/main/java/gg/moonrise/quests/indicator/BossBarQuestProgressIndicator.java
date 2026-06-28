@@ -90,7 +90,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
     }
 
     private Config.BossBarProgressIndicator config() {
-        Config.ProgressIndicators indicators = configProvider.get().getMessages().getProgressIndicators();
+        Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
         return indicators == null || indicators.getBossBar() == null
                 ? new Config.BossBarProgressIndicator()
                 : indicators.getBossBar();

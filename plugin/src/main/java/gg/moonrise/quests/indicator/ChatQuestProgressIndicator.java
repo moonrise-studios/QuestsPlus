@@ -91,7 +91,7 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
     }
 
     private Config.ChatProgressIndicator config() {
-        Config.ProgressIndicators indicators = configProvider.get().getMessages().getProgressIndicators();
+        Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
         return indicators == null || indicators.getChat() == null
                 ? new Config.ChatProgressIndicator()
                 : indicators.getChat();

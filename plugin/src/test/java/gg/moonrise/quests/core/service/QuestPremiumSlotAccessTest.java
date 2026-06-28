@@ -308,6 +308,37 @@ class QuestPremiumSlotAccessTest {
         assertEquals("<green>Claimed <milestone_display_name>", config.getMessages().getMilestoneClaimed().content());
     }
 
+    @Test
+    void questMilestonesFileOverridesSharedMilestoneMessages() {
+        Config.MilestoneMessages sharedMilestoneMessages = new Config.MilestoneMessages(
+                Message.of("<red>Legacy completed"),
+                Message.of("<red>Legacy claimed")
+        );
+        Config.MilestoneMessages modularMilestoneMessages = new Config.MilestoneMessages(
+                Message.of("<green>Modular completed"),
+                Message.of("<green>Modular claimed")
+        );
+        Config.SharedMessagesFile sharedMessages = new Config.SharedMessagesFile(sharedMilestoneMessages);
+        Config.QuestMilestonesFile questMilestones = new Config.QuestMilestonesFile(modularMilestoneMessages, new Config.MilestoneMenu());
+
+        Config config = Config.compose(null, new Config.DailyFile(), null, null, sharedMessages, null, null, questMilestones, null, (Config.Currencies) null);
+
+        assertEquals("<green>Modular completed", config.getMessages().getMilestoneCompleted().content());
+        assertEquals("<green>Modular claimed", config.getMessages().getMilestoneClaimed().content());
+    }
+
+    @Test
+    void questMenuFileOverridesDailyMenuFallback() {
+        Config.QuestMenu legacyMenu = new Config.QuestMenu(new Config.QuestResetMenu("Legacy", "Legacy incomplete", "Legacy limit"));
+        Config.QuestMenu modularMenu = new Config.QuestMenu(new Config.QuestResetMenu("Modular", "Modular incomplete", "Modular limit"));
+        Config.DailyFile daily = new Config.DailyFile(3, legacyMenu);
+        Config.QuestMenuFile questMenu = new Config.QuestMenuFile(modularMenu);
+
+        Config config = Config.compose(null, daily, null, null, null, null, null, questMenu, null, null, null, (Config.Currencies) null);
+
+        assertEquals("Modular", config.getMenu().getResetMenu().getStatusReady());
+    }
+
     private static QuestService questService(Config config) {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);

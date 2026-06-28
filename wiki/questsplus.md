@@ -72,14 +72,19 @@ QuestsPlus no longer reads `plugins/QuestsPlus/config.yml` or the old flat `stor
 
 | File | Owns |
 |------|------|
-| `daily.yml` | Daily/weekly reset mode and schedule, quest count, reroll limits, daily quest menu, difficulty picker, and daily quest/reroll messages |
+| `storage-settings.yml` | SQLite database file location |
+| `daily.yml` | Daily/weekly reset mode and schedule, quest count, reroll limits, and daily quest/reroll messages |
+| `quest-menu.yml` | Daily quest menu layout, empty-slot item, quest item templates, and difficulty picker |
+| `quest-resets.yml` | Quest Reset menu button, purchase menu, per-window limit, and reset status text |
 | `difficulty/<id>/settings.yml` | Difficulty display name, menu lore, and baseline difficulty rewards |
 | `difficulty/<id>/quests.yml` | Data-driven personal quest definitions for that difficulty |
 | `difficulty/<id>/milestones.yml` | Completion milestones for that difficulty |
+| `quest-milestones.yml` | Shared completion milestone messages, selector menu, and milestone page layout |
 | `streaks.yml` | Streak settings, streak milestones, streak menus, shield/recovery menus, and streak messages |
 | `premium_quests.yml` | Premium personal slot permissions, premium bonus rewards, and premium quest item display styling |
 | `global-quests.yml` | Weekly global quest schedule, definitions, menu item, contribution rewards, and messages |
-| `messages.yml` | Shared command/admin/common messages, milestone menu/messages, and progress indicator settings |
+| `progress-indicators.yml` | Runtime progress indicator types, templates, timing, and BossBar styling |
+| `messages.yml` | Shared command/admin/common messages |
 
 Examples:
 
@@ -281,7 +286,7 @@ reduced-reward-tiers:
 ```
 
 ```yaml
-# messages.yml
+# progress-indicators.yml
 progress-indicators:
   enabled: true
   types: [BOSS_BAR]
@@ -327,7 +332,7 @@ Each folder under `difficulty/` is one config-only difficulty tag. `settings.yml
 
 Every personal quest definition inherits its difficulty from the containing `difficulty/<id>/` folder. Global quest definitions still declare `difficulty` in `global-quests.yml` because they are not scoped by a difficulty folder. `easy` is the default sample difficulty and must remain configured for legacy generated quest fallback.
 
-The daily difficulty picker lists configured difficulty folders. Choosing one for an empty slot samples from enabled quest definitions in that difficulty folder. Personal quest definitions are assigned to their containing folder's difficulty id during load. `picker-slot` can place a difficulty at a zero-based slot in the difficulty picker; `-1`, invalid slots, or duplicate slots fall back to `daily.yml` `menu.difficulty-picker.slots` order. Difficulty picker and quest item lore templates can use `<difficulty_lore>` to insert the configured lore lines at that exact position. Empty difficulty lore renders no lines.
+The daily difficulty picker lists configured difficulty folders. Choosing one for an empty slot samples from enabled quest definitions in that difficulty folder. Personal quest definitions are assigned to their containing folder's difficulty id during load. `picker-slot` can place a difficulty at a zero-based slot in the difficulty picker; `-1`, invalid slots, or duplicate slots fall back to `quest-menu.yml` `menu.difficulty-picker.slots` order. Difficulty picker and quest item lore templates can use `<difficulty_lore>` to insert the configured lore lines at that exact position. Empty difficulty lore renders no lines.
 
 ### Daily Rerolls
 
@@ -337,11 +342,11 @@ Rerolling is menu-driven only. Clicking an incomplete selected quest opens the d
 
 ### Completed Quest Reset Purchases
 
-The main daily quest menu reset button is configured under `daily.yml` `menu.reset-button`; the submenu layout, shared statuses, limit, filler, and back button are configured under `menu.reset-menu`. The reset button can use `<completed>`, `<required>`, `<status>`, `<resets_used>`, `<resets_limit>`, and `<resets_remaining>`. `<status>` is controlled by `menu.reset-menu.status-ready`, `menu.reset-menu.status-incomplete`, and `menu.reset-menu.status-limit-reached`. `currencies.yml` `enabled-currencies` controls which currency keys may be offered; the defaults are `vault` and `playerpoints`. Built-in purchase buttons are configured in the `playerpoints` and `vault` sections of `currencies.yml`. Purchase buttons can use `<completed>`, `<required>`, `<status>`, `<payment>`, `<reward>`, `<amount>`, `<resets_used>`, `<resets_limit>`, and `<resets_remaining>`.
+The main daily quest menu reset button is configured in `quest-resets.yml` under `button`; the submenu layout, shared statuses, limit, filler, and back button are configured under `menu`. The reset button can use `<completed>`, `<required>`, `<status>`, `<resets_used>`, `<resets_limit>`, and `<resets_remaining>`. `<status>` is controlled by `menu.status-ready`, `menu.status-incomplete`, and `menu.status-limit-reached`. `currencies.yml` `enabled-currencies` controls which currency keys may be offered; the defaults are `vault` and `playerpoints`. Built-in purchase buttons are configured in the `playerpoints` and `vault` sections of `currencies.yml`. Purchase buttons can use `<completed>`, `<required>`, `<status>`, `<payment>`, `<reward>`, `<amount>`, `<resets_used>`, `<resets_limit>`, and `<resets_remaining>`.
 
 The reset purchase menu opens only when every slot the player can access is selected and complete. Normal slots come from `daily.quest-count`; premium slots come from the player's highest matching `questsplus.premium.<key>` permission in `premium_quests.yml`. Locked premium slots do not count, but unlocked premium slots must be complete.
 
-`menu.reset-menu.daily-limit` controls how many Quest Reset purchases each player can make in the active reset window. It defaults to `1`, is keyed by the same daily or weekly reset key as generated quests, and values below `0` are treated as `0`. The limit applies only to player purchases from the reset purchase menu. Admin commands such as `/qa reset`, `/qa complete`, and `/qa dailyrerolls reset` do not consume or check purchased reset usage. When a player has no resets remaining, the reset purchase menu does not open and QuestsPlus sends `quest-reset-limit-reached`.
+`quest-resets.yml` `menu.daily-limit` controls how many Quest Reset purchases each player can make in the active reset window. It defaults to `1`, is keyed by the same daily or weekly reset key as generated quests, and values below `0` are treated as `0`. The limit applies only to player purchases from the reset purchase menu. Admin commands such as `/qa reset`, `/qa complete`, and `/qa dailyrerolls reset` do not consume or check purchased reset usage. When a player has no resets remaining, the reset purchase menu does not open and QuestsPlus sends `quest-reset-limit-reached`.
 
 PlayerPoints and Vault are optional server dependencies for Quest Reset purchases. List built-in keys in `currencies.yml` `enabled-currencies` to control which built-in currencies QuestsPlus may offer. Each built-in currency section owns its `display-name`, `quest-reset-cost`, and purchase `button`. The PlayerPoints option appears only when `playerpoints` is listed and PlayerPoints is installed; choosing it charges `playerpoints.quest-reset-cost`. The Vault option appears only when `vault` is listed and Vault has an economy provider; choosing it charges `vault.quest-reset-cost`. If a listed built-in currency is missing its backing plugin or service, QuestsPlus logs an error and hides it from the menu. External plugins can register additional currencies with `QuestApi#registerCurrency`; those plugins own their own config, availability checks, displayed amount, button, and charge callback. QuestsPlus checks the remaining reset limit before charging any currency. A successful purchase increments `player_quest_resets.used_count` and clears the current `player_quests` rows in one SQLite transaction, then returns the player to empty slots for the same reset window. Lifetime difficulty completion stats, milestones, streak state, shield/recovery balances, and `player_quest_rerolls` usage are preserved.
 
@@ -609,7 +614,7 @@ External handlers should call `QuestApi#progressMatching(player, type, amount, m
 
 Before matched progress is applied, QuestsPlus fires SDK `QuestProgressEvent`. Listeners can cancel the event or edit the progress amount before cache updates, SQLite persistence, completion rewards, milestones, streaks, or global contribution happen. Causes are `EVENT` for built-in Bukkit listener progress, `API` for `QuestApi#progressMatching`, `COMMAND` for QuestsPlus admin command progress, and `UNKNOWN` for fallback use.
 
-`messages.yml progress-indicators` controls runtime quest progress indicators. Supported types are `BOSS_BAR`, `ACTION_BAR`, and `CHAT`; players choose `Main`, `Both`, or `Global` as the first `/quests indicator <scope> <type>` argument. `OFF` disables that scope for the player, while `DEFAULT` clears the saved preference. Players with no saved preference use `BOSS_BAR` by default. Non-default indicator choices are only available when enabled in config. BossBars show the latest personal or global quest progress for `duration-seconds` and refresh the timer whenever more progress is applied. ActionBars send the configured title once per accepted progress update and expire client-side. Chat summaries batch accepted progress for `chat.interval-seconds`, then send one message with every quest progressed during that window. Indicator templates support `<percent>`, rendered with two decimals and the percent sign such as `50.55%`. Chat lines support `<previous_progress>` plus normal quest placeholders and global placeholders such as `<global_progress>`, `<global_goal_amount>`, `<contribution>`, and `<global_time_remaining>`.
+`progress-indicators.yml` controls runtime quest progress indicators. Supported types are `BOSS_BAR`, `ACTION_BAR`, and `CHAT`; players choose `Main`, `Both`, or `Global` as the first `/quests indicator <scope> <type>` argument. `OFF` disables that scope for the player, while `DEFAULT` clears the saved preference. Players with no saved preference use `BOSS_BAR` by default. Non-default indicator choices are only available when enabled in config. BossBars show the latest personal or global quest progress for `duration-seconds` and refresh the timer whenever more progress is applied. ActionBars send the configured title once per accepted progress update and expire client-side. Chat summaries batch accepted progress for `chat.interval-seconds`, then send one message with every quest progressed during that window. Indicator templates support `<percent>`, rendered with two decimals and the percent sign such as `50.55%`. Chat lines support `<previous_progress>` plus normal quest placeholders and global placeholders such as `<global_progress>`, `<global_goal_amount>`, `<contribution>`, and `<global_time_remaining>`.
 
 Admins can run `/questsadmin listtypes` or `/qa listtypes` to see registered quest type keys grouped by provider. Built-in handlers are listed under `QuestsPlus`, and SDK handlers are listed under the external plugin that registered them. Each displayed type key has a `Click to copy` hover and copies the exact key to the clipboard when clicked.
 
@@ -679,7 +684,7 @@ Milestone menus also use `<quest_difficulty>`, `<difficulty>`, `<difficulty_id>`
 
 ### Milestone GUI
 
-`/quests milestones` and `/q milestones` open a difficulty selector. The selector has its own configurable `selector-back-button`, defaulting to slot `22`, that returns to the main quest menu. `milestones-slot` in `difficulty/<id>/settings.yml` can place a difficulty at a zero-based slot in this selector; `-1`, invalid slots, duplicate slots, or the reserved selector back-button slot fall back to `messages.yml` `milestone-menu.selector-slots` order. Selecting a difficulty opens that difficulty's milestone GUI. Milestone page layout is configurable in `messages.yml` under `milestone-menu`: `milestone-slots` controls content positions, `previous-page-slot` and `next-page-slot` control pagination, and `back-button.slot` controls the milestone page back button that returns to the difficulty selector.
+`/quests milestones` and `/q milestones` open a difficulty selector. The selector has its own configurable `selector-back-button`, defaulting to slot `22`, that returns to the main quest menu. `milestones-slot` in `difficulty/<id>/settings.yml` can place a difficulty at a zero-based slot in this selector; `-1`, invalid slots, duplicate slots, or the reserved selector back-button slot fall back to `quest-milestones.yml` `menu.selector-slots` order. Selecting a difficulty opens that difficulty's milestone GUI. Milestone page layout is configurable in `quest-milestones.yml` under `menu`: `milestone-slots` controls content positions, `previous-page-slot` and `next-page-slot` control pagination, and `back-button.slot` controls the milestone page back button that returns to the difficulty selector.
 
 ### Streak GUI
 
@@ -687,7 +692,7 @@ Milestone menus also use `<quest_difficulty>`, `<difficulty>`, `<difficulty_id>`
 
 ### Daily Quest GUI
 
-The daily quest GUI renders `daily.quest-count` normal quest slots plus any currently entitled premium slots using `menu.content-slots` in order. Filled slots show the active or completed quest template. Empty slots show `menu.empty-quest`, and clicking one opens `menu.difficulty-picker` for that specific slot. Clicking an incomplete filled slot opens the same picker in reroll mode if the player has rerolls remaining. The difficulty picker has a configurable `back-button` with `enabled`, `slot`, and item material/name/lore settings. The empty-slot and difficulty-picker item templates support `<slot>` as a one-based player-facing slot number and `<slot_index>` as the zero-based persisted slot index. Difficulty-picker items also support `<quest_difficulty>`, `<difficulty>`, `<difficulty_id>`, and `<difficulty_lore>`.
+The daily quest GUI renders `daily.quest-count` normal quest slots plus any currently entitled premium slots using `quest-menu.yml` `menu.content-slots` in order. Filled slots show the active or completed quest template. Empty slots show `menu.empty-quest`, and clicking one opens `menu.difficulty-picker` for that specific slot. Clicking an incomplete filled slot opens the same picker in reroll mode if the player has rerolls remaining. The difficulty picker has a configurable `back-button` with `enabled`, `slot`, and item material/name/lore settings. The empty-slot and difficulty-picker item templates support `<slot>` as a one-based player-facing slot number and `<slot_index>` as the zero-based persisted slot index. Difficulty-picker items also support `<quest_difficulty>`, `<difficulty>`, `<difficulty_id>`, and `<difficulty_lore>`.
 
 Quest item templates can also use `<rerolls_used>`, `<rerolls_limit>`, `<rerolls_remaining>`, `<difficulty_lore>`, and `<premium_lore>`. Premium lore renders only for premium quest items and comes from `premium_quests.yml` `menu.lore.<difficulty-id>`.
 
@@ -703,7 +708,7 @@ All numeric menu placeholders are formatted with grouped `DecimalFormat` output.
 
 ## Storage And Cache
 
-`QuestsPlus` uses SQLite through HikariCP and writes on an async executor. Runtime event handlers update Caffeine-backed in-memory state first, then persist progress asynchronously.
+`QuestsPlus` uses SQLite through HikariCP and writes on an async executor. Runtime event handlers update Caffeine-backed in-memory state first, then persist progress asynchronously. The SQLite database path is configured in `storage-settings.yml` with `database-file`, defaulting to `storage/quests.db` under the plugin data folder.
 
 SQLite tables:
 

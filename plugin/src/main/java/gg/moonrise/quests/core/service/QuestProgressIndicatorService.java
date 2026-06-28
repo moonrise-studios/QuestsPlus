@@ -164,7 +164,7 @@ public class QuestProgressIndicatorService {
     }
 
     private Config.ProgressIndicators config() {
-        Config.ProgressIndicators indicatorsConfig = configProvider.get().getMessages().getProgressIndicators();
+        Config.ProgressIndicators indicatorsConfig = configProvider.get().getProgressIndicators();
         return indicatorsConfig == null ? new Config.ProgressIndicators() : indicatorsConfig;
     }
 
