@@ -74,7 +74,12 @@ public class QuestService {
     public CompletableFuture<PlayerQuestState> ensurePlayerStateAsync(Player player, String resetKey) {
         return ensurePlayerStateAsync(player.getUniqueId(), resetKey)
                 .thenCompose(state -> claimRetroactiveMilestones(player, state).thenApply(unused -> state))
-                .thenCompose(state -> streakService.ensureState(player, resetKey).thenApply(unused -> state));
+                .thenCompose(state -> {
+                    if (!streakService.isEnabled()) {
+                        return CompletableFuture.completedFuture(state);
+                    }
+                    return streakService.ensureState(player, resetKey).thenApply(unused -> state);
+                });
     }
 
     public PlayerQuestState cachedState(UUID playerId, String resetKey) {
@@ -399,6 +404,9 @@ public class QuestService {
     }
 
     public void claimRetroactiveMilestonesForOnlinePlayers() {
+        if (!questMilestonesEnabled()) {
+            return;
+        }
         for (Player player : Bukkit.getOnlinePlayers()) {
             PlayerQuestState state = stateCache.getIfPresent(player.getUniqueId());
             if (state == null) {
@@ -683,7 +691,7 @@ public class QuestService {
 
     private void completeQuest(Player player, PlayerQuestState state, GeneratedQuest quest) {
         QuestDifficulty difficulty = definitionService.difficulty(quest.difficultyId());
-        List<QuestMilestone> milestones = difficulty == null ? List.of() : difficulty.milestones();
+        List<QuestMilestone> milestones = !questMilestonesEnabled() || difficulty == null ? List.of() : difficulty.milestones();
         questRepository.incrementCompletionStats(player.getUniqueId(), quest.difficultyId(), milestones)
                 .thenAccept(stats -> {
                     synchronized (state) {
@@ -697,16 +705,21 @@ public class QuestService {
                 .exceptionally(throwable -> {
                     log.error("Failed to persist QuestsPlus completion stats for {}.", player.getUniqueId(), throwable);
                     return null;
-                });
+        });
         handleCompletion(player, quest);
-        streakService.evaluateQuestCompletion(player, state, accessibleQuests(player, state))
-                .exceptionally(throwable -> {
-                    log.error("Failed to evaluate QuestsPlus streak for {}.", player.getUniqueId(), throwable);
-                    return null;
-                });
+        if (streakService.isEnabled()) {
+            streakService.evaluateQuestCompletion(player, state, accessibleQuests(player, state))
+                    .exceptionally(throwable -> {
+                        log.error("Failed to evaluate QuestsPlus streak for {}.", player.getUniqueId(), throwable);
+                        return null;
+                    });
+        }
     }
 
     private CompletableFuture<Void> claimRetroactiveMilestones(Player player, PlayerQuestState state) {
+        if (!questMilestonesEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return questRepository.claimEligibleMilestones(player.getUniqueId(), state.difficultyCompletions(), definitionService.difficulties())
                 .thenAccept(claims -> {
                     if (claims.isEmpty()) {
@@ -735,7 +748,7 @@ public class QuestService {
     }
 
     private void handleMilestoneRewards(Player player, GeneratedQuest quest, QuestCompletionStats stats) {
-        if (stats.newlyExecutedMilestones().isEmpty()) {
+        if (!questMilestonesEnabled() || stats.newlyExecutedMilestones().isEmpty()) {
             return;
         }
 
@@ -752,7 +765,7 @@ public class QuestService {
     }
 
     private void handleMilestoneClaimRewards(Player player, List<QuestMilestoneClaim> claims) {
-        if (claims.isEmpty()) {
+        if (!questMilestonesEnabled() || claims.isEmpty()) {
             return;
         }
         Scheduler.entity(player).run(task -> {
@@ -846,6 +859,10 @@ public class QuestService {
                 .map(QuestDefinition::rewardCommands)
                 .ifPresent(commands::addAll);
         return commands;
+    }
+
+    public boolean questMilestonesEnabled() {
+        return configProvider.get().isQuestMilestonesEnabled();
     }
 
     private java.util.Optional<String> randomDifficultyRewardCommand(List<String> commands) {

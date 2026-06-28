@@ -94,6 +94,11 @@ public class Config {
             "Quest milestone GUI layout."
     })
     private MilestoneMenu milestoneMenu = new MilestoneMenu();
+    @Comment({
+            "",
+            "Whether quest completion milestones are enabled."
+    })
+    private boolean questMilestonesEnabled = true;
 
     @Comment({
             "",
@@ -259,6 +264,7 @@ public class Config {
         config.menu.applyQuestResets(questResets);
         config.questDefinitions = difficulties.questDefinitions();
         config.questDifficulties = difficulties.questDifficulties();
+        config.questMilestonesEnabled = questMilestones.isEnabled();
         config.milestoneMenu = questMilestones.getMenu() == null ? new MilestoneMenu() : questMilestones.getMenu();
         config.streaks = streaks.toStreaks();
         config.messages = composeMessages(sharedMessages, daily.messages, questMilestones.getMessages(), streaks.messages);
@@ -507,6 +513,11 @@ public class Config {
     public static class StreaksFile {
         @Comment({
                 "",
+                "Whether quest streaks, streak milestones, shields, recovery, and streak menus are enabled."
+        })
+        private boolean enabled = true;
+        @Comment({
+                "",
                 "Daily completions required to gain one streak point; -1 means all selected daily quests."
         })
         private int dailyRequiredCompletions = -1;
@@ -536,6 +547,7 @@ public class Config {
 
         private Streaks toStreaks() {
             Streaks streaks = new Streaks();
+            streaks.enabled = enabled;
             streaks.dailyRequiredCompletions = dailyRequiredCompletions;
             streaks.recoveryWindowDays = recoveryWindowDays;
             streaks.milestones = milestones == null ? List.of() : List.copyOf(milestones);
@@ -638,6 +650,11 @@ public class Config {
     public static class QuestMilestonesFile {
         @Comment({
                 "",
+                "Whether quest completion milestones, milestone rewards, and milestone menus are enabled."
+        })
+        private boolean enabled = true;
+        @Comment({
+                "",
                 "Messages used when players view completed totals and receive completion milestone rewards."
         })
         private MilestoneMessages messages = new MilestoneMessages();
@@ -651,6 +668,7 @@ public class Config {
         }
 
         public QuestMilestonesFile(MilestoneMessages messages, MilestoneMenu menu) {
+            this.enabled = true;
             this.messages = messages == null ? new MilestoneMessages() : messages;
             this.menu = menu == null ? new MilestoneMenu() : menu;
         }
@@ -1431,6 +1449,11 @@ public class Config {
     @Getter
     @Configuration
     public static class Streaks {
+        @Comment({
+                "",
+                "Whether quest streaks, streak milestones, shields, recovery, and streak menus are enabled."
+        })
+        private boolean enabled = true;
         @Comment({
                 "",
                 "Daily completions required to gain one streak point; -1 means all selected daily quests."

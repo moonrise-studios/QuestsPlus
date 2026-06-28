@@ -68,9 +68,9 @@ installs use the modular layout below.
 | `difficulty/<id>/settings.yml` | Difficulty display name, lore, menu placement, requirements, and baseline rewards |
 | `difficulty/<id>/quests.yml` | Personal quest definitions for that difficulty |
 | `difficulty/<id>/milestones.yml` | Lifetime completion milestones for that difficulty |
-| `quest-milestones.yml` | Shared completion milestone messages, selector menu, and milestone page layout |
+| `quest-milestones.yml` | Completion milestone enable toggle, messages, selector menu, and milestone page layout |
 | `premium_quests.yml` | Premium slot permissions, locked-slot items, premium quest styling, and bonus rewards |
-| `streaks.yml` | Streak rules, shields, recovery, streak milestones, and streak menus |
+| `streaks.yml` | Streak enable toggle, rules, shields, recovery, streak milestones, and streak menus |
 | `global-quests.yml` | Weekly global quest schedule, global definitions, contribution rewards, and preview menu |
 | `progress-indicators.yml` | Runtime progress indicator types, templates, timing, and BossBar styling |
 | `messages.yml` | Shared command/admin messages |
@@ -214,6 +214,10 @@ shields, recoveries, and reroll usage.
 Milestones reward lifetime completions per difficulty. They are configured in
 `difficulty/<id>/milestones.yml`.
 
+Set `enabled: false` in `quest-milestones.yml` to disable milestone menus,
+retroactive milestone claims, and milestone reward execution while preserving
+stored completion totals.
+
 Milestone thresholds should be positive and unique within a difficulty.
 QuestsPlus records claimed milestones so commands do not run twice for the same
 player and threshold. If new milestones are added later, reloads can claim
@@ -222,6 +226,10 @@ eligible missed milestones for online players.
 ## Streaks
 
 Streak behavior is configured in `streaks.yml`.
+
+Set `enabled: false` in `streaks.yml` to disable streak menus, streak point
+evaluation, missed-window checks, shields, recovery, and streak milestone
+rewards while preserving stored streak data.
 
 `daily-required-completions` controls how many selected/generated quests must be
 completed in one reset window to award a streak point. `-1` means all selected

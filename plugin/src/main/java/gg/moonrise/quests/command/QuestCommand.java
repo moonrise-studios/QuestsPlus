@@ -469,6 +469,10 @@ public class QuestCommand implements PaperCommand {
     }
 
     private void adjustCurrency(CommandSourceStack source, QuestStreakService.StreakCurrency currency, int delta, String playerName) {
+        if (!streakService.isEnabled()) {
+            source.getSender().sendRichMessage("<red>Quest streaks are disabled.");
+            return;
+        }
         if (delta == 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
             return;

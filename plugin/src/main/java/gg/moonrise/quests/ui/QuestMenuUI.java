@@ -59,7 +59,7 @@ public class QuestMenuUI extends ChestMenu {
                     .build());
         }
 
-        if (menu.getMilestoneButton().isEnabled()) {
+        if (menuService.canShowMilestoneButton()) {
             int slot = menu.getMilestoneButton().getSlot();
             if (slot >= 0 && slot < totalSlots) {
                 addTrackedButton(occupiedSlots, totalSlots, slot, Button.builder()
@@ -69,7 +69,7 @@ public class QuestMenuUI extends ChestMenu {
             }
         }
 
-        if (menu.getStreakButton().isEnabled()) {
+        if (menuService.canShowStreakButton()) {
             int slot = menu.getStreakButton().getSlot();
             if (slot >= 0 && slot < totalSlots) {
                 addTrackedButton(occupiedSlots, totalSlots, slot, Button.builder()

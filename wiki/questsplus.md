@@ -79,8 +79,8 @@ QuestsPlus no longer reads `plugins/QuestsPlus/config.yml` or the old flat `stor
 | `difficulty/<id>/settings.yml` | Difficulty display name, menu lore, and baseline difficulty rewards |
 | `difficulty/<id>/quests.yml` | Data-driven personal quest definitions for that difficulty |
 | `difficulty/<id>/milestones.yml` | Completion milestones for that difficulty |
-| `quest-milestones.yml` | Shared completion milestone messages, selector menu, and milestone page layout |
-| `streaks.yml` | Streak settings, streak milestones, streak menus, shield/recovery menus, and streak messages |
+| `quest-milestones.yml` | Completion milestone enable toggle, messages, selector menu, and milestone page layout |
+| `streaks.yml` | Streak enable toggle, settings, streak milestones, streak menus, shield/recovery menus, and streak messages |
 | `premium_quests.yml` | Premium personal slot permissions, premium bonus rewards, and premium quest item display styling |
 | `global-quests.yml` | Weekly global quest schedule, definitions, menu item, contribution rewards, and messages |
 | `progress-indicators.yml` | Runtime progress indicator types, templates, timing, and BossBar styling |
@@ -180,6 +180,7 @@ milestones:
 
 ```yaml
 # streaks.yml
+enabled: true
 daily-required-completions: -1
 recovery-window-days: 3
 milestones:
@@ -357,6 +358,8 @@ Premium slots are appended after normal `daily.quest-count` slots. Locked premiu
 
 `menu.locked-ranks` is keyed by the one-based displayed quest slot number, not the zero-based internal slot index. With `daily.quest-count: 3`, key `"4"` controls the first premium slot's `<rank>` placeholder, key `"5"` controls the second, and so on. Locked premium items support `<slot>`, `<slot_index>`, `<premium_slot>`, `<premium_slot_index>`, and `<rank>`.
 
+Set `enabled: false` in `quest-milestones.yml` to disable milestone menus, retroactive milestone claims, and milestone reward execution while preserving stored completion totals.
+
 Difficulty milestones are lifetime per-difficulty quest completion thresholds. Milestone `completed` values must be positive and unique within that difficulty. Optional milestone `lore` lines are appended to that milestone's GUI item after the locked/claimed template lore. When a completion raises the player's count for that difficulty to a configured threshold, QuestsPlus records the milestone as executed, sends `milestone-messages.milestone-completed`, and runs its commands automatically. The GUI is status-only; milestones are not click-to-claim.
 
 Milestones are also claimed retroactively from `player_quest_difficulty_stats`. When a player's quest state loads, and when `/questsadmin reload` or `/qa reload` refreshes milestones for online cached players, QuestsPlus records and rewards any configured milestones that are already below or equal to that player's per-difficulty count, sending `milestone-messages.milestone-claimed` for each newly recorded threshold. `player_quest_milestones` uses unique player/difficulty/threshold rows, so automated retroactive checks do not rerun already claimed milestone commands.
@@ -364,6 +367,8 @@ Milestones are also claimed retroactively from `player_quest_difficulty_stats`. 
 Legacy global `quests_completed` values are not used for totals, per-difficulty summaries, or milestone eligibility. Per-difficulty counts in `player_quest_difficulty_stats` are the source of truth.
 
 ### Quest Streaks
+
+Set `enabled: false` in `streaks.yml` to disable streak menus, streak point evaluation, missed-window checks, shields, recovery, and streak milestone rewards while preserving stored streak data.
 
 `streaks.daily-required-completions` controls how many selected/generated quests a player must complete in one reset window to earn one streak point. `-1` means all selected/generated quests for that window. Positive values are treated literally, so players who select fewer quests than the configured requirement cannot earn the streak until enough selected quests are completed. A reset window can award at most one streak point even if the player completes extra quests.
 
