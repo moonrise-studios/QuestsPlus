@@ -56,7 +56,8 @@ jobs:
             version_number="QuestsPlus-${short_sha}"
             version_name="${version_number}"
             version_type="alpha"
-            changelog="Alpha build from commit ${GITHUB_SHA}."
+            commit_url="https://github.com/moonrise-studios/QuestsPlus/commit/${GITHUB_SHA}"
+            changelog="Alpha build from [${commit_url}](${commit_url})."
           fi
 
           {
