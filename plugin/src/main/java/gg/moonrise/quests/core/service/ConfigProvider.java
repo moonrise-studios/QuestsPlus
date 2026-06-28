@@ -106,9 +106,6 @@ public class ConfigProvider implements Reloadable {
             builder.addSerializer(Message.class, new MessageSerializer());
             builder.inputNulls(true);
             builder.outputNulls(false);
-            builder.footer("""
-                    Author: Codex
-                    """);
             return builder;
         };
     }
