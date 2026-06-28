@@ -1,0 +1,81 @@
+name: Bug report
+description: Report a reproducible QuestsPlus problem.
+title: "[Bug]: "
+type: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a QuestsPlus issue. Please include enough server and configuration context for the problem to be reproduced.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-report checks
+      options:
+        - label: I have checked existing issues for a duplicate report.
+          required: true
+        - label: I can reproduce this on the latest version of the plugin
+          required: true
+        - label: I have tested with the relevant configuration files reloaded or after a clean restart.
+          required: true
+  - type: input
+    id: server-version
+    attributes:
+      label: Server software and version
+      description: Include the Paper build and Minecraft version.
+      placeholder: "Example: Paper 1.21.4 build 123"
+    validations:
+      required: true
+  - type: textarea
+    id: plugin-environment
+    attributes:
+      label: Full plugin list
+      description: List of all plugins active on the server.
+      placeholder: |
+        EssentialsX, QuestsPlus, WorldEdit, ShopGUIPlus
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal set of actions or commands that reproduces the issue.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Click ...
+        4. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Paste the smallest relevant parts of your QuestsPlus configuration. Remove secrets before posting.
+      render: yaml
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: "Exception or Error"
+      description: |-
+        Share any Exception or Error you encountered.  
+        Leave this blank or put "N/A" if you don't have an Exception or Error.
+        
+        The provided text will be rendered as code, so you don't have to provide a Code block for it.
+      render: yesyes # Unknown code-names = no highlighting.
+      placeholder: "java.lang.NullPointerException: null"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Add screenshots, menu behavior, database/storage notes, or anything else that helps reproduce the issue.
+    validations:
+      required: false
