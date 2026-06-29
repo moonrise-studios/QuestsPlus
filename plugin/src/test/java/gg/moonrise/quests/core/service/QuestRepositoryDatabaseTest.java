@@ -27,19 +27,19 @@ class QuestRepositoryDatabaseTest {
     @TempDir
     private Path tempDir;
 
-    private SqliteProvider sqliteProvider;
+    private SqlProvider sqlProvider;
     private QuestRepository repository;
 
     @BeforeEach
     void setUp() {
-        sqliteProvider = SqliteTestHarness.open(tempDir);
-        repository = new QuestRepository(sqliteProvider);
+        sqlProvider = SqliteTestHarness.open(tempDir);
+        repository = new QuestRepository(sqlProvider);
     }
 
     @AfterEach
     void tearDown() {
-        if (sqliteProvider != null) {
-            sqliteProvider.onDisable();
+        if (sqlProvider != null) {
+            sqlProvider.onDisable();
         }
     }
 

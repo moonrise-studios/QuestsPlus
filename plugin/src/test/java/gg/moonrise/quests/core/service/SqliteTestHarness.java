@@ -14,14 +14,14 @@ final class SqliteTestHarness {
     private SqliteTestHarness() {
     }
 
-    static SqliteProvider open(Path dataFolder) {
+    static SqlProvider open(Path dataFolder) {
         QuestsPlusPlugin plugin = mock(QuestsPlusPlugin.class);
         when(plugin.getDataFolder()).thenReturn(dataFolder.toFile());
 
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(new Config());
 
-        SqliteProvider provider = new SqliteProvider(plugin, configProvider);
+        SqlProvider provider = new SqlProvider(plugin, configProvider);
         provider.init();
 
         assertTrue(provider.isAvailable());
