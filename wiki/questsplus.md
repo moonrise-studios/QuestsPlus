@@ -40,7 +40,7 @@ Admin player arguments are trailing greedy strings for Bedrock-safe command entr
 - The active reset window is calculated from `daily.reset-time` using the server JVM timezone when `daily.weekly` is `false`.
 - If the current time is before the configured reset time, the active reset key is yesterday's date; otherwise it is today's date.
 - If `daily.weekly` is `true`, personal quests use `daily.schedule.day-of-week` and `daily.schedule.time` as a weekly boundary instead. The active reset key is the date of the most recent configured weekly boundary.
-- On join or first quest access, the plugin loads the player's current reset-window quests from SQLite without generating missing quests.
+- On join or first quest access, the plugin loads the player's current reset-window quests from the configured SQL database without generating missing quests.
 - `daily.quest-count` controls normal selectable quest slots. `premium_quests.yml` can add visible premium personal slots after those normal slots.
 - Empty daily quest slots show a configured placeholder item. Clicking one opens the difficulty picker for that slot.
 - Locked premium quest slots show the configured premium locked item until the player has enough premium-slot permission.
@@ -72,7 +72,7 @@ QuestsPlus no longer reads `plugins/QuestsPlus/config.yml` or the old flat `stor
 
 | File | Owns |
 |------|------|
-| `storage-settings.yml` | SQLite database file location |
+| `storage-settings.yml` | SQL backend selection, SQLite file location, and MariaDB/MySQL/PostgreSQL connection settings |
 | `daily.yml` | Daily/weekly reset mode and schedule, quest count, reroll limits, and daily quest/reroll messages |
 | `quest-menu.yml` | Daily quest menu layout, empty-slot item, quest item templates, and difficulty picker |
 | `quest-resets.yml` | Quest Reset menu button, purchase menu, per-window limit, and reset status text |
@@ -348,7 +348,7 @@ The reset purchase menu opens only when every slot the player can access is sele
 
 `quest-resets.yml` `menu.daily-limit` controls how many Quest Reset purchases each player can make in the active reset window. It defaults to `1`, is keyed by the same daily or weekly reset key as generated quests, and values below `0` are treated as `0`. The limit applies only to player purchases from the reset purchase menu. Admin commands such as `/qa reset`, `/qa complete`, and `/qa dailyrerolls reset` do not consume or check purchased reset usage. When a player has no resets remaining, the reset purchase menu does not open and QuestsPlus sends `quest-reset-limit-reached`.
 
-PlayerPoints and Vault are optional server dependencies for Quest Reset purchases. List built-in keys in `currencies.yml` `enabled-currencies` to control which built-in currencies QuestsPlus may offer. Each built-in currency section owns its `display-name`, `quest-reset-cost`, and purchase `button`. The PlayerPoints option appears only when `playerpoints` is listed and PlayerPoints is installed; choosing it charges `playerpoints.quest-reset-cost`. The Vault option appears only when `vault` is listed and Vault has an economy provider; choosing it charges `vault.quest-reset-cost`. If a listed built-in currency is missing its backing plugin or service, QuestsPlus logs an error and hides it from the menu. External plugins can register additional currencies with `QuestApi#registerCurrency`; those plugins own their own config, availability checks, displayed amount, button, and charge callback. QuestsPlus checks the remaining reset limit before charging any currency. A successful purchase increments `player_quest_resets.used_count` and clears the current `player_quests` rows in one SQLite transaction, then returns the player to empty slots for the same reset window. Lifetime difficulty completion stats, milestones, streak state, shield/recovery balances, and `player_quest_rerolls` usage are preserved.
+PlayerPoints and Vault are optional server dependencies for Quest Reset purchases. List built-in keys in `currencies.yml` `enabled-currencies` to control which built-in currencies QuestsPlus may offer. Each built-in currency section owns its `display-name`, `quest-reset-cost`, and purchase `button`. The PlayerPoints option appears only when `playerpoints` is listed and PlayerPoints is installed; choosing it charges `playerpoints.quest-reset-cost`. The Vault option appears only when `vault` is listed and Vault has an economy provider; choosing it charges `vault.quest-reset-cost`. If a listed built-in currency is missing its backing plugin or service, QuestsPlus logs an error and hides it from the menu. External plugins can register additional currencies with `QuestApi#registerCurrency`; those plugins own their own config, availability checks, displayed amount, button, and charge callback. QuestsPlus checks the remaining reset limit before charging any currency. A successful purchase increments `player_quest_resets.used_count` and clears the current `player_quests` rows in one SQL transaction, then returns the player to empty slots for the same reset window. Lifetime difficulty completion stats, milestones, streak state, shield/recovery balances, and `player_quest_rerolls` usage are preserved.
 
 ### Premium Quest Slots
 
@@ -616,7 +616,7 @@ External plugins compile against the SDK, depend or softdepend on `QuestsPlus`, 
 
 External handlers should call `QuestApi#progressMatching(player, type, amount, matcher)` so personal and active global quest progress share the same cache, persistence, completion, and contribution pipeline. If an external handler is unregistered, existing generated quests of that type render raw variables and stop progressing instead of crashing menus.
 
-Before matched progress is applied, QuestsPlus fires SDK `QuestProgressEvent`. Listeners can cancel the event or edit the progress amount before cache updates, SQLite persistence, completion rewards, milestones, streaks, or global contribution happen. Causes are `EVENT` for built-in Bukkit listener progress, `API` for `QuestApi#progressMatching`, `COMMAND` for QuestsPlus admin command progress, and `UNKNOWN` for fallback use.
+Before matched progress is applied, QuestsPlus fires SDK `QuestProgressEvent`. Listeners can cancel the event or edit the progress amount before cache updates, SQL persistence, completion rewards, milestones, streaks, or global contribution happen. Causes are `EVENT` for built-in Bukkit listener progress, `API` for `QuestApi#progressMatching`, `COMMAND` for QuestsPlus admin command progress, and `UNKNOWN` for fallback use.
 
 `progress-indicators.yml` controls runtime quest progress indicators. Supported types are `BOSS_BAR`, `ACTION_BAR`, and `CHAT`; players choose `Main`, `Both`, or `Global` as the first `/quests indicator <scope> <type>` argument. `OFF` disables that scope for the player, while `DEFAULT` clears the saved preference. Players with no saved preference use `BOSS_BAR` by default. Non-default indicator choices are only available when enabled in config. BossBars show the latest personal or global quest progress for `duration-seconds` and refresh the timer whenever more progress is applied. ActionBars send the configured title once per accepted progress update and expire client-side. Chat summaries batch accepted progress for `chat.interval-seconds`, then send one message with every quest progressed during that window. Indicator templates support `<percent>`, rendered with two decimals and the percent sign such as `50.55%`. Chat lines support `<previous_progress>` plus normal quest placeholders and global placeholders such as `<global_progress>`, `<global_goal_amount>`, `<contribution>`, and `<global_time_remaining>`.
 
@@ -712,9 +712,18 @@ All numeric menu placeholders are formatted with grouped `DecimalFormat` output.
 
 ## Storage And Cache
 
-`QuestsPlus` uses SQLite through HikariCP and writes on an async executor. Runtime event handlers update Caffeine-backed in-memory state first, then persist progress asynchronously. The SQLite database path is configured in `storage-settings.yml` with `database-file`, defaulting to `storage/quests.db` under the plugin data folder.
+`QuestsPlus` uses HikariCP and writes on an async executor. Runtime event handlers update Caffeine-backed in-memory state first, then persist progress asynchronously. The SQL backend is configured in `storage-settings.yml` with `type`, defaulting to `SQLITE` for backward compatibility. Existing SQLite installs continue to use `database-file`, defaulting to `storage/quests.db` under the plugin data folder.
 
-SQLite tables:
+Supported `type` values:
+
+- `SQLITE`
+- `MARIADB`
+- `MYSQL`
+- `POSTGRESQL`
+
+`storage-settings.yml` includes `maria-db`, `mysql`, and `postgresql` blocks for `connection-url`, username, password, and pool size. QuestsPlus creates the same logical tables on every backend. It does not automatically copy data between SQLite and a network database; migrate the existing SQLite data externally before changing `type` on a live server.
+
+SQL tables:
 
 - `global_quests` stores active and historical global generated quests by period.
 - `global_quest_contributions` stores per-player global contribution totals.
@@ -730,8 +739,8 @@ SQLite tables:
 | `player_quest_rerolls` | Daily reroll usage by player and reset key |
 | `player_quest_resets` | Purchased Quest Reset usage by player and reset key |
 
-Generated quests persist their resolved difficulty id, display name, `slot_index`, and premium flag. Fresh databases include the premium column; QuestsPlus does not migrate older personal quest rows for premium-slot support.
+Generated quests persist their resolved difficulty id, display name, `slot_index`, and premium flag. Fresh databases include the premium column; startup migrations add missing compatibility columns used by older SQLite databases.
 
 Older databases may still contain the legacy `player_quest_stats` table. QuestsPlus leaves that table untouched, but no longer reads or writes it.
 
-Do not add synchronous SQLite reads to PlaceholderAPI, GUI rendering, mob-death handlers, block-break handlers, furnace handlers, brewing handlers, movement handlers, or admin/API progress integrations. GUI and command rendering should use loaded/cached player state.
+Do not add synchronous SQL reads to PlaceholderAPI, GUI rendering, mob-death handlers, block-break handlers, furnace handlers, brewing handlers, movement handlers, or admin/API progress integrations. GUI and command rendering should use loaded/cached player state.

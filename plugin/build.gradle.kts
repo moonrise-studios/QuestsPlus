@@ -46,6 +46,9 @@ dependencies {
     // Persistence and cache
     compileOnly(libs.hikari)
     compileOnly(libs.sqlite)
+    compileOnly(libs.mariadb)
+    compileOnly(libs.mysql)
+    compileOnly(libs.postgresql)
     compileOnly(libs.cache)
     compileOnly(libs.gson)
     compileOnly(libs.roseStacker)

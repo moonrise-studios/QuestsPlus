@@ -60,11 +60,11 @@ class QuestStreakServiceTest {
 
     @Test
     void adminShieldAdjustmentStillUpdatesShieldBalance() {
-        SqliteProvider sqliteProvider = mock(SqliteProvider.class);
-        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), sqliteProvider);
+        SqlProvider sqlProvider = mock(SqlProvider.class);
+        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), sqlProvider);
         QuestStreakState state = state(3, 2);
-        when(sqliteProvider.supplyAsync(any())).thenReturn(CompletableFuture.completedFuture(state));
-        when(sqliteProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(sqlProvider.supplyAsync(any())).thenReturn(CompletableFuture.completedFuture(state));
+        when(sqlProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         int updatedBalance = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 3).join();
 
@@ -72,7 +72,7 @@ class QuestStreakServiceTest {
     }
 
     private static QuestStreakService service() {
-        return new QuestStreakService(mock(ConfigProvider.class), mock(SqliteProvider.class));
+        return new QuestStreakService(mock(ConfigProvider.class), mock(SqlProvider.class));
     }
 
     private static QuestStreakState state(int currentStreak, int shieldBalance) {

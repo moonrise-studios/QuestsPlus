@@ -14,7 +14,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -29,12 +28,12 @@ public class GlobalQuestRepository {
 
     private static final UUID GLOBAL_PLAYER_ID = new UUID(0L, 0L);
 
-    private final SqliteProvider sqliteProvider;
+    private final SqlProvider sqlProvider;
     private final Gson gson = new Gson();
 
     public CompletableFuture<GlobalQuestState> loadActive(String periodKey) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
                                 display_name, description, variables, goal_amount, progress, completed, rewards_executed
@@ -54,9 +53,9 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<List<GlobalQuestState>> loadExpiredUnrewarded(LocalDateTime now) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             List<GlobalQuestState> states = new ArrayList<>();
-            try (Connection connection = sqliteProvider.getConnection();
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
                                 display_name, description, variables, goal_amount, progress, completed, rewards_executed
@@ -77,17 +76,9 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Void> save(GlobalQuestState state) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         INSERT INTO global_quests (
-                             instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
-                             display_name, description, variables, goal_amount, progress, completed, rewards_executed
-                         )
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                         ON CONFLICT(period_key)
-                         DO UPDATE SET progress = excluded.progress, completed = excluded.completed
-                         """)) {
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertGlobalQuestSql())) {
                 bindState(statement, state);
                 statement.executeUpdate();
             }
@@ -95,8 +86,8 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Void> deletePeriod(String periodKey) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement select = connection.prepareStatement("""
                          SELECT instance_id
                          FROM global_quests
@@ -136,8 +127,8 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Void> updateProgressAndContribution(GlobalQuestState state, UUID playerId, int credited) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection()) {
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
                 try {
                     try (PreparedStatement quest = connection.prepareStatement("""
@@ -150,12 +141,7 @@ public class GlobalQuestRepository {
                         quest.setString(3, state.quest().instanceId().toString());
                         quest.executeUpdate();
                     }
-                    try (PreparedStatement contribution = connection.prepareStatement("""
-                            INSERT INTO global_quest_contributions (instance_id, player_uuid, contribution)
-                            VALUES (?, ?, ?)
-                            ON CONFLICT(instance_id, player_uuid)
-                            DO UPDATE SET contribution = contribution + excluded.contribution
-                            """)) {
+                    try (PreparedStatement contribution = connection.prepareStatement(sqlProvider.incrementGlobalContributionSql())) {
                         contribution.setString(1, state.quest().instanceId().toString());
                         contribution.setString(2, playerId.toString());
                         contribution.setInt(3, credited);
@@ -171,9 +157,9 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<List<GlobalQuestContribution>> loadRankedContributions(UUID instanceId) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             List<GlobalQuestContribution> contributions = new ArrayList<>();
-            try (Connection connection = sqliteProvider.getConnection();
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT player_uuid, contribution
                          FROM global_quest_contributions
@@ -198,8 +184,8 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Boolean> markRewardsExecuted(UUID instanceId) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          UPDATE global_quests
                          SET rewards_executed = 1
@@ -212,12 +198,9 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Boolean> insertRewardExecution(UUID instanceId, UUID playerId, int percentile) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         INSERT OR IGNORE INTO global_quest_reward_executions (instance_id, player_uuid, tier_percentile)
-                         VALUES (?, ?, ?)
-                         """)) {
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.insertRewardExecutionSql())) {
                 statement.setString(1, instanceId.toString());
                 statement.setString(2, playerId.toString());
                 statement.setInt(3, percentile);
