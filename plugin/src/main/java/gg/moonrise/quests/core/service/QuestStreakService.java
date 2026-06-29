@@ -44,7 +44,7 @@ public class QuestStreakService {
     }
 
     private final ConfigProvider configProvider;
-    private final SqliteProvider sqliteProvider;
+    private final SqlProvider sqlProvider;
     private final Cache<UUID, QuestStreakState> cache = Caffeine.newBuilder().maximumSize(10_000).build();
 
     public boolean isEnabled() {
@@ -320,10 +320,10 @@ public class QuestStreakService {
     }
 
     private CompletableFuture<QuestStreakEvaluation> claimStreakMilestones(QuestStreakState state) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             List<QuestStreakMilestone> newlyExecuted = new ArrayList<>();
             Set<Integer> claimed = new LinkedHashSet<>(state.claimedMilestones());
-            try (Connection connection = sqliteProvider.getConnection()) {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
                 try {
                     for (QuestStreakMilestone milestone : milestones()) {
@@ -346,31 +346,16 @@ public class QuestStreakService {
     }
 
     private CompletableFuture<QuestStreakState> loadState(UUID playerId) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             QuestStreakState state = readState(playerId);
             return state.withClaimedMilestones(readClaimedStreakMilestones(playerId));
         });
     }
 
     private CompletableFuture<Void> saveState(QuestStreakState state) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         INSERT INTO player_quest_streaks (
-                             player_uuid, current_streak, highest_streak, last_completed_reset_key, last_evaluated_reset_key,
-                             last_lost_streak, lost_reset_key, shield_balance, recovery_balance
-                         )
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                         ON CONFLICT(player_uuid) DO UPDATE SET
-                             current_streak = excluded.current_streak,
-                             highest_streak = excluded.highest_streak,
-                             last_completed_reset_key = excluded.last_completed_reset_key,
-                             last_evaluated_reset_key = excluded.last_evaluated_reset_key,
-                             last_lost_streak = excluded.last_lost_streak,
-                             lost_reset_key = excluded.lost_reset_key,
-                             shield_balance = excluded.shield_balance,
-                             recovery_balance = excluded.recovery_balance
-                         """)) {
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertStreakStateSql())) {
                 bindState(statement, state);
                 statement.executeUpdate();
             }
@@ -378,7 +363,7 @@ public class QuestStreakService {
     }
 
     private QuestStreakState readState(UUID playerId) throws SQLException {
-        try (Connection connection = sqliteProvider.getConnection();
+        try (Connection connection = sqlProvider.getConnection();
              PreparedStatement statement = connection.prepareStatement("""
                      SELECT current_streak, highest_streak, last_completed_reset_key, last_evaluated_reset_key,
                             last_lost_streak, lost_reset_key, shield_balance, recovery_balance
@@ -408,7 +393,7 @@ public class QuestStreakService {
 
     private Set<Integer> readClaimedStreakMilestones(UUID playerId) throws SQLException {
         Set<Integer> claimed = new LinkedHashSet<>();
-        try (Connection connection = sqliteProvider.getConnection();
+        try (Connection connection = sqlProvider.getConnection();
              PreparedStatement statement = connection.prepareStatement("""
                      SELECT streak
                      FROM player_quest_streak_milestones
@@ -425,10 +410,7 @@ public class QuestStreakService {
     }
 
     private boolean insertStreakMilestone(Connection connection, UUID playerId, int streak) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT OR IGNORE INTO player_quest_streak_milestones (player_uuid, streak)
-                VALUES (?, ?)
-                """)) {
+        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.insertStreakMilestoneSql())) {
             statement.setString(1, playerId.toString());
             statement.setInt(2, streak);
             return statement.executeUpdate() > 0;

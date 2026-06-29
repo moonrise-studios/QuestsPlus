@@ -21,7 +21,7 @@ public class QuestIndicatorPreferenceService {
     public static final String OFF = "OFF";
     public static final String DEFAULT_INDICATOR = "BOSS_BAR";
 
-    private final SqliteProvider sqliteProvider;
+    private final SqlProvider sqlProvider;
     private final ConcurrentMap<UUID, Preferences> cache = new ConcurrentHashMap<>();
 
     public Optional<String> cachedPreference(UUID playerId, Scope scope) {
@@ -33,8 +33,8 @@ public class QuestIndicatorPreferenceService {
     }
 
     public CompletableFuture<Preferences> loadPreference(UUID playerId) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT indicator_type, personal_indicator_type, global_indicator_type
                          FROM player_quest_indicator_preferences
@@ -66,15 +66,9 @@ public class QuestIndicatorPreferenceService {
             return clearPreference(playerId, scope);
         }
         Preferences updated = cache.merge(playerId, Preferences.of(scope, normalized), (current, ignored) -> current.with(scope, normalized));
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         INSERT INTO player_quest_indicator_preferences (player_uuid, indicator_type, personal_indicator_type, global_indicator_type)
-                         VALUES (?, ?, ?, ?)
-                         ON CONFLICT(player_uuid)
-                         DO UPDATE SET personal_indicator_type = excluded.personal_indicator_type,
-                                       global_indicator_type = excluded.global_indicator_type
-                         """)) {
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertIndicatorPreferenceSql())) {
                 statement.setString(1, playerId.toString());
                 statement.setString(2, fallbackLegacy(updated));
                 statement.setString(3, updated.personal());
@@ -90,8 +84,8 @@ public class QuestIndicatorPreferenceService {
             Preferences next = base.with(scope, null);
             return next.isEmpty() ? null : next;
         });
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection()) {
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
                 if (updated == null) {
                     try (PreparedStatement statement = connection.prepareStatement("""
                             DELETE FROM player_quest_indicator_preferences
@@ -102,13 +96,7 @@ public class QuestIndicatorPreferenceService {
                     }
                     return;
                 }
-                try (PreparedStatement statement = connection.prepareStatement("""
-                         INSERT INTO player_quest_indicator_preferences (player_uuid, indicator_type, personal_indicator_type, global_indicator_type)
-                         VALUES (?, ?, ?, ?)
-                         ON CONFLICT(player_uuid)
-                         DO UPDATE SET personal_indicator_type = excluded.personal_indicator_type,
-                                       global_indicator_type = excluded.global_indicator_type
-                         """)) {
+                try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertIndicatorPreferenceSql())) {
                     statement.setString(1, playerId.toString());
                     statement.setString(2, fallbackLegacy(updated));
                     statement.setString(3, updated.personal());

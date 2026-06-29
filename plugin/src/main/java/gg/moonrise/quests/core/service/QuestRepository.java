@@ -30,18 +30,18 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class QuestRepository {
 
-    private final SqliteProvider sqliteProvider;
+    private final SqlProvider sqlProvider;
     private final Gson gson = new Gson();
 
     public CompletableFuture<List<GeneratedQuest>> loadQuests(UUID playerId, String resetKey) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             List<GeneratedQuest> quests = new ArrayList<>();
-            try (Connection connection = sqliteProvider.getConnection();
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT instance_id, definition_id, type, difficulty_id, difficulty_display_name, display_name, description, variables, slot_index, premium, goal_amount, progress, completed
                          FROM player_quests
                          WHERE player_uuid = ? AND reset_key = ?
-                         ORDER BY CASE WHEN slot_index IS NULL THEN 2147483647 ELSE slot_index END ASC, rowid ASC
+                         ORDER BY CASE WHEN slot_index IS NULL THEN 2147483647 ELSE slot_index END ASC, instance_id ASC
                          """)) {
                 statement.setString(1, playerId.toString());
                 statement.setString(2, resetKey);
@@ -59,22 +59,10 @@ public class QuestRepository {
         if (quests.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection()) {
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
-                try (PreparedStatement statement = connection.prepareStatement("""
-                        INSERT INTO player_quests (
-                            instance_id, player_uuid, reset_key, definition_id, type, difficulty_id, difficulty_display_name, display_name,
-                            description, variables, slot_index, premium, goal_amount, progress, completed
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(instance_id)
-                        DO UPDATE SET progress = excluded.progress, completed = excluded.completed,
-                                      difficulty_id = excluded.difficulty_id,
-                                      difficulty_display_name = excluded.difficulty_display_name,
-                                      slot_index = excluded.slot_index,
-                                      premium = excluded.premium
-                        """)) {
+                try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertPlayerQuestSql())) {
                     for (GeneratedQuest quest : quests) {
                         bindQuest(statement, quest);
                         statement.addBatch();
@@ -90,8 +78,8 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Void> updateProgress(GeneratedQuest quest) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          UPDATE player_quests
                          SET progress = ?, completed = ?
@@ -106,8 +94,8 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Integer> loadRerollsUsed(UUID playerId, String resetKey) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT used_count
                          FROM player_quest_rerolls
@@ -123,8 +111,8 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Integer> loadQuestResetsUsed(UUID playerId, String resetKey) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT used_count
                          FROM player_quest_resets
@@ -140,8 +128,8 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Void> resetRerolls(UUID playerId, String resetKey) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          DELETE FROM player_quest_rerolls
                          WHERE player_uuid = ? AND reset_key = ?
@@ -157,8 +145,8 @@ public class QuestRepository {
         if (limit <= 0) {
             return CompletableFuture.completedFuture(-1);
         }
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection()) {
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
                 try {
                     int used = readQuestResetsUsed(connection, playerId, resetKey);
@@ -166,12 +154,7 @@ public class QuestRepository {
                         connection.rollback();
                         return -1;
                     }
-                    try (PreparedStatement resetUsage = connection.prepareStatement("""
-                            INSERT INTO player_quest_resets (player_uuid, reset_key, used_count)
-                            VALUES (?, ?, 1)
-                            ON CONFLICT(player_uuid, reset_key)
-                            DO UPDATE SET used_count = used_count + 1
-                            """)) {
+                    try (PreparedStatement resetUsage = connection.prepareStatement(sqlProvider.incrementQuestResetSql())) {
                         resetUsage.setString(1, playerId.toString());
                         resetUsage.setString(2, resetKey);
                         resetUsage.executeUpdate();
@@ -196,8 +179,8 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Integer> replaceQuestAndIncrementRerolls(UUID oldInstanceId, GeneratedQuest replacement) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection()) {
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
                 try {
                     try (PreparedStatement delete = connection.prepareStatement("""
@@ -217,12 +200,7 @@ public class QuestRepository {
                         bindQuest(insert, replacement);
                         insert.executeUpdate();
                     }
-                    try (PreparedStatement reroll = connection.prepareStatement("""
-                            INSERT INTO player_quest_rerolls (player_uuid, reset_key, used_count)
-                            VALUES (?, ?, 1)
-                            ON CONFLICT(player_uuid, reset_key)
-                            DO UPDATE SET used_count = used_count + 1
-                            """)) {
+                    try (PreparedStatement reroll = connection.prepareStatement(sqlProvider.incrementQuestRerollSql())) {
                         reroll.setString(1, replacement.playerId().toString());
                         reroll.setString(2, replacement.resetKey());
                         reroll.executeUpdate();
@@ -239,9 +217,9 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Map<String, Integer>> loadDifficultyCompletedCounts(UUID playerId) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             Map<String, Integer> counts = new LinkedHashMap<>();
-            try (Connection connection = sqliteProvider.getConnection();
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT difficulty_id, quests_completed
                          FROM player_quest_difficulty_stats
@@ -259,9 +237,9 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Set<String>> loadExecutedMilestones(UUID playerId) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             Set<String> milestones = new LinkedHashSet<>();
-            try (Connection connection = sqliteProvider.getConnection();
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          SELECT difficulty_id, completed
                          FROM player_quest_milestones
@@ -279,16 +257,11 @@ public class QuestRepository {
     }
 
     public CompletableFuture<QuestCompletionStats> incrementCompletionStats(UUID playerId, String difficultyId, List<QuestMilestone> milestones) {
-        return sqliteProvider.supplyAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection()) {
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
                 try {
-                    try (PreparedStatement statement = connection.prepareStatement("""
-                            INSERT INTO player_quest_difficulty_stats (player_uuid, difficulty_id, quests_completed)
-                            VALUES (?, ?, 1)
-                            ON CONFLICT(player_uuid, difficulty_id)
-                            DO UPDATE SET quests_completed = quests_completed + 1
-                            """)) {
+                    try (PreparedStatement statement = connection.prepareStatement(sqlProvider.incrementDifficultyStatsSql())) {
                         statement.setString(1, playerId.toString());
                         statement.setString(2, difficultyId);
                         statement.executeUpdate();
@@ -316,9 +289,9 @@ public class QuestRepository {
     }
 
     public CompletableFuture<List<QuestMilestoneClaim>> claimEligibleMilestones(UUID playerId, Map<String, Integer> difficultyCompletions, List<QuestDifficulty> difficulties) {
-        return sqliteProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(() -> {
             List<QuestMilestoneClaim> newlyClaimed = new ArrayList<>();
-            try (Connection connection = sqliteProvider.getConnection()) {
+            try (Connection connection = sqlProvider.getConnection()) {
                 connection.setAutoCommit(false);
                 try {
                     for (QuestDifficulty difficulty : difficulties) {
@@ -346,8 +319,8 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Void> resetDailyQuests(UUID playerId, String resetKey) {
-        return sqliteProvider.runAsync(() -> {
-            try (Connection connection = sqliteProvider.getConnection();
+        return sqlProvider.runAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          DELETE FROM player_quests
                          WHERE player_uuid = ? AND reset_key = ?
@@ -415,10 +388,7 @@ public class QuestRepository {
     }
 
     private boolean insertExecutedMilestone(Connection connection, UUID playerId, String difficultyId, int completed) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT OR IGNORE INTO player_quest_milestones (player_uuid, difficulty_id, completed)
-                VALUES (?, ?, ?)
-                """)) {
+        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.insertQuestMilestoneSql())) {
             statement.setString(1, playerId.toString());
             statement.setString(2, difficultyId);
             statement.setInt(3, completed);

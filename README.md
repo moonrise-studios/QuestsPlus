@@ -63,7 +63,7 @@ installs use the modular layout below.
 
 | File or folder | Owns |
 |---|---|
-| `storage-settings.yml` | SQLite database file location |
+| `storage-settings.yml` | SQL backend selection, SQLite file location, and MariaDB/MySQL/PostgreSQL connection settings |
 | `daily.yml` | Daily/weekly reset mode, quest count, reroll limits, and daily messages |
 | `quest-menu.yml` | Daily quest menu layout, empty-slot item, quest item templates, and difficulty picker |
 | `quest-resets.yml` | Quest Reset menu button, purchase menu, per-window limit, and reset status text |

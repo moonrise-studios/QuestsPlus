@@ -19,7 +19,7 @@ import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.core.service.QuestStreakService;
-import gg.moonrise.quests.core.service.SqliteProvider;
+import gg.moonrise.quests.core.service.SqlProvider;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
@@ -50,7 +50,7 @@ public class QuestCommand implements PaperCommand {
     private final QuestMenuService menuService;
     private final QuestResetService resetService;
     private final QuestStreakService streakService;
-    private final SqliteProvider sqliteProvider;
+    private final SqlProvider sqlProvider;
     private final GlobalQuestService globalQuestService;
     private final QuestProgressIndicatorService progressIndicatorService;
     private final QuestIndicatorPreferenceService indicatorPreferenceService;
@@ -249,7 +249,7 @@ public class QuestCommand implements PaperCommand {
             configProvider.reload();
             definitionService.reload();
             resetService.reload();
-            sqliteProvider.reload();
+            sqlProvider.reload();
             globalQuestService.reload();
             questService.claimRetroactiveMilestonesForOnlinePlayers();
             configProvider.get().getMessages().getReloadSuccess().send(source.getSender());
