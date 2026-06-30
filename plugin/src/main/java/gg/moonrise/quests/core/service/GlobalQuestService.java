@@ -104,7 +104,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return cached != null && cached.periodKey().equals(period.key()) ? cached : null;
     }
 
-    void cachedActiveState(GlobalQuestState state) {
+    public void cachedActiveState(GlobalQuestState state) {
         this.activeState = state;
     }
 
@@ -375,7 +375,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
-    List<Config.GlobalRewardTierConfig> rewardTiersForProgress(GeneratedQuest quest) {
+    public List<Config.GlobalRewardTierConfig> rewardTiersForProgress(GeneratedQuest quest) {
         double completionPercent = completionPercent(quest);
         if (quest.completed() || completionPercent >= 100.0D) {
             return fullRewardTiers();

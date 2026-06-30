@@ -127,31 +127,22 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Void> updateProgressAndContribution(GlobalQuestState state, UUID playerId, int credited) {
-        return sqlProvider.runAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    try (PreparedStatement quest = connection.prepareStatement("""
-                            UPDATE global_quests
-                            SET progress = ?, completed = ?
-                            WHERE instance_id = ?
-                            """)) {
-                        quest.setInt(1, state.quest().progress());
-                        quest.setInt(2, state.quest().completed() ? 1 : 0);
-                        quest.setString(3, state.quest().instanceId().toString());
-                        quest.executeUpdate();
-                    }
-                    try (PreparedStatement contribution = connection.prepareStatement(sqlProvider.incrementGlobalContributionSql())) {
-                        contribution.setString(1, state.quest().instanceId().toString());
-                        contribution.setString(2, playerId.toString());
-                        contribution.setInt(3, credited);
-                        contribution.executeUpdate();
-                    }
-                    connection.commit();
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
-                }
+        return sqlProvider.runInTransaction(connection -> {
+            try (PreparedStatement quest = connection.prepareStatement("""
+                    UPDATE global_quests
+                    SET progress = ?, completed = ?
+                    WHERE instance_id = ?
+                    """)) {
+                quest.setInt(1, state.quest().progress());
+                quest.setInt(2, state.quest().completed() ? 1 : 0);
+                quest.setString(3, state.quest().instanceId().toString());
+                quest.executeUpdate();
+            }
+            try (PreparedStatement contribution = connection.prepareStatement(sqlProvider.incrementGlobalContributionSql())) {
+                contribution.setString(1, state.quest().instanceId().toString());
+                contribution.setString(2, playerId.toString());
+                contribution.setInt(3, credited);
+                contribution.executeUpdate();
             }
         });
     }

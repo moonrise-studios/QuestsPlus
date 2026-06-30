@@ -13,7 +13,7 @@ public interface QuestVariableSelector {
      *
      * @return the selector type key
      */
-    String type();
+    public String type();
 
     /**
      * Selects one value from the configured values.
@@ -22,5 +22,5 @@ public interface QuestVariableSelector {
      * @param random random source supplied by QuestsPlus
      * @return the selected raw value
      */
-    String select(List<String> values, RandomGenerator random);
+    public String select(List<String> values, RandomGenerator random);
 }

@@ -21,7 +21,7 @@ class ConfigProviderCurrencyTest {
     private Path tempDir;
 
     @Test
-    void loadsDefaultCurrencyConfigFromCurrenciesYml() throws Exception {
+    public void loadsDefaultCurrencyConfigFromCurrenciesYml() throws Exception {
         QuestsPlusPlugin plugin = mock(QuestsPlusPlugin.class);
         when(plugin.getDataFolder()).thenReturn(tempDir.toFile());
         ConfigProvider provider = new ConfigProvider(plugin);

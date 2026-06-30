@@ -32,18 +32,18 @@ class QuestMenuUITest {
     private Player player;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         server = MockBukkit.mock();
         player = server.addPlayer("MenuTester");
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         MockBukkit.unmock();
     }
 
     @Test
-    void dailyMenuPlacesQuestStatesUtilityButtonsAndFillersInExpectedSlots() {
+    public void dailyMenuPlacesQuestStatesUtilityButtonsAndFillersInExpectedSlots() {
         QuestMenuService menuService = mock(QuestMenuService.class);
         Config config = new Config();
         GeneratedQuest activeQuest = quest(player.getUniqueId(), 0);

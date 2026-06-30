@@ -22,7 +22,7 @@ public interface GoalHandler extends Listener {
      *
      * @return the quest type key
      */
-    QuestType type();
+    public QuestType type();
 
     /**
      * Validates a configured quest definition before it can be selected.
@@ -30,7 +30,7 @@ public interface GoalHandler extends Listener {
      * @param definition the definition to validate
      * @throws IllegalArgumentException when the definition is invalid for this goal type
      */
-    void validateDefinition(QuestDefinition definition);
+    public void validateDefinition(QuestDefinition definition);
 
     /**
      * Creates a generated quest instance with resolved variables.
@@ -41,7 +41,7 @@ public interface GoalHandler extends Listener {
      * @param variables resolved variable values
      * @return a generated quest instance
      */
-    GeneratedQuest createGeneratedQuest(QuestDefinition definition, java.util.UUID playerId, String resetKey, Map<String, String> variables);
+    public GeneratedQuest createGeneratedQuest(QuestDefinition definition, java.util.UUID playerId, String resetKey, Map<String, String> variables);
 
     /**
      * Provides additional variable placeholders for display and reward rendering.
@@ -51,7 +51,7 @@ public interface GoalHandler extends Listener {
      * @param quest the generated quest being rendered
      * @return placeholder values keyed without angle brackets
      */
-    default Map<String, String> variablePlaceholders(GeneratedQuest quest) {
+    public default Map<String, String> variablePlaceholders(GeneratedQuest quest) {
         Map<String, String> values = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : quest.variables().entrySet()) {
             values.put(entry.getKey(), entry.getValue());

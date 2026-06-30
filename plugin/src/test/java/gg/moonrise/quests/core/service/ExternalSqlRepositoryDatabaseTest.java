@@ -35,7 +35,7 @@ class ExternalSqlRepositoryDatabaseTest {
     private Path tempDir;
 
     @TestFactory
-    Stream<DynamicTest> questRepositoryFlowsRunAgainstConfiguredNetworkDatabases() {
+    public Stream<DynamicTest> questRepositoryFlowsRunAgainstConfiguredNetworkDatabases() {
         List<SqlTestHarness.DatabaseTarget> targets = SqlTestHarness.configuredExternalTargets();
         if (targets.isEmpty()) {
             return Stream.of(DynamicTest.dynamicTest("network database targets are opt-in", () -> assumeTrue(false, SqlTestHarness.externalConfigurationHelp())));
@@ -45,7 +45,7 @@ class ExternalSqlRepositoryDatabaseTest {
     }
 
     @TestFactory
-    Stream<DynamicTest> globalQuestRepositoryFlowsRunAgainstConfiguredNetworkDatabases() {
+    public Stream<DynamicTest> globalQuestRepositoryFlowsRunAgainstConfiguredNetworkDatabases() {
         List<SqlTestHarness.DatabaseTarget> targets = SqlTestHarness.configuredExternalTargets();
         if (targets.isEmpty()) {
             return Stream.of(DynamicTest.dynamicTest("network database targets are opt-in", () -> assumeTrue(false, SqlTestHarness.externalConfigurationHelp())));

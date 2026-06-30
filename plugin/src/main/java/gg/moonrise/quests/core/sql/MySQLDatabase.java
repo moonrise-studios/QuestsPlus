@@ -32,14 +32,22 @@ public class MySQLDatabase extends SQLiteDatabase {
                     instance_id, player_uuid, reset_key, definition_id, type, difficulty_id, difficulty_display_name, display_name,
                     description, variables, slot_index, premium, goal_amount, progress, completed
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE progress = VALUES(progress),
-                                        completed = VALUES(completed),
-                                        difficulty_id = VALUES(difficulty_id),
-                                        difficulty_display_name = VALUES(difficulty_display_name),
-                                        slot_index = VALUES(slot_index),
-                                        premium = VALUES(premium)
-                """;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)%s
+                ON DUPLICATE KEY UPDATE progress = %s,
+                                        completed = %s,
+                                        difficulty_id = %s,
+                                        difficulty_display_name = %s,
+                                        slot_index = %s,
+                                        premium = %s
+                """.formatted(
+                insertedValuesAlias(),
+                insertedColumn("progress"),
+                insertedColumn("completed"),
+                insertedColumn("difficulty_id"),
+                insertedColumn("difficulty_display_name"),
+                insertedColumn("slot_index"),
+                insertedColumn("premium")
+        );
     }
 
     @Override
@@ -84,19 +92,26 @@ public class MySQLDatabase extends SQLiteDatabase {
                     instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
                     display_name, description, variables, goal_amount, progress, completed, rewards_executed
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE progress = VALUES(progress),
-                                        completed = VALUES(completed)
-                """;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)%s
+                ON DUPLICATE KEY UPDATE progress = %s,
+                                        completed = %s
+                """.formatted(
+                insertedValuesAlias(),
+                insertedColumn("progress"),
+                insertedColumn("completed")
+        );
     }
 
     @Override
     public String incrementGlobalContributionSql() {
         return """
                 INSERT INTO global_quest_contributions (instance_id, player_uuid, contribution)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE contribution = contribution + VALUES(contribution)
-                """;
+                VALUES (?, ?, ?)%s
+                ON DUPLICATE KEY UPDATE contribution = contribution + %s
+                """.formatted(
+                insertedValuesAlias(),
+                insertedColumn("contribution")
+        );
     }
 
     @Override
@@ -114,16 +129,26 @@ public class MySQLDatabase extends SQLiteDatabase {
                     player_uuid, current_streak, highest_streak, last_completed_reset_key, last_evaluated_reset_key,
                     last_lost_streak, lost_reset_key, shield_balance, recovery_balance
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE current_streak = VALUES(current_streak),
-                                        highest_streak = VALUES(highest_streak),
-                                        last_completed_reset_key = VALUES(last_completed_reset_key),
-                                        last_evaluated_reset_key = VALUES(last_evaluated_reset_key),
-                                        last_lost_streak = VALUES(last_lost_streak),
-                                        lost_reset_key = VALUES(lost_reset_key),
-                                        shield_balance = VALUES(shield_balance),
-                                        recovery_balance = VALUES(recovery_balance)
-                """;
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)%s
+                ON DUPLICATE KEY UPDATE current_streak = %s,
+                                        highest_streak = %s,
+                                        last_completed_reset_key = %s,
+                                        last_evaluated_reset_key = %s,
+                                        last_lost_streak = %s,
+                                        lost_reset_key = %s,
+                                        shield_balance = %s,
+                                        recovery_balance = %s
+                """.formatted(
+                insertedValuesAlias(),
+                insertedColumn("current_streak"),
+                insertedColumn("highest_streak"),
+                insertedColumn("last_completed_reset_key"),
+                insertedColumn("last_evaluated_reset_key"),
+                insertedColumn("last_lost_streak"),
+                insertedColumn("lost_reset_key"),
+                insertedColumn("shield_balance"),
+                insertedColumn("recovery_balance")
+        );
     }
 
     @Override
@@ -138,10 +163,22 @@ public class MySQLDatabase extends SQLiteDatabase {
     public String upsertIndicatorPreferenceSql() {
         return """
                 INSERT INTO player_quest_indicator_preferences (player_uuid, indicator_type, personal_indicator_type, global_indicator_type)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE personal_indicator_type = VALUES(personal_indicator_type),
-                                        global_indicator_type = VALUES(global_indicator_type)
-                """;
+                VALUES (?, ?, ?, ?)%s
+                ON DUPLICATE KEY UPDATE personal_indicator_type = %s,
+                                        global_indicator_type = %s
+                """.formatted(
+                insertedValuesAlias(),
+                insertedColumn("personal_indicator_type"),
+                insertedColumn("global_indicator_type")
+        );
+    }
+
+    protected String insertedValuesAlias() {
+        return " AS inserted";
+    }
+
+    protected String insertedColumn(String column) {
+        return "inserted." + column;
     }
 
     @Override

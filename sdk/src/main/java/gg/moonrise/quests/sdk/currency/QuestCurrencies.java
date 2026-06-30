@@ -15,4 +15,6 @@ public final class QuestCurrencies {
      */
     public static final QuestCurrencyKey VAULT = QuestCurrencyKey.of("vault");
 
+    private QuestCurrencies() {
+    }
 }

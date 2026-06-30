@@ -29,14 +29,14 @@ import static org.mockito.Mockito.when;
 class QuestApiServiceCurrencyTest {
 
     @AfterEach
-    void tearDownBukkit() {
+    public void tearDownBukkit() {
         if (MockBukkit.isMocked()) {
             MockBukkit.unmock();
         }
     }
 
     @Test
-    void registerCurrencyDelegatesToResetPurchaseRegistry() {
+    public void registerCurrencyDelegatesToResetPurchaseRegistry() {
         QuestResetPurchaseService resetPurchaseService = resetPurchaseService();
         QuestApiService api = api(resetPurchaseService);
         Plugin owner = plugin("ExternalEconomy", true);
@@ -53,7 +53,7 @@ class QuestApiServiceCurrencyTest {
     }
 
     @Test
-    void registerCurrencyRejectsDisabledOwners() {
+    public void registerCurrencyRejectsDisabledOwners() {
         QuestApiService api = api(resetPurchaseService());
         Plugin owner = plugin("ExternalEconomy", false);
         TestCurrency currency = new TestCurrency(QuestCurrencyKey.of("stars"));
@@ -62,7 +62,7 @@ class QuestApiServiceCurrencyTest {
     }
 
     @Test
-    void builtInVaultCurrencyResolvesEconomyProviderAfterInitialRegistration() {
+    public void builtInVaultCurrencyResolvesEconomyProviderAfterInitialRegistration() {
         MockBukkit.mock();
         MockBukkit.createMockPlugin("Vault");
         QuestResetPurchaseService resetPurchaseService = resetPurchaseService();

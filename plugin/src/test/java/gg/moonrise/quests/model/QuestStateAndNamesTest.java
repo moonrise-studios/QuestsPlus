@@ -26,20 +26,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class QuestStateAndNamesTest {
 
     @Test
-    void questNamesNormalizeForStorageAndPlaceholders() {
+    public void questNamesNormalizeForStorageAndPlaceholders() {
         assertEquals("daily-kills", QuestNames.normalize(" Daily_Kills "));
         assertEquals("daily_kills", QuestNames.placeholderKey("Daily-Kills"));
         assertEquals("", QuestNames.normalize(null));
     }
 
     @Test
-    void questNumberFormatterUsesGrouping() {
+    public void questNumberFormatterUsesGrouping() {
         assertEquals("1,234,567", QuestNumberFormatter.format(1_234_567));
         assertEquals("-1,234", QuestNumberFormatter.format(-1_234));
     }
 
     @Test
-    void indicatorPreferencesNormalizeCommandInput() {
+    public void indicatorPreferencesNormalizeCommandInput() {
         QuestIndicatorPreferenceService service = new QuestIndicatorPreferenceService(null);
 
         assertEquals("BOSS_BAR", service.normalize(" boss-bar "));
@@ -49,7 +49,7 @@ class QuestStateAndNamesTest {
     }
 
     @Test
-    void questIndicatorCommandUsesScopedTwoStepSelection() {
+    public void questIndicatorCommandUsesScopedTwoStepSelection() {
         Set<String> commands = Arrays.stream(QuestCommand.class.getDeclaredMethods())
                 .map(method -> method.getAnnotation(Command.class))
                 .filter(Objects::nonNull)
@@ -65,7 +65,7 @@ class QuestStateAndNamesTest {
     }
 
     @Test
-    void adminCommandsUseDailyRerollsAndQuestTypes() {
+    public void adminCommandsUseDailyRerollsAndQuestTypes() {
         Set<String> commands = Arrays.stream(QuestCommand.class.getDeclaredMethods())
                 .map(method -> method.getAnnotation(Command.class))
                 .filter(Objects::nonNull)
@@ -80,7 +80,7 @@ class QuestStateAndNamesTest {
     }
 
     @Test
-    void questDisplayNamesPluralizeTargetNameForCounts() {
+    public void questDisplayNamesPluralizeTargetNameForCounts() {
         assertEquals("Iron Ingot", QuestDisplayNames.typeName("minecraft:iron_ingot", 1));
         assertEquals("Iron Ingots", QuestDisplayNames.typeName("minecraft:iron_ingot", 16));
         assertEquals("Charcoal", QuestDisplayNames.typeName("minecraft:charcoal", 16));
@@ -101,7 +101,7 @@ class QuestStateAndNamesTest {
     }
 
     @Test
-    void playerQuestStateSortsAndReplacesQuestsBySlot() {
+    public void playerQuestStateSortsAndReplacesQuestsBySlot() {
         GeneratedQuest slotTwo = quest(2, "BREAK_BLOCK", false);
         GeneratedQuest slotOne = quest(1, "KILL_MOB", false);
         PlayerQuestState state = new PlayerQuestState(
@@ -127,7 +127,7 @@ class QuestStateAndNamesTest {
     }
 
     @Test
-    void globalQuestStateCountsPositiveParticipantsOnly() {
+    public void globalQuestStateCountsPositiveParticipantsOnly() {
         UUID active = UUID.randomUUID();
         UUID zero = UUID.randomUUID();
         GlobalQuestState state = new GlobalQuestState(
@@ -145,7 +145,7 @@ class QuestStateAndNamesTest {
     }
 
     @Test
-    void questDifficultyRequirementsUsePerDifficultyCompletionCounts() {
+    public void questDifficultyRequirementsUsePerDifficultyCompletionCounts() {
         PlayerQuestState state = new PlayerQuestState(
                 UUID.randomUUID(),
                 "daily",

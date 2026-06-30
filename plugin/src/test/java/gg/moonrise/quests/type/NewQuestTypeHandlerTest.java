@@ -35,7 +35,7 @@ import static org.mockito.Mockito.when;
 class NewQuestTypeHandlerTest {
 
     @Test
-    void milkMobGeneratesCanonicalMilkableMobQuest() {
+    public void milkMobGeneratesCanonicalMilkableMobQuest() {
         MilkMobGoalHandler handler = new MilkMobGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
         QuestDefinition definition = definition("milk-run", QuestTypes.MILK_MOB, Map.of(
                 "mob-type", List.of("cow", "GOAT", "MOOSHROOM"),
@@ -58,7 +58,7 @@ class NewQuestTypeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void milkMobEventProgressesMatchingMilkableMobType() {
+    public void milkMobEventProgressesMatchingMilkableMobType() {
         QuestService questService = mock(QuestService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);
@@ -85,7 +85,7 @@ class NewQuestTypeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void throwItemEventProgressesMatchingThrownItemType() {
+    public void throwItemEventProgressesMatchingThrownItemType() {
         QuestService questService = mock(QuestService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);
@@ -106,7 +106,7 @@ class NewQuestTypeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void villagerTradeEventProgressesGenericTradeQuest() {
+    public void villagerTradeEventProgressesGenericTradeQuest() {
         QuestService questService = mock(QuestService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);

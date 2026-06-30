@@ -15,17 +15,31 @@ import static org.mockito.Mockito.mock;
 class SQLDatabaseTest {
 
     @Test
-    void mysqlStatementsUseDuplicateKeySyntax() {
+    public void mysqlStatementsUseDuplicateKeySyntax() {
         SQLDatabase database = new MySQLDatabase();
+        String playerQuestUpsert = database.upsertPlayerQuestSql();
 
-        assertTrue(database.upsertPlayerQuestSql().contains("ON DUPLICATE KEY UPDATE"));
+        assertTrue(playerQuestUpsert.contains("ON DUPLICATE KEY UPDATE"));
+        assertTrue(playerQuestUpsert.contains(" AS inserted"));
+        assertTrue(playerQuestUpsert.contains("inserted.progress"));
+        assertFalse(playerQuestUpsert.contains("VALUES(progress)"));
         assertTrue(database.incrementQuestRerollSql().contains("ON DUPLICATE KEY UPDATE"));
         assertTrue(database.insertQuestMilestoneSql().contains("INSERT IGNORE"));
-        assertFalse(database.upsertPlayerQuestSql().contains("ON CONFLICT"));
+        assertFalse(playerQuestUpsert.contains("ON CONFLICT"));
     }
 
     @Test
-    void postgresqlStatementsUseConflictSyntaxWithoutSqliteIgnore() {
+    public void mariaDbStatementsKeepValuesFunctionForDuplicateKeyUpdates() {
+        SQLDatabase database = new MariaDBDatabase();
+        String playerQuestUpsert = database.upsertPlayerQuestSql();
+
+        assertTrue(playerQuestUpsert.contains("ON DUPLICATE KEY UPDATE"));
+        assertTrue(playerQuestUpsert.contains("VALUES(progress)"));
+        assertFalse(playerQuestUpsert.contains(" AS inserted"));
+    }
+
+    @Test
+    public void postgresqlStatementsUseConflictSyntaxWithoutSqliteIgnore() {
         SQLDatabase database = new PostgreSQLDatabase();
 
         assertTrue(database.upsertPlayerQuestSql().contains("ON CONFLICT(instance_id)"));
@@ -34,7 +48,7 @@ class SQLDatabaseTest {
     }
 
     @Test
-    void sqliteStatementsKeepLegacyCompatibleIgnoreSyntax() {
+    public void sqliteStatementsKeepLegacyCompatibleIgnoreSyntax() {
         SQLDatabase database = new SQLiteDatabase();
 
         assertTrue(database.upsertGlobalQuestSql().contains("ON CONFLICT(period_key)"));
@@ -42,7 +56,7 @@ class SQLDatabaseTest {
     }
 
     @Test
-    void networkBackendsUseConfiguredConnectionUrl() {
+    public void networkBackendsUseConfiguredConnectionUrl() {
         Config.Storage storage = new Config.Storage();
         setField(storage.getMariaDb(), "connectionUrl", "jdbc:mariadb://db.example:3307/quests?connectTimeout=1000");
         setField(storage.getMariaDb(), "username", "maria-user");

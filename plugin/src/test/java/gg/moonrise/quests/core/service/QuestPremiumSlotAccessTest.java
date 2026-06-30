@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 class QuestPremiumSlotAccessTest {
 
     @Test
-    void highestConfiguredPremiumLimitControlsVisibleSlots() throws Exception {
+    public void highestConfiguredPremiumLimitControlsVisibleSlots() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
@@ -43,7 +43,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void playerPermissionLimitControlsUsablePremiumSlots() throws Exception {
+    public void playerPermissionLimitControlsUsablePremiumSlots() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
@@ -59,7 +59,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void premiumQuestsBeyondPermissionLimitRemainInaccessible() throws Exception {
+    public void premiumQuestsBeyondPermissionLimitRemainInaccessible() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
@@ -74,7 +74,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void selectionAndRerollRejectLockedPremiumSlots() throws Exception {
+    public void selectionAndRerollRejectLockedPremiumSlots() throws Exception {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
@@ -97,7 +97,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void lockedPremiumRanksUseOneBasedDisplayedSlotNumbers() throws Exception {
+    public void lockedPremiumRanksUseOneBasedDisplayedSlotNumbers() throws Exception {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -113,7 +113,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetRequiresEveryNormalSlotComplete() throws Exception {
+    public void questResetRequiresEveryNormalSlotComplete() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -134,7 +134,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetIncludesAccessiblePremiumSlots() throws Exception {
+    public void questResetIncludesAccessiblePremiumSlots() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -158,7 +158,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetRequiresUnlockedPremiumSlotToBeComplete() throws Exception {
+    public void questResetRequiresUnlockedPremiumSlotToBeComplete() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -182,7 +182,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetPurchaseLimitDefaultsToOne() throws Exception {
+    public void questResetPurchaseLimitDefaultsToOne() throws Exception {
         QuestService service = questService(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -193,7 +193,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetPurchaseLimitClampsNegativeToZero() {
+    public void questResetPurchaseLimitClampsNegativeToZero() {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -206,7 +206,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetStatusOutputsAreConfigurable() {
+    public void questResetStatusOutputsAreConfigurable() {
         Config.QuestResetMenu menu = new Config.QuestResetMenu();
 
         assertEquals("Ready", menu.getStatusReady());
@@ -221,7 +221,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void exhaustedQuestResetPurchaseLimitBlocksBeforeRepositoryMutation() throws Exception {
+    public void exhaustedQuestResetPurchaseLimitBlocksBeforeRepositoryMutation() throws Exception {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -239,7 +239,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void successfulQuestResetPurchaseRecordsUsageAndClearsGeneratedQuests() throws Exception {
+    public void successfulQuestResetPurchaseRecordsUsageAndClearsGeneratedQuests() throws Exception {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -257,7 +257,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questResetPurchaseUsageIsKeyedByResetWindow() throws Exception {
+    public void questResetPurchaseUsageIsKeyedByResetWindow() throws Exception {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -277,7 +277,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void adminResetDoesNotRecordQuestResetPurchaseUsage() throws Exception {
+    public void adminResetDoesNotRecordQuestResetPurchaseUsage() throws Exception {
         Config config = config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
@@ -295,7 +295,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void milestoneMessagesComposeIntoRuntimeMessages() {
+    public void milestoneMessagesComposeIntoRuntimeMessages() {
         Config.MilestoneMessages milestoneMessages = new Config.MilestoneMessages(
                 Message.of("<green>Completed <milestone_display_name>"),
                 Message.of("<green>Claimed <milestone_display_name>")
@@ -309,7 +309,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questMilestonesFileOverridesSharedMilestoneMessages() {
+    public void questMilestonesFileOverridesSharedMilestoneMessages() {
         Config.MilestoneMessages sharedMilestoneMessages = new Config.MilestoneMessages(
                 Message.of("<red>Legacy completed"),
                 Message.of("<red>Legacy claimed")
@@ -328,7 +328,7 @@ class QuestPremiumSlotAccessTest {
     }
 
     @Test
-    void questMenuFileOverridesDailyMenuFallback() {
+    public void questMenuFileOverridesDailyMenuFallback() {
         Config.QuestMenu legacyMenu = new Config.QuestMenu(new Config.QuestResetMenu("Legacy", "Legacy incomplete", "Legacy limit"));
         Config.QuestMenu modularMenu = new Config.QuestMenu(new Config.QuestResetMenu("Modular", "Modular incomplete", "Modular limit"));
         Config.DailyFile daily = new Config.DailyFile(3, legacyMenu);

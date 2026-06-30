@@ -2,9 +2,9 @@ package gg.moonrise.quests.indicator;
 
 public interface QuestProgressIndicator {
 
-    String type();
+    public String type();
 
-    void show(QuestProgressIndicatorContext context);
+    public void show(QuestProgressIndicatorContext context);
 
-    void clearAll();
+    public void clearAll();
 }

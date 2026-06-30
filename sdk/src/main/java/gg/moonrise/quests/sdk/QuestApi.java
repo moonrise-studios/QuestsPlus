@@ -26,7 +26,7 @@ public interface QuestApi {
      * @param handler the handler to register
      * @throws IllegalArgumentException when the owner or handler is invalid or the type is already registered
      */
-    void registerGoalHandler(Plugin owner, GoalHandler handler) throws IllegalArgumentException;
+    public void registerGoalHandler(Plugin owner, GoalHandler handler) throws IllegalArgumentException;
 
     /**
      * Unregisters one goal handler owned by a plugin.
@@ -34,14 +34,14 @@ public interface QuestApi {
      * @param owner the plugin that owns the handler
      * @param type the quest type to unregister
      */
-    void unregisterGoalHandler(Plugin owner, QuestType type);
+    public void unregisterGoalHandler(Plugin owner, QuestType type);
 
     /**
      * Unregisters all goal handlers, variable selectors, and currencies owned by a plugin.
      *
      * @param owner the plugin whose registrations should be removed
      */
-    void unregisterAll(Plugin owner);
+    public void unregisterAll(Plugin owner);
 
     /**
      * Registers a variable selector for an owning plugin.
@@ -50,7 +50,7 @@ public interface QuestApi {
      * @param selector the selector to register
      * @throws IllegalArgumentException when the selector type is already registered
      */
-    void registerVariableSelector(Plugin owner, QuestVariableSelector selector) throws IllegalArgumentException;
+    public void registerVariableSelector(Plugin owner, QuestVariableSelector selector) throws IllegalArgumentException;
 
     /**
      * Registers a currency provider for an owning plugin.
@@ -59,7 +59,7 @@ public interface QuestApi {
      * @param currency the currency provider to register
      * @throws IllegalArgumentException when the owner or currency is invalid or the key is already registered
      */
-    void registerCurrency(Plugin owner, QuestCurrency currency) throws IllegalArgumentException;
+    public void registerCurrency(Plugin owner, QuestCurrency currency) throws IllegalArgumentException;
 
     /**
      * Unregisters one currency provider owned by a plugin.
@@ -67,21 +67,21 @@ public interface QuestApi {
      * @param owner the plugin that owns the currency
      * @param key the currency key to unregister
      */
-    void unregisterCurrency(Plugin owner, QuestCurrencyKey key);
+    public void unregisterCurrency(Plugin owner, QuestCurrencyKey key);
 
     /**
      * Returns all currently registered currency keys.
      *
      * @return registered currency keys
      */
-    List<QuestCurrencyKey> registeredCurrencies();
+    public List<QuestCurrencyKey> registeredCurrencies();
 
     /**
      * Returns all currently registered quest types.
      *
      * @return registered quest types
      */
-    List<QuestType> registeredTypes();
+    public List<QuestType> registeredTypes();
 
     /**
      * Applies progress to matching personal and global quests for a player.
@@ -96,5 +96,5 @@ public interface QuestApi {
      * @param matcher a predicate that confirms the generated quest matches the external event
      * @return progress results from personal quests
      */
-    List<QuestProgressResult> progressMatching(Player player, QuestType type, int amount, Predicate<GeneratedQuest> matcher);
+    public List<QuestProgressResult> progressMatching(Player player, QuestType type, int amount, Predicate<GeneratedQuest> matcher);
 }

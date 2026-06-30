@@ -19,7 +19,7 @@ public class RoseStackerMobKillListener implements Listener {
     private final QuestService questService;
     private final QuestResetService resetService;
 
-    RoseStackerMobKillListener(QuestService questService, QuestResetService resetService) {
+    public RoseStackerMobKillListener(QuestService questService, QuestResetService resetService) {
         this.questService = questService;
         this.resetService = resetService;
     }
@@ -42,11 +42,11 @@ public class RoseStackerMobKillListener implements Listener {
         progress.run();
     }
 
-    int additionalKillCount(int roseStackerKillCount) {
+    public int additionalKillCount(int roseStackerKillCount) {
         return Math.max(0, roseStackerKillCount - 1);
     }
 
-    void progressStackedKills(Player killer, EntityType killedType, String killedWorldName, int amount) {
+    public void progressStackedKills(Player killer, EntityType killedType, String killedWorldName, int amount) {
         String resetKey = resetService.currentResetKey();
         questService.progressMatching(killer, QuestTypes.KILL_MOB, resetKey, amount, quest ->
                 killedType.name().equalsIgnoreCase(quest.variables().get(KillMobGoalHandler.MOB_TYPE))
