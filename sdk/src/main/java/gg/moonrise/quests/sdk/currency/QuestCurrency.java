@@ -17,14 +17,14 @@ public interface QuestCurrency {
      *
      * @return normalized currency key
      */
-    QuestCurrencyKey key();
+    public QuestCurrencyKey key();
 
     /**
      * Display name used by QuestsPlus menus and messages.
      *
      * @return display name, MiniMessage supported
      */
-    String displayName();
+    public String displayName();
 
     /**
      * Display amount shown to a player before or after purchase.
@@ -32,21 +32,21 @@ public interface QuestCurrency {
      * @param player the player viewing or buying the purchase
      * @return human-readable amount text
      */
-    String displayAmount(Player player);
+    public String displayAmount(Player player);
 
     /**
      * Configured Quest Reset purchase cost for this currency.
      *
      * @return non-negative quest reset cost
      */
-    double questResetCost();
+    public double questResetCost();
 
     /**
      * Button template used in the QuestsPlus purchase menu.
      *
      * @return purchase button template
      */
-    QuestCurrencyButton button();
+    public QuestCurrencyButton button();
 
     /**
      * Charges the player for the purchase.
@@ -57,7 +57,12 @@ public interface QuestCurrency {
      * @param amount amount to charge
      * @return true when the transaction completed
      */
-    boolean charge(Player player, double amount);
+    public boolean charge(Player player, double amount);
 
-    boolean isAvailable();
+    /**
+     * Checks whether the backing currency integration is usable right now.
+     *
+     * @return true when this currency can process purchases
+     */
+    public boolean isAvailable();
 }

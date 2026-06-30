@@ -612,7 +612,7 @@ public class QuestService {
         return output;
     }
 
-    String replaceRawVariableDisplayValues(String template, GeneratedQuest quest) {
+    public String replaceRawVariableDisplayValues(String template, GeneratedQuest quest) {
         String output = template == null ? "" : template;
         Map<String, String> displayValues = definitionService.variablePlaceholders(quest);
         for (Map.Entry<String, String> entry : quest.variables().entrySet()) {

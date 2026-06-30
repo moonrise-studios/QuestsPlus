@@ -7,7 +7,7 @@ final class SqliteTestHarness {
     private SqliteTestHarness() {
     }
 
-    static SqlProvider open(Path dataFolder) {
+    public static SqlProvider open(Path dataFolder) {
         return SqlTestHarness.openSqlite(dataFolder);
     }
 }

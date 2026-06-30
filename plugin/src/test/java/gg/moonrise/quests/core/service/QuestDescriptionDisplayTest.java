@@ -15,7 +15,7 @@ import static org.mockito.Mockito.when;
 class QuestDescriptionDisplayTest {
 
     @Test
-    void rawRegistryVariableValuesRenderAsDisplayNamesInDescriptions() {
+    public void rawRegistryVariableValuesRenderAsDisplayNamesInDescriptions() {
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         QuestService service = new QuestService(
                 mock(ConfigProvider.class),

@@ -33,18 +33,18 @@ class QuestResetPurchaseUITest {
     private Player player;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         server = MockBukkit.mock();
         player = server.addPlayer("ResetBuyer");
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         MockBukkit.unmock();
     }
 
     @Test
-    void purchaseMenuShowsOnlyAvailableCurrencyButtonsAndBackNavigation() {
+    public void purchaseMenuShowsOnlyAvailableCurrencyButtonsAndBackNavigation() {
         QuestMenuService menuService = mock(QuestMenuService.class);
         Config config = new Config();
         QuestCurrency stars = currency("stars");

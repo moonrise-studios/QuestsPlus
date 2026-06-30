@@ -271,7 +271,7 @@ public class QuestStreakService {
         return configProvider.get().getDaily().isWeekly() ? 7 : 1;
     }
 
-    QuestStreakState applyMissedWindow(QuestStreakState state, String missedResetKey) {
+    public QuestStreakState applyMissedWindow(QuestStreakState state, String missedResetKey) {
         if (state.currentStreak() <= 0) {
             return state;
         }
@@ -320,28 +320,19 @@ public class QuestStreakService {
     }
 
     private CompletableFuture<QuestStreakEvaluation> claimStreakMilestones(QuestStreakState state) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyInTransaction(connection -> {
             List<QuestStreakMilestone> newlyExecuted = new ArrayList<>();
             Set<Integer> claimed = new LinkedHashSet<>(state.claimedMilestones());
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    for (QuestStreakMilestone milestone : milestones()) {
-                        if (milestone.streak() > state.currentStreak()) {
-                            continue;
-                        }
-                        if (insertStreakMilestone(connection, state.playerId(), milestone.streak())) {
-                            newlyExecuted.add(milestone);
-                            claimed.add(milestone.streak());
-                        }
-                    }
-                    connection.commit();
-                    return new QuestStreakEvaluation(state.withClaimedMilestones(claimed), List.copyOf(newlyExecuted));
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
+            for (QuestStreakMilestone milestone : milestones()) {
+                if (milestone.streak() > state.currentStreak()) {
+                    continue;
+                }
+                if (insertStreakMilestone(connection, state.playerId(), milestone.streak())) {
+                    newlyExecuted.add(milestone);
+                    claimed.add(milestone.streak());
                 }
             }
+            return new QuestStreakEvaluation(state.withClaimedMilestones(claimed), List.copyOf(newlyExecuted));
         });
     }
 

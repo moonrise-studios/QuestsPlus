@@ -12,7 +12,7 @@ final class CraftProgress {
     private CraftProgress() {
     }
 
-    static int amountCrafted(CraftItemEvent event, ItemStack result, Player player) {
+    public static int amountCrafted(CraftItemEvent event, ItemStack result, Player player) {
         if (result == null || result.isEmpty()) {
             return 0;
         }

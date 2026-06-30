@@ -91,6 +91,34 @@ public class SqlProvider implements Disableable {
         });
     }
 
+    public <T> CompletableFuture<T> supplyInTransaction(SqlTransaction<T> transaction) {
+        return supplyAsync(() -> {
+            try (Connection connection = getConnection()) {
+                boolean autoCommit = connection.getAutoCommit();
+                connection.setAutoCommit(false);
+                Throwable failure = null;
+                try {
+                    T result = transaction.run(connection);
+                    connection.commit();
+                    return result;
+                } catch (SQLException | RuntimeException exception) {
+                    failure = exception;
+                    rollback(connection, exception);
+                    throw exception;
+                } finally {
+                    restoreAutoCommit(connection, autoCommit, failure);
+                }
+            }
+        });
+    }
+
+    public CompletableFuture<Void> runInTransaction(SqlTransactionRunnable transaction) {
+        return supplyInTransaction(connection -> {
+            transaction.run(connection);
+            return null;
+        });
+    }
+
     public String upsertPlayerQuestSql() {
         return currentDatabase().upsertPlayerQuestSql();
     }
@@ -190,6 +218,25 @@ public class SqlProvider implements Disableable {
         database = null;
     }
 
+    private void rollback(Connection connection, Throwable cause) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackException) {
+            cause.addSuppressed(rollbackException);
+        }
+    }
+
+    private void restoreAutoCommit(Connection connection, boolean autoCommit, Throwable cause) throws SQLException {
+        try {
+            connection.setAutoCommit(autoCommit);
+        } catch (SQLException exception) {
+            if (cause == null) {
+                throw exception;
+            }
+            cause.addSuppressed(exception);
+        }
+    }
+
     @Override
     public synchronized void onDisable() {
         closeResources();
@@ -197,11 +244,21 @@ public class SqlProvider implements Disableable {
 
     @FunctionalInterface
     public interface SqlSupplier<T> {
-        T get() throws SQLException;
+        public T get() throws SQLException;
     }
 
     @FunctionalInterface
     public interface SqlRunnable {
-        void run() throws SQLException;
+        public void run() throws SQLException;
+    }
+
+    @FunctionalInterface
+    public interface SqlTransaction<T> {
+        public T run(Connection connection) throws SQLException;
+    }
+
+    @FunctionalInterface
+    public interface SqlTransactionRunnable {
+        public void run(Connection connection) throws SQLException;
     }
 }

@@ -59,20 +59,13 @@ public class QuestRepository {
         if (quests.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        return sqlProvider.runAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertPlayerQuestSql())) {
-                    for (GeneratedQuest quest : quests) {
-                        bindQuest(statement, quest);
-                        statement.addBatch();
-                    }
-                    statement.executeBatch();
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
+        return sqlProvider.runInTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertPlayerQuestSql())) {
+                for (GeneratedQuest quest : quests) {
+                    bindQuest(statement, quest);
+                    statement.addBatch();
                 }
-                connection.commit();
+                statement.executeBatch();
             }
         });
     }
@@ -145,74 +138,53 @@ public class QuestRepository {
         if (limit <= 0) {
             return CompletableFuture.completedFuture(-1);
         }
-        return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    int used = readQuestResetsUsed(connection, playerId, resetKey);
-                    if (used >= limit) {
-                        connection.rollback();
-                        return -1;
-                    }
-                    try (PreparedStatement resetUsage = connection.prepareStatement(sqlProvider.incrementQuestResetSql())) {
-                        resetUsage.setString(1, playerId.toString());
-                        resetUsage.setString(2, resetKey);
-                        resetUsage.executeUpdate();
-                    }
-                    try (PreparedStatement deleteQuests = connection.prepareStatement("""
-                            DELETE FROM player_quests
-                            WHERE player_uuid = ? AND reset_key = ?
-                            """)) {
-                        deleteQuests.setString(1, playerId.toString());
-                        deleteQuests.setString(2, resetKey);
-                        deleteQuests.executeUpdate();
-                    }
-                    int updated = readQuestResetsUsed(connection, playerId, resetKey);
-                    connection.commit();
-                    return updated;
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
-                }
+        return sqlProvider.supplyInTransaction(connection -> {
+            int used = readQuestResetsUsed(connection, playerId, resetKey);
+            if (used >= limit) {
+                return -1;
             }
+            try (PreparedStatement resetUsage = connection.prepareStatement(sqlProvider.incrementQuestResetSql())) {
+                resetUsage.setString(1, playerId.toString());
+                resetUsage.setString(2, resetKey);
+                resetUsage.executeUpdate();
+            }
+            try (PreparedStatement deleteQuests = connection.prepareStatement("""
+                    DELETE FROM player_quests
+                    WHERE player_uuid = ? AND reset_key = ?
+                    """)) {
+                deleteQuests.setString(1, playerId.toString());
+                deleteQuests.setString(2, resetKey);
+                deleteQuests.executeUpdate();
+            }
+            return readQuestResetsUsed(connection, playerId, resetKey);
         });
     }
 
     public CompletableFuture<Integer> replaceQuestAndIncrementRerolls(UUID oldInstanceId, GeneratedQuest replacement) {
-        return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    try (PreparedStatement delete = connection.prepareStatement("""
-                            DELETE FROM player_quests
-                            WHERE instance_id = ?
-                            """)) {
-                        delete.setString(1, oldInstanceId.toString());
-                        delete.executeUpdate();
-                    }
-                    try (PreparedStatement insert = connection.prepareStatement("""
-                            INSERT INTO player_quests (
-                                instance_id, player_uuid, reset_key, definition_id, type, difficulty_id, difficulty_display_name, display_name,
-                                description, variables, slot_index, premium, goal_amount, progress, completed
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """)) {
-                        bindQuest(insert, replacement);
-                        insert.executeUpdate();
-                    }
-                    try (PreparedStatement reroll = connection.prepareStatement(sqlProvider.incrementQuestRerollSql())) {
-                        reroll.setString(1, replacement.playerId().toString());
-                        reroll.setString(2, replacement.resetKey());
-                        reroll.executeUpdate();
-                    }
-                    int used = readRerollsUsed(connection, replacement.playerId(), replacement.resetKey());
-                    connection.commit();
-                    return used;
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
-                }
+        return sqlProvider.supplyInTransaction(connection -> {
+            try (PreparedStatement delete = connection.prepareStatement("""
+                    DELETE FROM player_quests
+                    WHERE instance_id = ?
+                    """)) {
+                delete.setString(1, oldInstanceId.toString());
+                delete.executeUpdate();
             }
+            try (PreparedStatement insert = connection.prepareStatement("""
+                    INSERT INTO player_quests (
+                        instance_id, player_uuid, reset_key, definition_id, type, difficulty_id, difficulty_display_name, display_name,
+                        description, variables, slot_index, premium, goal_amount, progress, completed
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """)) {
+                bindQuest(insert, replacement);
+                insert.executeUpdate();
+            }
+            try (PreparedStatement reroll = connection.prepareStatement(sqlProvider.incrementQuestRerollSql())) {
+                reroll.setString(1, replacement.playerId().toString());
+                reroll.setString(2, replacement.resetKey());
+                reroll.executeUpdate();
+            }
+            return readRerollsUsed(connection, replacement.playerId(), replacement.resetKey());
         });
     }
 
@@ -257,64 +229,46 @@ public class QuestRepository {
     }
 
     public CompletableFuture<QuestCompletionStats> incrementCompletionStats(UUID playerId, String difficultyId, List<QuestMilestone> milestones) {
-        return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    try (PreparedStatement statement = connection.prepareStatement(sqlProvider.incrementDifficultyStatsSql())) {
-                        statement.setString(1, playerId.toString());
-                        statement.setString(2, difficultyId);
-                        statement.executeUpdate();
-                    }
+        return sqlProvider.supplyInTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.incrementDifficultyStatsSql())) {
+                statement.setString(1, playerId.toString());
+                statement.setString(2, difficultyId);
+                statement.executeUpdate();
+            }
 
-                    int difficultyCompletedCount = readDifficultyCompletedCount(connection, playerId, difficultyId);
-                    int totalCompletedCount = readTotalDifficultyCompletedCount(connection, playerId);
-                    List<QuestMilestone> newlyExecuted = new ArrayList<>();
-                    for (QuestMilestone milestone : milestones) {
-                        if (milestone.completed() > difficultyCompletedCount) {
-                            continue;
-                        }
-                        if (insertExecutedMilestone(connection, playerId, difficultyId, milestone.completed())) {
-                            newlyExecuted.add(milestone);
-                        }
-                    }
-                    connection.commit();
-                    return new QuestCompletionStats(totalCompletedCount, difficultyCompletedCount, List.copyOf(newlyExecuted));
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
+            int difficultyCompletedCount = readDifficultyCompletedCount(connection, playerId, difficultyId);
+            int totalCompletedCount = readTotalDifficultyCompletedCount(connection, playerId);
+            List<QuestMilestone> newlyExecuted = new ArrayList<>();
+            for (QuestMilestone milestone : milestones) {
+                if (milestone.completed() > difficultyCompletedCount) {
+                    continue;
+                }
+                if (insertExecutedMilestone(connection, playerId, difficultyId, milestone.completed())) {
+                    newlyExecuted.add(milestone);
                 }
             }
+            return new QuestCompletionStats(totalCompletedCount, difficultyCompletedCount, List.copyOf(newlyExecuted));
         });
     }
 
     public CompletableFuture<List<QuestMilestoneClaim>> claimEligibleMilestones(UUID playerId, Map<String, Integer> difficultyCompletions, List<QuestDifficulty> difficulties) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyInTransaction(connection -> {
             List<QuestMilestoneClaim> newlyClaimed = new ArrayList<>();
-            try (Connection connection = sqlProvider.getConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    for (QuestDifficulty difficulty : difficulties) {
-                        int completed = difficultyCompletions.getOrDefault(difficulty.id(), 0);
-                        if (completed <= 0) {
-                            continue;
-                        }
-                        for (QuestMilestone milestone : difficulty.milestones()) {
-                            if (milestone.completed() > completed) {
-                                continue;
-                            }
-                            if (insertExecutedMilestone(connection, playerId, difficulty.id(), milestone.completed())) {
-                                newlyClaimed.add(new QuestMilestoneClaim(difficulty.id(), difficulty.displayName(), completed, milestone));
-                            }
-                        }
+            for (QuestDifficulty difficulty : difficulties) {
+                int completed = difficultyCompletions.getOrDefault(difficulty.id(), 0);
+                if (completed <= 0) {
+                    continue;
+                }
+                for (QuestMilestone milestone : difficulty.milestones()) {
+                    if (milestone.completed() > completed) {
+                        continue;
                     }
-                    connection.commit();
-                    return List.copyOf(newlyClaimed);
-                } catch (SQLException exception) {
-                    connection.rollback();
-                    throw exception;
+                    if (insertExecutedMilestone(connection, playerId, difficulty.id(), milestone.completed())) {
+                        newlyClaimed.add(new QuestMilestoneClaim(difficulty.id(), difficulty.displayName(), completed, milestone));
+                    }
                 }
             }
+            return List.copyOf(newlyClaimed);
         });
     }
 
