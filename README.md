@@ -1,368 +1,331 @@
 # QuestsPlus
+
+![QuestsPlus Cover Image](https://cdn.modrinth.com/data/cached_images/014af0d98c15b0dcf1277df6007f6d0b0db677c4.jpeg)
 > See [LICENSE.MD](LICENSE.MD) before using, modifying, or redistributing this plugin.
 
 [![Modrinth](https://img.shields.io/modrinth/v/questsplus?logo=modrinth&label=Modrinth&color=00AF5C)](https://modrinth.com/plugin/questsplus)
 [![Modrinth downloads](https://img.shields.io/modrinth/dt/questsplus?logo=modrinth&label=Downloads&color=00AF5C)](https://modrinth.com/plugin/questsplus)
 
-QuestsPlus is a Paper quest plugin for servers that want configurable daily
-quests, premium quest slots, quest reset purchases, streak systems, milestones,
-and weekly global goals without forcing every reward or menu into one file.
+**QuestsPlus** combines randomly generated daily quests, shared global quests, progression systems, and flexible reset options in one plugin. It is designed for servers that want repeatable content, long-term player goals, and configurable reward loops without forcing players through the same fixed quest path every day.
 
-It is designed around operator-owned configuration. Server owners control the
-reset schedule, quest pools, difficulty progression, GUI items, reward commands,
-premium access, reroll allowances, progress indicators, global quest rewards,
-and staff tools from modular files under `plugins/QuestsPlus/`.
+## At a Glance
 
-## Server Requirements
+- Randomly generated daily quests from your configured quest pools
+- Permission-based rerolls and Premium Quest slots
+- Quest Reset purchases with PlayerPoints, Vault, or custom currencies
+- Weekly global quests with percentile-based rewards
+- Streaks, milestones, shields, and recovery systems
+- Built-in survival quest types with SDK support for custom expansion
 
-- Paper `1.21.x`
-- Java 21
-- PlayerPoints, optional; enables points-based Quest Reset purchases
-- Vault, optional; enables money-based Quest Reset purchases when an economy
-  provider is registered
-- RoseStacker, optional; stacked mob kills can count toward matching mob-kill
-  quests when the plugin is installed
+## Optional Dependencies
 
-QuestsPlus declares PlayerPoints, Vault, and RoseStacker as optional plugin
-dependencies. Currency-backed reset purchases only appear for the enabled
-currency integrations that are present on the server. Other plugins can also
-register Quest Reset currencies through the QuestsPlus SDK.
+- **[PlayerPoints](https://www.spigotmc.org/resources/playerpoints.80745/)** - points-based quest resets
+- **[Vault](https://dev.bukkit.org/projects/vault)** - economy-based quest resets
+- **[RoseStacker](https://www.spigotmc.org/resources/rosestacker.82729/)** - stacked mob kill quest support
 
-## What QuestsPlus Adds
+## Main Features
 
-- Player-selected daily quest slots with configurable difficulty pools.
-- Daily or weekly personal quest reset schedules.
-- Permission-based daily reroll limits.
-- Permission-based premium quest slots with locked-slot display items.
-- Quest Reset purchases using optional PlayerPoints, Vault, or SDK-registered
-  currencies.
-- Per-difficulty lifetime completion milestones.
-- Quest streaks with shields, recovery, and streak milestone rewards.
-- Weekly global quests with contribution tracking and percentile reward tiers.
-- Boss bar, action bar, and chat progress indicators.
-- Admin commands for reloads, testing, resets, progress grants, and streak
-  currency management.
+### Daily Quests
 
-## First Setup
+Daily quests are randomly generated from your defined configuration files. Each generated quest pulls from your configured quest definitions, values, and goals, which can include items, blocks, mobs, and more.
 
-1. Install QuestsPlus on a Paper server running Java 21.
-2. Install PlayerPoints, Vault, or a custom QuestsPlus currency plugin if quest
-   reset purchases should use external currency. Add RoseStacker if stacked mob
-   kills should count toward combat quests.
-3. Start the server once so QuestsPlus can generate its default files.
-4. Edit the files under `plugins/QuestsPlus/`.
-5. Run `/qa reload` after config changes.
-6. Use `/qa listtypes` to verify available quest type keys before writing new
-   quest definitions.
+<details>
+<summary>Randomly Generated Quests</summary>
 
-Older flat files such as `config.yml`, `storage.yml`, `quests.yml`,
-`difficulties.yml`, and `milestones.yml` are not used by this version. New
-installs use the modular layout below.
+All quests are randomly generated from the defined configuration files. The algorithm gets a random defined quest, a random number from the defined quest, and a random "goal" from the defined quest, which could be an item, block, mob, etc.
 
-## Configuration Layout
+#### Example
 
-| File or folder | Owns |
-|---|---|
-| `storage-settings.yml` | SQL backend selection, SQLite file location, and MariaDB/MySQL/PostgreSQL connection settings |
-| `daily.yml` | Daily/weekly reset mode, quest count, reroll limits, and daily messages |
-| `quest-menu.yml` | Daily quest menu layout, empty-slot item, quest item templates, and difficulty picker |
-| `quest-resets.yml` | Quest Reset menu button, purchase menu, per-window limit, and reset status text |
-| `currencies.yml` | Enabled currency keys plus PlayerPoints/Vault display, cost, and purchase button settings |
-| `difficulty/<id>/settings.yml` | Difficulty display name, lore, menu placement, requirements, and baseline rewards |
-| `difficulty/<id>/quests.yml` | Personal quest definitions for that difficulty |
-| `difficulty/<id>/milestones.yml` | Lifetime completion milestones for that difficulty |
-| `quest-milestones.yml` | Completion milestone enable toggle, messages, selector menu, and milestone page layout |
-| `premium_quests.yml` | Premium slot permissions, locked-slot items, premium quest styling, and bonus rewards |
-| `streaks.yml` | Streak enable toggle, rules, shields, recovery, streak milestones, and streak menus |
-| `global-quests.yml` | Weekly global quest schedule, global definitions, contribution rewards, and preview menu |
-| `progress-indicators.yml` | Runtime progress indicator types, templates, timing, and BossBar styling |
-| `messages.yml` | Shared command/admin messages |
+![Example Quest](https://cdn.modrinth.com/data/cached_images/07af3056ab9f7ccf0237ebf336dbd741192cebd8.png)
 
-Most menu text, messages, quest descriptions, and reward displays support
-MiniMessage formatting. Reward and display text can use placeholders for player
-name, quest name, difficulty, goal amount, progress, target mob, target block,
-target item, reset timer, global contribution, and global rank.
+</details>
 
-For the full field-by-field configuration reference, see
-[wiki/questsplus.md](wiki/questsplus.md).
+<details>
+<summary>Daily Quest Rerolls</summary>
 
-## Daily Quest Operation
+Set up permission based reroll amounts, in case the player does not like their quest, they can choose to reroll.
 
-Daily quests are selected by the player from empty menu slots. The slot opens a
-difficulty picker, and QuestsPlus generates one enabled quest from that
-difficulty pool. The generated quest keeps its variables and progress until the
-active reset window changes or an admin/reset action clears it.
+#### `daily.yml`
 
-Important operator rules:
-
-- `daily.quest-count` controls normal personal quest slots.
-- `daily.weekly: false` uses `daily.reset-time`.
-- `daily.weekly: true` uses `daily.schedule.day-of-week` and
-  `daily.schedule.time`.
-- Reset windows use the server JVM timezone.
-- Quest slots are empty until the player selects a difficulty.
-- Generated quest variables do not reroll during the same reset window.
-- Progress survives server restarts.
-- Personal resets clear the current generated quests but do not clear lifetime
-  completion totals, milestones, streaks, shields, recovery balances, or reroll
-  usage.
-
-## Difficulties And Quest Pools
-
-Each folder in `difficulty/` is a difficulty id. For example:
-
-```text
-plugins/QuestsPlus/
-  difficulty/
-    easy/
-      settings.yml
-      quests.yml
-      milestones.yml
-    hard/
-      settings.yml
-      quests.yml
-      milestones.yml
+```yml
+# Permission-based daily reroll limits.
+rerolls:
+  # Maps each key to permission questsplus.reroll.<key>; the highest matching value is used.
+  permission-limits:
+    vip: 1
+    vipplus: 2
+    mvp: 3
 ```
 
-`settings.yml` controls the displayed difficulty name, menu lore, picker slot,
-milestone selector slot, optional requirements, and baseline rewards.
+</details>
 
-`quests.yml` contains the personal quest definitions for that difficulty. A
-quest definition chooses a type, display name, description, variables, schedule,
-and optional extra rewards. Disabled definitions stay configured but are not
-sampled.
+<details>
+<summary>Premium Quests</summary>
 
-`milestones.yml` contains completion thresholds for that difficulty. Milestone
-commands run automatically when players reach the configured lifetime completed
-count for that difficulty.
+You can set up permission based **additional** slots that are additive from the **base amount** that are considered **Premium Quests** which adds bonus rewards that you define in the configurations.
 
-## Built-In Quest Types
+#### `premium_quests.yml`
 
-QuestsPlus ships with quest types for common survival and economy loops:
+```yml
+# Maps each key to permission questsplus.premium.<key>; the highest matching value is used.
+permission-limits:
+  vip: 1
+  vipplus: 2
+  mvp: 3
 
-| Category | Built-in goals |
-|---|---|
-| Combat | Kill a specific mob, kill a mob in a specific world, kill any mob |
-| Blocks | Break a specific block, break any block, place a specific block, place any block |
-| Items | Craft a specific item, craft any item, enchant items, harvest item drops |
-| Smelting and brewing | Smelt a specific item, smelt any item, brew a specific item, brew any item |
-| Animals | Shear sheep, dye sheep, milk cows/goats/mooshrooms |
-| Movement | Travel a configured horizontal distance |
-| Miscellaneous | Fish, eat cake slices, throw projectile items, trade with villagers |
-
-Use `/qa listtypes` in-game to see the exact registered quest type keys. The
-wiki includes the detailed variable requirements for each type.
-
-## Rerolls
-
-Reroll limits are configured in `daily.yml` under `rerolls.permission-limits`.
-Each key maps to a permission using this format:
-
-```text
-questsplus.reroll.<key>
+# Premium bonus rewards keyed by quest difficulty id. These run after difficulty rewards and before quest-specific rewards.
+rewards:
+  easy:
+    commands:
+    - eco give <player> 125
+    - eco give <player> 500
 ```
 
-If a player has multiple matching reroll permissions, QuestsPlus uses the
-highest configured value. Rerolls are per reset window, so weekly mode also
-makes reroll usage weekly.
+</details>
 
-Rerolls are only consumed after the replacement quest is successfully saved.
-Completed quests cannot be rerolled.
+<details>
+<summary>Quest Reset Purchases</summary>
 
-## Premium Quest Slots
+Players can purchase a Quest Reset after completing every quest slot they currently have access to. A reset clears the current generated quests for that reset window, but keeps lifetime completions, milestones, streaks, shields, recoveries, and reroll usage.
 
-Premium slots are configured in `premium_quests.yml`.
+Supported reset currencies:
 
-Each permission limit key maps to:
+- **PlayerPoints** through `currencies.yml`
+- **Vault** through `currencies.yml`
+- **Custom currencies** registered through the QuestsPlus SDK
 
-```text
-questsplus.premium.<key>
+#### `currencies.yml`
+
+```yml
+enabled-currencies:
+- playerpoints
+- vault
+
+playerpoints:
+  display-name: Player Points
+  quest-reset-cost: 250
+
+vault:
+  display-name: Money
+  quest-reset-cost: 5000.0
 ```
 
-Premium slots are appended after normal daily quest slots. Locked slots show the
-configured locked item and do not open the difficulty picker. Unlocked premium
-slots behave like normal slots but can have extra display text and premium bonus
-rewards.
+</details>
 
-Locked premium slots do not count toward Quest Reset purchase requirements.
-Unlocked premium slots do count.
+### Global Quests
 
-## Quest Reset Purchases
+Global quests are weekly server-wide goals where one quest is generated for the active period and every matching player action contributes to the same shared target.
 
-Quest Reset menu placement, purchase menu limits, and shared status text are
-configured in `quest-resets.yml`. The `currencies.yml` `enabled-currencies` list
-controls which currency keys may be offered; the default keys are `vault` and
-`playerpoints`. Currency-specific costs and buttons are configured in
-`currencies.yml`. They let a player clear their current reset-window quest slots
-after completing every slot they can access.
+<details>
+<summary>Global Quests Details</summary>
 
-Supported payment paths:
+Global quests are weekly server-wide goals. One global quest is generated for the active period, and all matching player actions contribute toward the same shared goal.
 
-- Optional PlayerPoints via the `playerpoints` section in `currencies.yml`
-- Optional Vault economy via the `vault` section in `currencies.yml`
-- Custom currencies registered by other plugins through the QuestsPlus SDK
+Each player contribution is tracked separately, allowing percentile-based rewards at the end of the global quest period.
 
-Each built-in currency must be listed in `currencies.yml` `enabled-currencies`
-before it can appear. If a listed currency's backing plugin is missing,
-QuestsPlus logs an error and hides that currency. SDK currencies own their cost,
-button, display text, availability, and charge logic in the plugin that
-registers them.
+#### `global-quests.yml`
 
-Reset purchase limits are per reset window. A successful purchase clears the
-current generated quests but preserves lifetime completions, milestones, streaks,
-shields, recoveries, and reroll usage.
+```yml
+schedule:
+  day-of-week: FRIDAY
+  time: "05:00"
 
-## Milestones
+reduced-reward-minimum-percent: 50.0
 
-Milestones reward lifetime completions per difficulty. They are configured in
-`difficulty/<id>/milestones.yml`.
+reward-tiers:
+- percentile: 1.0
+  display-name: <gold>Top 1%
+  commands:
+  - eco give <player> 10000
 
-Set `enabled: false` in `quest-milestones.yml` to disable milestone menus,
-retroactive milestone claims, and milestone reward execution while preserving
-stored completion totals.
+reduced-reward-tiers:
+- percentile: 25.0
+  display-name: <yellow>Top 25%
+  commands:
+  - eco give <player> 1000
+```
 
-Milestone thresholds should be positive and unique within a difficulty.
-QuestsPlus records claimed milestones so commands do not run twice for the same
-player and threshold. If new milestones are added later, reloads can claim
-eligible missed milestones for online players.
+#### Admin Commands
 
-## Streaks
+```txt
+/qa global add <quest-type> <amount> <player>
+/qa global refresh
+```
 
-Streak behavior is configured in `streaks.yml`.
+</details>
 
-Set `enabled: false` in `streaks.yml` to disable streak menus, streak point
-evaluation, missed-window checks, shields, recovery, and streak milestone
-rewards while preserving stored streak data.
+### Progression Systems
 
-`daily-required-completions` controls how many selected/generated quests must be
-completed in one reset window to award a streak point. `-1` means all selected
-quests for that window.
+QuestsPlus includes multiple ways to keep players progressing over time, from visible quest progress indicators to streaks and automatic milestone rewards.
 
-Streak Shields and Streak Recoveries are virtual balances. Shields are consumed
-automatically when a missed reset would break a streak. Recovery is used from
-the streak menu to restore a recently lost streak inside the configured recovery
-window.
+<details>
+<summary>Quest Indicators</summary>
 
-Staff can manage balances with:
+Quest indicators can show progress updates through boss bars, action bars, or chat summaries.
 
-- `/qa shield give <amount> <player>`
-- `/qa shield take <amount> <player>`
-- `/qa recovery give <amount> <player>`
-- `/qa recovery take <amount> <player>`
+Players can choose how personal and global progress is displayed.
 
-## Global Quests
-
-Global quests are configured in `global-quests.yml`. They use a weekly schedule
-and select one enabled global quest definition for the active period.
-
-Global progress is shared by the server, while each player contribution is
-tracked separately. At period end, QuestsPlus chooses reward behavior from
-completion percentage:
-
-- Below the configured reduced reward minimum: no global contribution rewards.
-- From the reduced minimum through incomplete progress: reduced reward tiers.
-- At full completion: full reward tiers.
-
-Reward tiers are percentile-based. A player in a top tier can also receive
-broader tiers they qualify for.
-
-Admins can test global quests with:
-
-- `/qa global add <quest-type> <amount> <player>`
-- `/qa global refresh`
-
-## Progress Indicators
-
-Progress indicators are configured in `progress-indicators.yml`.
-
-Supported indicator types:
-
-- `BOSS_BAR`
-- `ACTION_BAR`
-- `CHAT`
-
-Players can change personal and global indicator preferences with:
-
-```text
+```txt
 /quests indicator <main|global|both> <type|off|default>
 ```
 
-Operators can disable unavailable types in config and choose the default display
-style.
+</details>
 
-## Permissions
+<details>
+<summary>Streaks</summary>
 
-| Permission | Purpose |
-|---|---|
-| `questsplus.admin` | Allows `/questsadmin` and `/qa` commands |
-| `questsplus.reroll.<key>` | Grants the matching configured reroll limit |
-| `questsplus.premium.<key>` | Grants the matching configured premium slot count |
+QuestsPlus can track streaks based on the configured reset window. You can require all selected quests, or a fixed amount of completed quests, before a player earns streak progress.
 
-The `<key>` values come from `daily.yml` reroll limits and
-`premium_quests.yml` premium slot limits.
+Streak Shields can automatically protect a streak from being broken. Streak Recovery can restore a recently lost streak from the streak menu.
+
+#### `streaks.yml`
+
+```yml
+daily-required-completions: -1
+recovery-window-days: 3
+
+milestones:
+- streak: 7
+  display-name: <gold>One Week Streak
+  rewards:
+    commands:
+    - eco give <player> 2500
+```
+
+#### Admin Commands
+
+```txt
+/qa shield give <amount> <player>
+/qa shield take <amount> <player>
+/qa recovery give <amount> <player>
+/qa recovery take <amount> <player>
+```
+
+</details>
+
+<details>
+<summary>Milestones</summary>
+
+Reward players for lifetime quest completions per difficulty. Milestones are claimed automatically, so players do not need to click a reward button.
+
+#### `difficulty/easy/milestones.yml`
+
+```yml
+milestones:
+- completed: 10
+  display-name: <green>Easy Starter
+  rewards:
+    commands:
+    - eco give <player> 1000
+
+- completed: 25
+  display-name: <green>Easy Regular
+  rewards:
+    commands:
+    - give <player> diamond 3
+```
+
+</details>
+
+### Quest Types
+
+QuestsPlus includes common survival quest types across combat, gathering, farming, crafting, exploration, and trading.
+
+<details>
+<summary>View Included Quest Types</summary>
+
+QuestsPlus includes common survival quest types such as:
+
+- Kill mobs
+- Kill mobs in a specific world
+- Break blocks
+- Place blocks
+- Harvest crops
+- Craft items
+- Smelt items
+- Brew items
+- Fish
+- Enchant items
+- Shear sheep
+- Dye sheep
+- Milk mobs
+- Eat cake slices
+- Throw items
+- Trade with villagers
+- Travel distance
+
+Use this command in-game to view the exact registered quest type keys:
+
+```txt
+/qa listtypes
+```
+
+</details>
 
 ## Commands
 
+Players can track progress, milestones, streaks, and indicators through player commands, while admins can manage reloads, resets, completions, rerolls, and global quest progress.
+
+<details>
+<summary>Player and Admin Commands</summary>
+
 ### Player Commands
 
-| Command | Purpose |
-|---|---|
-| `/quests`, `/q` | Open the daily quest menu |
-| `/quests progress`, `/q progress` | Show current quest progress |
-| `/quests completed`, `/q completed` | Show lifetime completed quest totals |
-| `/quests milestones`, `/q milestones` | Open the milestone difficulty selector |
-| `/quests milestones <difficulty>` | Open one difficulty's milestone menu |
-| `/quests streaks`, `/q streaks` | Open the streak menu |
-| `/quests indicator <main\|global\|both> <type\|off\|default>` | Set progress indicator preferences |
+```txt
+/quests
+/q
+/quests progress
+/quests completed
+/quests milestones
+/quests milestones <difficulty>
+/quests streaks
+/quests indicator <main|global|both> <type|off|default>
+```
 
 ### Admin Commands
 
-All admin commands require `questsplus.admin`.
+```txt
+/questsadmin
+/qa
+/qa reload
+/qa listtypes
+/qa reset <player>
+/qa complete <player>
+/qa dailyrerolls reset <player>
+/qa add <amount> <quest-type> <player>
+/qa global add <quest-type> <amount> <player>
+/qa global refresh
+```
 
-| Command | Purpose |
-|---|---|
-| `/questsadmin`, `/qa` | Show admin usage |
-| `/qa reload` | Reload config and validate quest definitions |
-| `/qa listtypes` | List registered quest type keys |
-| `/qa reset <player>` | Clear a player's current daily quest set |
-| `/qa complete <player>` | Complete a player's current accessible quest set |
-| `/qa dailyrerolls reset <player>` | Reset a player's used reroll count |
-| `/qa add <amount> <quest-type> <player>` | Add progress to matching personal quests |
-| `/qa global add <quest-type> <amount> <player>` | Add progress to the active global quest |
-| `/qa global refresh` | Delete and regenerate the active global quest |
-| `/qa shield give <amount> <player>` | Give Streak Shields |
-| `/qa shield take <amount> <player>` | Remove Streak Shields |
-| `/qa recovery give <amount> <player>` | Give Streak Recoveries |
-| `/qa recovery take <amount> <player>` | Remove Streak Recoveries |
+</details>
 
-## Reward Behavior
+## Compatibility
 
-Reward commands run from console.
+QuestsPlus supports SQLite out of the box, as well as MySQL, MariaDB, and PostgreSQL for servers that want an external database.
 
-Personal quest rewards run in this order:
+<details>
+<summary>Database Support</summary>
 
-1. One random reward from the completed quest's difficulty.
-2. Premium bonus rewards when the completed quest is an accessible premium
-   quest.
-3. Quest-specific rewards from the quest definition.
+QuestsPlus supports:
 
-Global reward tiers run at the end of the global period. Full reward tiers are
-used only when the global quest reaches 100%. Reduced tiers are used only when
-the quest reaches the configured reduced-reward minimum but does not complete.
+- **SQLite** - default database, no setup required
+- **MySQL**
+- **MariaDB**
+- **PostgreSQL**
 
-## Operating Notes
+</details>
 
-- Run `/qa reload` after configuration changes.
-- Use `/qa listtypes` before adding or editing quest definitions.
-- Keep `easy` configured if you rely on default/fallback examples.
-- Use unique quest ids inside configured quest pools.
-- Locked premium slots are ignored for reset purchase readiness.
-- Global quest completion does not count as personal quest completion.
-- Streaks are based on the configured reset window, not necessarily calendar
-  midnight.
-- Reward commands receive raw command-safe placeholder values.
-- Player-facing numbers in menus and messages are formatted with grouping, such
-  as `15,000`.
+<details>
+<summary>SDK Support</summary>
+
+QuestsPlus includes an SDK for external plugins that want to register custom quest types or custom Quest Reset currencies.
+
+External quest types can progress through the same completion, reward, milestone, streak, and global quest pipeline as built-in quests.
+
+Custom currencies can be registered for Quest Reset purchases, allowing servers to charge custom points, tokens, or other plugin-managed balances.
+
+</details>
+
 
 ## Full Reference
 
