@@ -315,14 +315,357 @@ QuestsPlus supports:
 
 </details>
 
-<details>
-<summary>SDK Support</summary>
+## API
 
 QuestsPlus includes an SDK for external plugins that want to register custom quest types or custom Quest Reset currencies.
 
+<details>
+<summary>SDK Setup</summary>
+
+Use `compileOnly` so your plugin compiles against the QuestsPlus API without shading the SDK into your plugin jar.
+
+### Gradle Kotlin DSL
+
+```kotlin
+repositories {
+    maven("https://repo.moonrise.gg/repository/maven-releases/")
+    maven("https://repo.moonrise.gg/repository/maven-snapshots/")
+}
+
+dependencies {
+    compileOnly("gg.moonrise.quests:quests-sdk:0.1-SNAPSHOT")
+}
+```
+
+### Maven
+
+```xml
+<repositories>
+    <repository>
+        <id>moonrise-releases</id>
+        <url>https://repo.moonrise.gg/repository/maven-releases/</url>
+    </repository>
+    <repository>
+        <id>moonrise-snapshots</id>
+        <url>https://repo.moonrise.gg/repository/maven-snapshots/</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>gg.moonrise.quests</groupId>
+        <artifactId>quests-sdk</artifactId>
+        <version>0.1-SNAPSHOT</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+```
+
+</details>
+
+<details>
+<summary>Plugin Metadata</summary>
+
+Add `QuestsPlus` to your plugin metadata so Bukkit or Paper loads QuestsPlus before your external integration.
+
+### `plugin.yml`
+
+```yml
+depend:
+- QuestsPlus
+```
+
+If your integration is optional, use `softdepend` instead and handle a missing `QuestApi` at runtime.
+
+```yml
+softdepend:
+- QuestsPlus
+```
+
+### `paper-plugin.yml`
+
+```yml
+dependencies:
+  server:
+    QuestsPlus:
+      load: BEFORE
+      required: true
+```
+
+For an optional integration, set `required: false` and keep the same runtime null check shown below.
+
+</details>
+
+<details>
+<summary>Getting QuestApi</summary>
+
+QuestsPlus registers `QuestApi` through Bukkit services after QuestsPlus enables. Load it in your plugin after dependencies are available:
+
+```java
+import gg.moonrise.quests.sdk.QuestApi;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class MyPlugin extends JavaPlugin {
+    private QuestApi questApi;
+
+    @Override
+    public void onEnable() {
+        this.questApi = Bukkit.getServicesManager().load(QuestApi.class);
+        if (this.questApi == null) {
+            getLogger().warning("QuestsPlus is not available; quest integration disabled.");
+            return;
+        }
+
+        // Register custom quest handlers, variable selectors, or currencies here.
+    }
+
+    @Override
+    public void onDisable() {
+        if (this.questApi != null) {
+            this.questApi.unregisterAll(this);
+        }
+    }
+}
+```
+
+</details>
+
+<details>
+<summary>Bukkit Event Quest Example</summary>
+
 External quest types can progress through the same completion, reward, milestone, streak, and global quest pipeline as built-in quests.
 
-Custom currencies can be registered for Quest Reset purchases, allowing servers to charge custom points, tokens, or other plugin-managed balances.
+This example creates an `EAT_CUSTOM_ITEM` quest type backed by Bukkit's `PlayerItemConsumeEvent`.
+
+### Example quest definition
+
+```yml
+# difficulty/easy/quests.yml
+quest-definitions:
+- id: eat-custom-item
+  type: EAT_CUSTOM_ITEM
+  enabled: true
+  display-name: "<green>Snack Break"
+  description:
+  - "<gray>Eat <white><goal-amount></white> <white><item-type></white>."
+  variables:
+    item-type:
+      selector: LIST
+      values:
+      - GOLDEN_APPLE
+      - COOKED_BEEF
+    goal-amount:
+      selector: LIST
+      values:
+      - 3
+      - 5
+  rewards:
+    commands:
+    - "eco give <player> 250"
+```
+
+### Example handler
+
+```java
+import gg.moonrise.quests.sdk.GoalHandler;
+import gg.moonrise.quests.sdk.QuestApi;
+import gg.moonrise.quests.sdk.model.GeneratedQuest;
+import gg.moonrise.quests.sdk.model.QuestDefinition;
+import gg.moonrise.quests.sdk.model.QuestType;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+
+import java.util.Map;
+import java.util.UUID;
+
+public final class EatCustomItemGoalHandler implements GoalHandler {
+    private static final QuestType TYPE = QuestType.of("EAT_CUSTOM_ITEM");
+    private final QuestApi api;
+
+    public EatCustomItemGoalHandler(QuestApi api) {
+        this.api = api;
+    }
+
+    @Override
+    public QuestType type() {
+        return TYPE;
+    }
+
+    @Override
+    public void validateDefinition(QuestDefinition definition) {
+        if (!definition.selectorTypes().containsKey("item-type")) {
+            throw new IllegalArgumentException("EAT_CUSTOM_ITEM requires item-type");
+        }
+        if (!definition.selectorTypes().containsKey("goal-amount")) {
+            throw new IllegalArgumentException("EAT_CUSTOM_ITEM requires goal-amount");
+        }
+    }
+
+    @Override
+    public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
+        int goalAmount = Integer.parseInt(variables.get("goal-amount"));
+        return new GeneratedQuest(
+                UUID.randomUUID(),
+                playerId,
+                resetKey,
+                definition.id(),
+                definition.type(),
+                definition.difficultyId(),
+                definition.difficultyDisplayName(),
+                definition.displayName(),
+                definition.description(),
+                variables,
+                goalAmount,
+                0,
+                false
+        );
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onConsume(PlayerItemConsumeEvent event) {
+        String material = event.getItem().getType().name();
+        api.progressMatching(
+                event.getPlayer(),
+                TYPE,
+                1,
+                quest -> material.equals(quest.variables().get("item-type"))
+        );
+    }
+}
+```
+
+Register the handler after loading `QuestApi`:
+
+```java
+questApi.registerGoalHandler(this, new EatCustomItemGoalHandler(questApi));
+```
+
+`registerGoalHandler` also registers the handler as a Bukkit listener. Call `questApi.unregisterAll(this)` during plugin disable if your plugin can disable while the server is running.
+
+</details>
+
+<details>
+<summary>Quest Progress Event Example</summary>
+
+External plugins can listen to `QuestProgressEvent` to cancel or adjust progress before QuestsPlus updates cache, saves progress, runs rewards, evaluates streaks and milestones, or records global contribution.
+
+```java
+import gg.moonrise.quests.sdk.event.QuestProgressEvent;
+import gg.moonrise.quests.sdk.model.QuestType;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+
+public final class QuestProgressListener implements Listener {
+    private static final QuestType EAT_CUSTOM_ITEM = QuestType.of("EAT_CUSTOM_ITEM");
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestProgress(QuestProgressEvent event) {
+        if (event.quest().type().equals(EAT_CUSTOM_ITEM)
+                && event.cause() == QuestProgressEvent.Cause.API) {
+            event.setAmount(Math.min(event.getAmount(), 1));
+        }
+
+        if (event.quest().definitionId().equals("blocked_quest")) {
+            event.setCancelled(true);
+        }
+    }
+}
+```
+
+`QuestProgressEvent.Cause.EVENT` is used for built-in Bukkit listener progress, `API` is used for `QuestApi#progressMatching`, and `COMMAND` is used for QuestsPlus admin command progress.
+
+</details>
+
+<details>
+<summary>Custom Currencies</summary>
+
+Custom currencies can be registered for Quest Reset purchases, allowing servers to charge custom points, tokens, or other plugin-managed balances. QuestsPlus owns the reset limit, reset menu, and quest reset transaction. The external plugin owns the balance lookup, availability check, display text, menu button details, and charge operation.
+
+Implement `QuestCurrency`:
+
+```java
+import gg.moonrise.quests.sdk.currency.QuestCurrency;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
+import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
+import org.bukkit.entity.Player;
+
+import java.util.List;
+
+public final class TokenCurrency implements QuestCurrency {
+    private final TokenService tokenService;
+    private final QuestCurrencyKey key = QuestCurrencyKey.of("tokens");
+
+    public TokenCurrency(TokenService tokenService) {
+        this.tokenService = tokenService;
+    }
+
+    @Override
+    public QuestCurrencyKey key() {
+        return key;
+    }
+
+    @Override
+    public String displayName() {
+        return "Tokens";
+    }
+
+    @Override
+    public String displayAmount(Player player) {
+        return String.valueOf((int) questResetCost());
+    }
+
+    @Override
+    public double questResetCost() {
+        return 5.0D;
+    }
+
+    @Override
+    public QuestCurrencyButton button() {
+        return QuestCurrencyButton.of(
+                13,
+                "SUNFLOWER",
+                "<gold>Tokens",
+                List.of(
+                        "<gray>Spend <yellow><amount> <payment></yellow><gray> to reset quests.",
+                        "<gray>Resets remaining today: <white><resets_remaining></white>"
+                )
+        );
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return tokenService != null;
+    }
+
+    @Override
+    public boolean charge(Player player, double amount) {
+        return tokenService.take(player.getUniqueId(), amount);
+    }
+}
+```
+
+Register the currency after loading `QuestApi`:
+
+```java
+TokenService tokenService = getTokenService();
+questApi.registerCurrency(this, new TokenCurrency(tokenService));
+```
+
+Clean up registrations when your plugin disables:
+
+```java
+@Override
+public void onDisable() {
+    if (this.questApi != null) {
+        this.questApi.unregisterAll(this);
+    }
+}
+```
+
+QuestsPlus only completes the Quest Reset purchase when `charge(player, amount)` returns `true`. Return `false` when the player cannot afford the purchase or the backing transaction fails. `isAvailable()` should return `false` when the backing economy, token service, or database connection is not ready; unavailable currencies are not usable for purchases.
+
+Currency keys should be stable lowercase identifiers such as `tokens`, `gems`, or `guild_points`. Built-in currency keys are exposed through `QuestCurrencies`, and custom keys should be created with `QuestCurrencyKey.of("your-key")`.
 
 </details>
 
