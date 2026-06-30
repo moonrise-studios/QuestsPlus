@@ -15,7 +15,7 @@ import static org.mockito.Mockito.when;
 class QuestStreakServiceTest {
 
     @Test
-    void missedWindowConsumesShieldBalanceAndPreservesStreak() throws Exception {
+    public void missedWindowConsumesShieldBalanceAndPreservesStreak() throws Exception {
         QuestStreakService service = service();
         QuestStreakState state = state(5, 2);
 
@@ -28,7 +28,7 @@ class QuestStreakServiceTest {
     }
 
     @Test
-    void missedWindowWithoutShieldBreaksStreak() throws Exception {
+    public void missedWindowWithoutShieldBreaksStreak() throws Exception {
         QuestStreakService service = service();
         QuestStreakState state = state(5, 0);
 
@@ -41,7 +41,7 @@ class QuestStreakServiceTest {
     }
 
     @Test
-    void multipleMissedWindowsConsumeOneShieldEach() throws Exception {
+    public void multipleMissedWindowsConsumeOneShieldEach() throws Exception {
         QuestStreakService service = service();
         QuestStreakState state = state(5, 2);
 
@@ -59,7 +59,7 @@ class QuestStreakServiceTest {
     }
 
     @Test
-    void adminShieldAdjustmentStillUpdatesShieldBalance() {
+    public void adminShieldAdjustmentStillUpdatesShieldBalance() {
         SqlProvider sqlProvider = mock(SqlProvider.class);
         QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), sqlProvider);
         QuestStreakState state = state(3, 2);

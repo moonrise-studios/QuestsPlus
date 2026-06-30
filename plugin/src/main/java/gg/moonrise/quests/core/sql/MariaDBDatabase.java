@@ -22,4 +22,14 @@ public class MariaDBDatabase extends MySQLDatabase {
         hikariConfig.setPoolName("QuestsPlus-MariaDB");
         return hikariConfig;
     }
+
+    @Override
+    protected String insertedValuesAlias() {
+        return "";
+    }
+
+    @Override
+    protected String insertedColumn(String column) {
+        return "VALUES(" + column + ")";
+    }
 }

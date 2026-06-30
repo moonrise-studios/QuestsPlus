@@ -28,7 +28,7 @@ final class QuestTypeSupport {
     private QuestTypeSupport() {
     }
 
-    static void validateOnlyGoalAmount(QuestDefinition definition) {
+    public static void validateOnlyGoalAmount(QuestDefinition definition) {
         if (!definition.selectorValues().containsKey(GOAL_AMOUNT)) {
             throw new IllegalArgumentException(definition.id() + " is missing variable " + GOAL_AMOUNT);
         }
@@ -43,7 +43,7 @@ final class QuestTypeSupport {
         validateGoalAmounts(definition);
     }
 
-    static void validateBlockTypeAndGoalAmount(QuestDefinition definition) {
+    public static void validateBlockTypeAndGoalAmount(QuestDefinition definition) {
         if (!definition.selectorValues().containsKey(BLOCK_TYPE)) {
             throw new IllegalArgumentException(definition.id() + " is missing variable " + BLOCK_TYPE);
         }
@@ -58,7 +58,7 @@ final class QuestTypeSupport {
         validateGoalAmounts(definition);
     }
 
-    static void validateItemTypeAndGoalAmount(QuestDefinition definition) {
+    public static void validateItemTypeAndGoalAmount(QuestDefinition definition) {
         if (!definition.selectorValues().containsKey(ITEM_TYPE)) {
             throw new IllegalArgumentException(definition.id() + " is missing variable " + ITEM_TYPE);
         }
@@ -73,12 +73,12 @@ final class QuestTypeSupport {
         validateGoalAmounts(definition);
     }
 
-    static GeneratedQuest createGoalAmountQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
+    public static GeneratedQuest createGoalAmountQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
         int goalAmount = parsePositiveInt(variables.get(GOAL_AMOUNT), definition.id());
         return generatedQuest(definition, playerId, resetKey, Map.copyOf(variables), goalAmount);
     }
 
-    static GeneratedQuest createBlockTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
+    public static GeneratedQuest createBlockTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
         BlockType blockType = parseBlockType(variables.get(BLOCK_TYPE));
         if (blockType == null) {
             throw new IllegalArgumentException(definition.id() + " generated invalid block-type " + variables.get(BLOCK_TYPE));
@@ -90,7 +90,7 @@ final class QuestTypeSupport {
         return generatedQuest(definition, playerId, resetKey, Map.copyOf(canonicalVariables), goalAmount);
     }
 
-    static GeneratedQuest createItemTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
+    public static GeneratedQuest createItemTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
         ItemType itemType = parseItemType(variables.get(ITEM_TYPE));
         if (itemType == null) {
             throw new IllegalArgumentException(definition.id() + " generated invalid item-type " + variables.get(ITEM_TYPE));
@@ -102,7 +102,7 @@ final class QuestTypeSupport {
         return generatedQuest(definition, playerId, resetKey, Map.copyOf(canonicalVariables), goalAmount);
     }
 
-    static Map<String, String> blockTypePlaceholders(GeneratedQuest quest) {
+    public static Map<String, String> blockTypePlaceholders(GeneratedQuest quest) {
         Map<String, String> values = variablePlaceholders(quest);
         String blockType = quest.variables().get(BLOCK_TYPE);
         if (blockType != null) {
@@ -115,7 +115,7 @@ final class QuestTypeSupport {
         return values;
     }
 
-    static Map<String, String> itemTypePlaceholders(GeneratedQuest quest) {
+    public static Map<String, String> itemTypePlaceholders(GeneratedQuest quest) {
         Map<String, String> values = variablePlaceholders(quest);
         String itemType = quest.variables().get(ITEM_TYPE);
         if (itemType != null) {
@@ -128,7 +128,7 @@ final class QuestTypeSupport {
         return values;
     }
 
-    static int parsePositiveInt(String value, String definitionId) {
+    public static int parsePositiveInt(String value, String definitionId) {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException exception) {
@@ -136,7 +136,7 @@ final class QuestTypeSupport {
         }
     }
 
-    static BlockType parseBlockType(String value) {
+    public static BlockType parseBlockType(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -149,7 +149,7 @@ final class QuestTypeSupport {
         }
     }
 
-    static ItemType parseItemType(String value) {
+    public static ItemType parseItemType(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -162,7 +162,7 @@ final class QuestTypeSupport {
         }
     }
 
-    static String blockTypeKey(Material material) {
+    public static String blockTypeKey(Material material) {
         if (material == null || !material.isBlock()) {
             return null;
         }
@@ -170,14 +170,14 @@ final class QuestTypeSupport {
         return blockType == null ? null : blockType.getKey().toString();
     }
 
-    static String itemTypeKey(ItemStack itemStack) {
+    public static String itemTypeKey(ItemStack itemStack) {
         if (itemStack == null || itemStack.isEmpty()) {
             return null;
         }
         return itemTypeKey(itemStack.getType());
     }
 
-    static String itemTypeKey(Material material) {
+    public static String itemTypeKey(Material material) {
         if (material == null || !material.isItem()) {
             return null;
         }

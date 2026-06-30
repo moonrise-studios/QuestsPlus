@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DifficultySelectorSlotsTest {
 
     @Test
-    void explicitPickerSlotOverridesFallbackOrder() {
+    public void explicitPickerSlotOverridesFallbackOrder() {
         QuestDifficulty easy = difficulty("easy", -1, -1);
         QuestDifficulty medium = difficulty("medium", 15, -1);
         QuestDifficulty hard = difficulty("hard", -1, -1);
@@ -31,7 +31,7 @@ class DifficultySelectorSlotsTest {
     }
 
     @Test
-    void duplicateAndOutOfRangeSlotsUseFallbacks() {
+    public void duplicateAndOutOfRangeSlotsUseFallbacks() {
         QuestDifficulty easy = difficulty("easy", 10, -1);
         QuestDifficulty medium = difficulty("medium", 10, -1);
         QuestDifficulty hard = difficulty("hard", 99, -1);
@@ -50,7 +50,7 @@ class DifficultySelectorSlotsTest {
     }
 
     @Test
-    void reservedMilestoneSelectorSlotUsesFallback() {
+    public void reservedMilestoneSelectorSlotUsesFallback() {
         QuestDifficulty easy = difficulty("easy", -1, 22);
         QuestDifficulty medium = difficulty("medium", -1, -1);
 
@@ -67,7 +67,7 @@ class DifficultySelectorSlotsTest {
     }
 
     @Test
-    void reservedDifficultyPickerBackButtonSlotUsesFallback() {
+    public void reservedDifficultyPickerBackButtonSlotUsesFallback() {
         QuestDifficulty easy = difficulty("easy", 22, -1);
         QuestDifficulty medium = difficulty("medium", -1, -1);
 

@@ -39,17 +39,17 @@ class GlobalQuestServiceTest {
     private ServerMock server;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         server = MockBukkit.mock();
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         MockBukkit.unmock();
     }
 
     @Test
-    void globalAdminProgressCanCreditEventDrivenGoalTypes() throws Exception {
+    public void globalAdminProgressCanCreditEventDrivenGoalTypes() throws Exception {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
@@ -81,7 +81,7 @@ class GlobalQuestServiceTest {
     }
 
     @Test
-    void incompleteGlobalQuestBelowHalfGetsNoRewards() throws Exception {
+    public void incompleteGlobalQuestBelowHalfGetsNoRewards() throws Exception {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         GlobalQuestService service = serviceWithConfig(configProvider);
         Config config = configWithRewardTiers();
@@ -93,7 +93,7 @@ class GlobalQuestServiceTest {
     }
 
     @Test
-    void incompleteGlobalQuestAtHalfGetsReducedRewards() throws Exception {
+    public void incompleteGlobalQuestAtHalfGetsReducedRewards() throws Exception {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         GlobalQuestService service = serviceWithConfig(configProvider);
         Config config = configWithRewardTiers();
@@ -105,7 +105,7 @@ class GlobalQuestServiceTest {
     }
 
     @Test
-    void completedGlobalQuestGetsFullRewards() throws Exception {
+    public void completedGlobalQuestGetsFullRewards() throws Exception {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         GlobalQuestService service = serviceWithConfig(configProvider);
         Config config = configWithRewardTiers();
@@ -117,7 +117,7 @@ class GlobalQuestServiceTest {
     }
 
     @Test
-    void reducedRewardMinimumPercentIsConfigurable() throws Exception {
+    public void reducedRewardMinimumPercentIsConfigurable() throws Exception {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         GlobalQuestService service = serviceWithConfig(configProvider);
         Config config = configWithRewardTiers();

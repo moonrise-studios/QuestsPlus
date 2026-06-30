@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 class QuestResetPurchaseServiceTest {
 
     @Test
-    void builtInCurrenciesAreRegistryEntriesAndCannotBeUnregisteredByExternalOwners() {
+    public void builtInCurrenciesAreRegistryEntriesAndCannotBeUnregisteredByExternalOwners() {
         QuestResetPurchaseService service = service(Config.compose(null, null, null, null, null, null, null));
         Plugin owner = plugin("ExternalEconomy", true);
 
@@ -43,7 +43,7 @@ class QuestResetPurchaseServiceTest {
     }
 
     @Test
-    void externalCurrenciesRegisterThroughSdkContract() {
+    public void externalCurrenciesRegisterThroughSdkContract() {
         Config.PlayerPointsCurrency playerPoints = new Config.PlayerPointsCurrency("Player Points", 25, new Config.PlayerPointsCurrency().getButton());
         Config.VaultCurrency vault = new Config.VaultCurrency("Ingame Money", 1000.0D, new Config.VaultCurrency().getButton());
         QuestResetPurchaseService service = service(Config.compose(null, null, null, null, null, null, null, playerPoints, vault));
@@ -70,7 +70,7 @@ class QuestResetPurchaseServiceTest {
     }
 
     @Test
-    void externalCurrenciesCannotUseReservedOrDuplicateKeys() {
+    public void externalCurrenciesCannotUseReservedOrDuplicateKeys() {
         QuestResetPurchaseService service = service(Config.compose(null, null, null, null, null, null, null));
         Plugin owner = plugin("ExternalEconomy", true);
         TestCurrency currency = new TestCurrency(QuestCurrencyKey.of("stars"));
@@ -82,7 +82,7 @@ class QuestResetPurchaseServiceTest {
     }
 
     @Test
-    void beginBlocksDuplicateAttemptsUntilFinish() {
+    public void beginBlocksDuplicateAttemptsUntilFinish() {
         QuestResetPurchaseService service = unloadedService(Config.compose(null, null, null, null, null, null, null));
         Player player = player(UUID.randomUUID());
 
@@ -97,7 +97,7 @@ class QuestResetPurchaseServiceTest {
     }
 
     @Test
-    void finishIsIdempotentForRetiredAndCompletionCallbacks() {
+    public void finishIsIdempotentForRetiredAndCompletionCallbacks() {
         QuestResetPurchaseService service = unloadedService(Config.compose(null, null, null, null, null, null, null));
         Player player = player(UUID.randomUUID());
 

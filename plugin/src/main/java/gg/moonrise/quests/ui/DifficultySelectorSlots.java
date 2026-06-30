@@ -18,7 +18,7 @@ final class DifficultySelectorSlots {
     private DifficultySelectorSlots() {
     }
 
-    static List<Integer> sanitizeSlots(List<Integer> configuredSlots, int totalSlots) {
+    public static List<Integer> sanitizeSlots(List<Integer> configuredSlots, int totalSlots) {
         List<Integer> source = configuredSlots == null ? List.of() : configuredSlots;
         List<Integer> sanitized = new ArrayList<>(source.stream()
                 .filter(Objects::nonNull)
@@ -34,7 +34,7 @@ final class DifficultySelectorSlots {
                 .toList();
     }
 
-    static Map<QuestDifficulty, Integer> resolve(
+    public static Map<QuestDifficulty, Integer> resolve(
             List<QuestDifficulty> difficulties,
             ToIntFunction<QuestDifficulty> configuredSlot,
             List<Integer> fallbackSlots,

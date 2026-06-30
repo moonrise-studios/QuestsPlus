@@ -31,20 +31,20 @@ class QuestRepositoryDatabaseTest {
     private QuestRepository repository;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         sqlProvider = SqliteTestHarness.open(tempDir);
         repository = new QuestRepository(sqlProvider);
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         if (sqlProvider != null) {
             sqlProvider.onDisable();
         }
     }
 
     @Test
-    void providerCreatesStorageDatabaseAndRepositoryRoundTripsQuestsBySlot() {
+    public void providerCreatesStorageDatabaseAndRepositoryRoundTripsQuestsBySlot() {
         assertTrue(Files.exists(tempDir.resolve("storage/quests.db")));
 
         UUID playerId = UUID.randomUUID();
@@ -88,7 +88,7 @@ class QuestRepositoryDatabaseTest {
     }
 
     @Test
-    void purchasedQuestResetClearsOnlyTheCurrentPlayerWindowAndHonorsLimit() {
+    public void purchasedQuestResetClearsOnlyTheCurrentPlayerWindowAndHonorsLimit() {
         UUID playerId = UUID.randomUUID();
         UUID otherPlayerId = UUID.randomUUID();
         repository.saveGeneratedQuests(List.of(
@@ -111,7 +111,7 @@ class QuestRepositoryDatabaseTest {
     }
 
     @Test
-    void rerollReplacementDeletesOldQuestInsertsReplacementAndTracksUsage() {
+    public void rerollReplacementDeletesOldQuestInsertsReplacementAndTracksUsage() {
         UUID playerId = UUID.randomUUID();
         GeneratedQuest original = quest(playerId, "daily", "original", 0, false, 0, false);
         GeneratedQuest replacement = quest(playerId, "daily", "replacement", 0, false, 0, false);
@@ -134,7 +134,7 @@ class QuestRepositoryDatabaseTest {
     }
 
     @Test
-    void completionStatsAndMilestoneClaimsArePersistedAndDeduplicated() {
+    public void completionStatsAndMilestoneClaimsArePersistedAndDeduplicated() {
         UUID playerId = UUID.randomUUID();
         QuestMilestone first = milestone("easy", 1, "First Quest");
         QuestMilestone fifth = milestone("easy", 5, "Fifth Quest");

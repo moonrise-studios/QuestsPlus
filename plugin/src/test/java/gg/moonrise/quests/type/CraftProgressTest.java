@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
 class CraftProgressTest {
 
     @Test
-    void normalCraftClickCountsResultAmount() {
+    public void normalCraftClickCountsResultAmount() {
         CraftItemEvent event = mock(CraftItemEvent.class);
         Player player = mock(Player.class);
         ItemStack result = new ItemStack(Material.TORCH, 4);
@@ -28,7 +28,7 @@ class CraftProgressTest {
     }
 
     @Test
-    void shiftCraftCountsCraftableOutputThatFitsInStorage() {
+    public void shiftCraftCountsCraftableOutputThatFitsInStorage() {
         CraftItemEvent event = mock(CraftItemEvent.class);
         CraftingInventory craftingInventory = mock(CraftingInventory.class);
         Player player = mock(Player.class);
@@ -52,7 +52,7 @@ class CraftProgressTest {
     }
 
     @Test
-    void shiftCraftIsCappedByInventorySpace() {
+    public void shiftCraftIsCappedByInventorySpace() {
         CraftItemEvent event = mock(CraftItemEvent.class);
         CraftingInventory craftingInventory = mock(CraftingInventory.class);
         Player player = mock(Player.class);

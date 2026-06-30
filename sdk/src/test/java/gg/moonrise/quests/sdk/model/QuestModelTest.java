@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class QuestModelTest {
 
     @Test
-    void questTypeNormalizesKeysAndRejectsInvalidInput() {
+    public void questTypeNormalizesKeysAndRejectsInvalidInput() {
         assertTrue(QuestType.class.isRecord());
         assertFalse(QuestType.class.isEnum());
         assertEquals("BREAK_BLOCKS", QuestType.normalize(" break-blocks "));
@@ -27,7 +27,7 @@ class QuestModelTest {
     }
 
     @Test
-    void currencyKeyNormalizesKeysAndRejectsInvalidInput() {
+    public void currencyKeyNormalizesKeysAndRejectsInvalidInput() {
         assertTrue(QuestCurrencyKey.class.isRecord());
         assertFalse(QuestCurrencyKey.class.isEnum());
         assertEquals("custom-token", QuestCurrencyKey.normalize(" custom_token "));
@@ -40,7 +40,7 @@ class QuestModelTest {
     }
 
     @Test
-    void questTypesExposeActivityBuiltIns() {
+    public void questTypesExposeActivityBuiltIns() {
         assertEquals(QuestType.of("ENCHANT_ITEM"), QuestTypes.ENCHANT_ITEM);
         assertEquals(QuestType.of("PLACE_BLOCK"), QuestTypes.PLACE_BLOCK);
         assertEquals(QuestType.of("PLACE_ANY_BLOCK"), QuestTypes.PLACE_ANY_BLOCK);
@@ -57,13 +57,13 @@ class QuestModelTest {
     }
 
     @Test
-    void placeholderKeysAreLowercaseAndUnderscored() {
+    public void placeholderKeysAreLowercaseAndUnderscored() {
         assertEquals("mob_type", QuestPlaceholders.placeholderKey(" Mob-Type "));
         assertEquals("", QuestPlaceholders.placeholderKey(null));
     }
 
     @Test
-    void generatedQuestCopyMethodsPreserveUntouchedFields() {
+    public void generatedQuestCopyMethodsPreserveUntouchedFields() {
         GeneratedQuest quest = new GeneratedQuest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),

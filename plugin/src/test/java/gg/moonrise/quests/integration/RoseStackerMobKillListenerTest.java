@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 class RoseStackerMobKillListenerTest {
 
     @Test
-    void additionalKillCountExcludesVisibleEntityHandledByBukkitDeathEvent() {
+    public void additionalKillCountExcludesVisibleEntityHandledByBukkitDeathEvent() {
         RoseStackerMobKillListener listener = new RoseStackerMobKillListener(
                 mock(QuestService.class),
                 mock(QuestResetService.class)
@@ -39,7 +39,7 @@ class RoseStackerMobKillListenerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void stackedKillsProgressMatchingMobQuestTypesWithExtraCount() {
+    public void stackedKillsProgressMatchingMobQuestTypesWithExtraCount() {
         QuestService questService = mock(QuestService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);

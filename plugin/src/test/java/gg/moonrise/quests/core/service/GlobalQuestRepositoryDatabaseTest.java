@@ -31,20 +31,20 @@ class GlobalQuestRepositoryDatabaseTest {
     private GlobalQuestRepository repository;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         sqlProvider = SqliteTestHarness.open(tempDir);
         repository = new GlobalQuestRepository(sqlProvider);
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         if (sqlProvider != null) {
             sqlProvider.onDisable();
         }
     }
 
     @Test
-    void globalQuestProgressAndContributionsRoundTripAndRankDeterministically() {
+    public void globalQuestProgressAndContributionsRoundTripAndRankDeterministically() {
         UUID playerA = UUID.fromString("00000000-0000-0000-0000-00000000000a");
         UUID playerB = UUID.fromString("00000000-0000-0000-0000-00000000000b");
         GlobalQuestState initial = state("week-1", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(6), 0, false);
@@ -75,7 +75,7 @@ class GlobalQuestRepositoryDatabaseTest {
     }
 
     @Test
-    void expiredRewardsExecutionAndPeriodDeletionArePersisted() {
+    public void expiredRewardsExecutionAndPeriodDeletionArePersisted() {
         LocalDateTime now = LocalDateTime.now();
         GlobalQuestState older = state("week-oldest", now.minusDays(8), now.minusDays(6), 100, true);
         GlobalQuestState newer = state("week-newer", now.minusDays(7), now.minusDays(5), 50, false);

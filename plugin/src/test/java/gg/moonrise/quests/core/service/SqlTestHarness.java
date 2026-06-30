@@ -35,11 +35,11 @@ final class SqlTestHarness {
     private SqlTestHarness() {
     }
 
-    static DatabaseTarget sqlite() {
+    public static DatabaseTarget sqlite() {
         return new DatabaseTarget("sqlite", "SQLite", Config.Storage.StorageType.SQLITE, null, null, null);
     }
 
-    static List<DatabaseTarget> configuredExternalTargets() {
+    public static List<DatabaseTarget> configuredExternalTargets() {
         List<DatabaseTarget> targets = new ArrayList<>();
         addExternalTarget(targets, "mariadb", "MariaDB", Config.Storage.StorageType.MARIADB, "QUESTSPLUS_TEST_MARIADB");
         addExternalTarget(targets, "mysql", "MySQL", Config.Storage.StorageType.MYSQL, "QUESTSPLUS_TEST_MYSQL");
@@ -47,11 +47,11 @@ final class SqlTestHarness {
         return List.copyOf(targets);
     }
 
-    static SqlProvider openSqlite(Path dataFolder) {
+    public static SqlProvider openSqlite(Path dataFolder) {
         return open(dataFolder, sqlite());
     }
 
-    static SqlProvider open(Path dataFolder, DatabaseTarget target) {
+    public static SqlProvider open(Path dataFolder, DatabaseTarget target) {
         QuestsPlusPlugin plugin = mock(QuestsPlusPlugin.class);
         when(plugin.getDataFolder()).thenReturn(dataFolder.toFile());
 
@@ -71,7 +71,7 @@ final class SqlTestHarness {
         return provider;
     }
 
-    static String externalConfigurationHelp() {
+    public static String externalConfigurationHelp() {
         return "Set QUESTSPLUS_TEST_MARIADB_URL, QUESTSPLUS_TEST_MYSQL_URL, or QUESTSPLUS_TEST_POSTGRESQL_URL to run live network database tests.";
     }
 
@@ -149,7 +149,7 @@ final class SqlTestHarness {
             String password
     ) {
 
-        boolean sqlite() {
+        public boolean sqlite() {
             return storageType == Config.Storage.StorageType.SQLITE;
         }
 

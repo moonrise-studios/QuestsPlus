@@ -24,7 +24,7 @@ class GlobalRewardPreviewItemTest {
     private QuestMenuService menuService;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         MockBukkit.mock();
 
         Config config = new Config();
@@ -43,12 +43,12 @@ class GlobalRewardPreviewItemTest {
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         MockBukkit.unmock();
     }
 
     @Test
-    void globalRewardPreviewUsesConfiguredTierItem() {
+    public void globalRewardPreviewUsesConfiguredTierItem() {
         Config.MenuItem item = new Config.MenuItem(
                 "DIAMOND",
                 "<green><reward_display_name>",
@@ -73,7 +73,7 @@ class GlobalRewardPreviewItemTest {
     }
 
     @Test
-    void globalRewardPreviewFallsBackToSharedTemplateWhenTierItemIsUnset() {
+    public void globalRewardPreviewFallsBackToSharedTemplateWhenTierItemIsUnset() {
         Config.GlobalRewardTierConfig tier = new Config.GlobalRewardTierConfig(
                 10,
                 "<yellow>Fallback Tier",

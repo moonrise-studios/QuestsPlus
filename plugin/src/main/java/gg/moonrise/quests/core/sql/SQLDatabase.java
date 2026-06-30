@@ -9,31 +9,31 @@ import java.sql.SQLException;
 
 public interface SQLDatabase {
 
-    String displayName();
+    public String displayName();
 
-    HikariConfig hikariConfig(QuestsPlusPlugin plugin, Config.Storage storage);
+    public HikariConfig hikariConfig(QuestsPlusPlugin plugin, Config.Storage storage);
 
-    void createTables(HikariDataSource source) throws SQLException;
+    public void createTables(HikariDataSource source) throws SQLException;
 
-    String upsertPlayerQuestSql();
+    public String upsertPlayerQuestSql();
 
-    String incrementQuestResetSql();
+    public String incrementQuestResetSql();
 
-    String incrementQuestRerollSql();
+    public String incrementQuestRerollSql();
 
-    String incrementDifficultyStatsSql();
+    public String incrementDifficultyStatsSql();
 
-    String insertQuestMilestoneSql();
+    public String insertQuestMilestoneSql();
 
-    String upsertGlobalQuestSql();
+    public String upsertGlobalQuestSql();
 
-    String incrementGlobalContributionSql();
+    public String incrementGlobalContributionSql();
 
-    String insertRewardExecutionSql();
+    public String insertRewardExecutionSql();
 
-    String upsertStreakStateSql();
+    public String upsertStreakStateSql();
 
-    String insertStreakMilestoneSql();
+    public String insertStreakMilestoneSql();
 
-    String upsertIndicatorPreferenceSql();
+    public String upsertIndicatorPreferenceSql();
 }
