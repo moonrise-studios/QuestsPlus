@@ -88,7 +88,9 @@ public interface QuestApi {
      *
      * <p>QuestsPlus fires a cancellable
      * {@link gg.moonrise.quests.sdk.event.QuestProgressEvent} with cause
-     * {@code API} before any matched generated quest is mutated.</p>
+     * {@code API} before any matched generated quest is mutated. Call this method from the
+     * appropriate Bukkit/Paper entity or region thread for the supplied player; event listeners
+     * and currency/reward integrations may touch live server state synchronously.</p>
      *
      * @param player the player earning progress
      * @param type the quest type to progress

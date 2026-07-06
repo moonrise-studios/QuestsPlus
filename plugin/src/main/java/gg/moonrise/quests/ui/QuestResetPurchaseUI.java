@@ -60,7 +60,7 @@ public class QuestResetPurchaseUI extends ChestMenu {
     }
 
     private static int rows(Config.QuestResetMenu menu) {
-        return Math.max(1, Math.min(6, menu.getRows()));
+        return Math.clamp(menu.getRows(), 1, 6);
     }
 
     private Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {

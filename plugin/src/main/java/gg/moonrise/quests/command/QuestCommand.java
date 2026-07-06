@@ -16,6 +16,7 @@ import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.core.service.QuestDefinitionService;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
+import gg.moonrise.quests.core.service.QuestApiService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.core.service.QuestStreakService;
@@ -54,6 +55,7 @@ public class QuestCommand implements PaperCommand {
     private final GlobalQuestService globalQuestService;
     private final QuestProgressIndicatorService progressIndicatorService;
     private final QuestIndicatorPreferenceService indicatorPreferenceService;
+    private final QuestApiService apiService;
 
     @Override
     public void onRegister(CommandManager<CommandSourceStack> commandManager) {
@@ -249,7 +251,10 @@ public class QuestCommand implements PaperCommand {
             configProvider.reload();
             definitionService.reload();
             resetService.reload();
-            sqlProvider.reload();
+            if (!sqlProvider.reload()) {
+                throw new IllegalStateException("SQL reload failed");
+            }
+            apiService.reload();
             globalQuestService.reload();
             questService.claimRetroactiveMilestonesForOnlinePlayers();
             configProvider.get().getMessages().getReloadSuccess().send(source.getSender());

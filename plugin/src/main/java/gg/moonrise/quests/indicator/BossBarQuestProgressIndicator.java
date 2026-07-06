@@ -45,7 +45,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             Config.BossBarProgressIndicator config = config();
             BossBar bossBar = BossBar.bossBar(
                     context.title(),
-                    (float) Math.max(0.0D, Math.min(1.0D, context.progress())),
+                    (float) Math.clamp(context.progress(), 0.0D, 1.0D),
                     color(config.getColor()),
                     overlay(config.getOverlay())
             );

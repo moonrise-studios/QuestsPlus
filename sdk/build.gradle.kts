@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-var apiVersion = "0.1-SNAPSHOT"
+var apiVersion = "0.1"
 
 group = "gg.moonrise.quests"
 version = apiVersion

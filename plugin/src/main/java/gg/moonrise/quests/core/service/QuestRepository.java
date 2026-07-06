@@ -70,8 +70,8 @@ public class QuestRepository {
         });
     }
 
-    public CompletableFuture<Void> updateProgress(GeneratedQuest quest) {
-        return sqlProvider.runAsync(() -> {
+    public CompletableFuture<Boolean> updateProgress(GeneratedQuest quest) {
+        return sqlProvider.supplyAsync(() -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          UPDATE player_quests
@@ -81,7 +81,7 @@ public class QuestRepository {
                 statement.setInt(1, quest.progress());
                 statement.setInt(2, quest.completed() ? 1 : 0);
                 statement.setString(3, quest.instanceId().toString());
-                statement.executeUpdate();
+                return statement.executeUpdate() == 1;
             }
         });
     }
@@ -139,14 +139,18 @@ public class QuestRepository {
             return CompletableFuture.completedFuture(-1);
         }
         return sqlProvider.supplyInTransaction(connection -> {
-            int used = readQuestResetsUsed(connection, playerId, resetKey);
-            if (used >= limit) {
-                return -1;
+            try (PreparedStatement ensureUsage = connection.prepareStatement(sqlProvider.insertQuestResetUsageIfAbsentSql())) {
+                ensureUsage.setString(1, playerId.toString());
+                ensureUsage.setString(2, resetKey);
+                ensureUsage.executeUpdate();
             }
-            try (PreparedStatement resetUsage = connection.prepareStatement(sqlProvider.incrementQuestResetSql())) {
+            try (PreparedStatement resetUsage = connection.prepareStatement(sqlProvider.claimQuestResetUsageSql())) {
                 resetUsage.setString(1, playerId.toString());
                 resetUsage.setString(2, resetKey);
-                resetUsage.executeUpdate();
+                resetUsage.setInt(3, limit);
+                if (resetUsage.executeUpdate() != 1) {
+                    return -1;
+                }
             }
             try (PreparedStatement deleteQuests = connection.prepareStatement("""
                     DELETE FROM player_quests

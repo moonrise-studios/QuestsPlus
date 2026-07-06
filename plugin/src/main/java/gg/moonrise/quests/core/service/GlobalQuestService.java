@@ -59,6 +59,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private volatile DayOfWeek startDay = DayOfWeek.FRIDAY;
     private volatile LocalTime startTime = LocalTime.of(5, 0);
     private volatile GlobalQuestState activeState;
+    private volatile CompletableFuture<GlobalQuestState> activeStateLoad;
     private volatile ScheduledTask rolloverTask;
 
     @Override
@@ -123,7 +124,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     public int menuSlot() {
         Config.GlobalQuestMenu menu = configProvider.get().getGlobalQuests().getMenu();
-        return menu == null ? 15 : Math.max(0, Math.min(53, menu.getSlot()));
+        return menu == null ? 15 : Math.clamp(menu.getSlot(), 0, 53);
     }
 
     public String timeRemainingPlaceholder() {
@@ -175,7 +176,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                 return List.of();
             }
             int remaining = current.quest().goalAmount() - current.quest().progress();
-            credited = Math.min(approvedAmount, Math.max(0, remaining));
+            credited = Math.clamp(approvedAmount, 0, Math.max(0, remaining));
             if (credited <= 0) {
                 return List.of();
             }
@@ -236,6 +237,37 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     private CompletableFuture<GlobalQuestState> ensureActiveStateAsync() {
         Period period = currentPeriod();
+        GlobalQuestState cached = activeState;
+        if (cached != null && cached.periodKey().equals(period.key())) {
+            return CompletableFuture.completedFuture(cached);
+        }
+        CompletableFuture<GlobalQuestState> loading = activeStateLoad;
+        if (loading != null) {
+            return loading;
+        }
+        synchronized (this) {
+            cached = activeState;
+            if (cached != null && cached.periodKey().equals(period.key())) {
+                return CompletableFuture.completedFuture(cached);
+            }
+            loading = activeStateLoad;
+            if (loading != null) {
+                return loading;
+            }
+            CompletableFuture<GlobalQuestState> created = loadOrCreateActiveState(period);
+            activeStateLoad = created;
+            created.whenComplete((state, throwable) -> {
+                synchronized (GlobalQuestService.this) {
+                    if (activeStateLoad == created) {
+                        activeStateLoad = null;
+                    }
+                }
+            });
+            return created;
+        }
+    }
+
+    private CompletableFuture<GlobalQuestState> loadOrCreateActiveState(Period period) {
         return repository.loadActive(period.key())
                 .thenCompose(loaded -> {
                     if (loaded != null) {
@@ -247,8 +279,10 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                         activeState = null;
                         return CompletableFuture.completedFuture(null);
                     }
-                    activeState = generated;
-                    return repository.save(generated).thenApply(unused -> generated);
+                    return repository.save(generated).thenApply(saved -> {
+                        activeState = saved;
+                        return saved;
+                    });
                 });
     }
 
@@ -388,7 +422,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     private double reducedRewardMinimumPercent() {
         double configured = configProvider.get().getGlobalQuests().getReducedRewardMinimumPercent();
-        return Math.max(0.0D, Math.min(100.0D, configured));
+        return Math.clamp(configured, 0.0D, 100.0D);
     }
 
     private double completionPercent(GeneratedQuest quest) {

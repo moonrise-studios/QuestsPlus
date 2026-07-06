@@ -55,7 +55,7 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
     }
 
     private static int selectorRows(Config.MilestoneMenu menu) {
-        return Math.max(1, Math.min(6, menu.getSelectorRows()));
+        return Math.clamp(menu.getSelectorRows(), 1, 6);
     }
 
     private Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {

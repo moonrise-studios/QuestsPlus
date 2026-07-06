@@ -370,7 +370,7 @@ public class Config {
         @Getter
         @Configuration
         public static class MariaDb {
-            private String connectionUrl = "jdbc:mariadb://127.0.0.1:3306/questsplus?useSSL=false&characterEncoding=utf8";
+            private String connectionUrl = "jdbc:mariadb://127.0.0.1:3306/questsplus?characterEncoding=utf8";
             private String username = "questsplus";
             private String password = "change-me";
             private int poolSize = 10;
@@ -379,7 +379,7 @@ public class Config {
         @Getter
         @Configuration
         public static class MySql {
-            private String connectionUrl = "jdbc:mysql://127.0.0.1:3306/questsplus?useSSL=false&characterEncoding=utf8";
+            private String connectionUrl = "jdbc:mysql://127.0.0.1:3306/questsplus?characterEncoding=utf8";
             private String username = "questsplus";
             private String password = "change-me";
             private int poolSize = 10;
@@ -388,7 +388,7 @@ public class Config {
         @Getter
         @Configuration
         public static class PostgreSql {
-            private String connectionUrl = "jdbc:postgresql://127.0.0.1:5432/questsplus?ssl=false";
+            private String connectionUrl = "jdbc:postgresql://127.0.0.1:5432/questsplus";
             private String username = "questsplus";
             private String password = "change-me";
             private int poolSize = 10;

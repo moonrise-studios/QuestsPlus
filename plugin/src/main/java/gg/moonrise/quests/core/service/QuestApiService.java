@@ -2,6 +2,7 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.Disableable;
 import gg.moonrise.moss.spring.Enableable;
+import gg.moonrise.engine.state.Reloadable;
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.currency.PlayerPointsCurrency;
@@ -33,11 +34,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
 @RequiredArgsConstructor
-public class QuestApiService implements QuestApi, Enableable, Disableable {
+public class QuestApiService implements QuestApi, Enableable, Reloadable, Disableable {
 
     private final QuestsPlusPlugin plugin;
     private final QuestDefinitionService definitionService;
@@ -55,6 +57,12 @@ public class QuestApiService implements QuestApi, Enableable, Disableable {
         Bukkit.getServicesManager().register(QuestApi.class, this, plugin, ServicePriority.Normal);
         log.info("Registered QuestsPlus SDK API service.");
 
+        registerBuiltInCurrencies();
+    }
+
+    @Override
+    public synchronized void reload() {
+        resetPurchaseService.unregisterBuiltInCurrencies();
         registerBuiltInCurrencies();
     }
 
@@ -204,15 +212,21 @@ public class QuestApiService implements QuestApi, Enableable, Disableable {
     private void registerBuiltInCurrencies() {
         Set<QuestCurrencyKey> enabledCurrencies = enabledCurrencies();
         if (enabledCurrencies.contains(QuestCurrencies.VAULT)) {
-            registerBuiltInCurrency(new VaultCurrency(configProvider));
+            registerBuiltInCurrency(QuestCurrencies.VAULT, "Vault", () -> new VaultCurrency(configProvider));
         }
         if (enabledCurrencies.contains(QuestCurrencies.PLAYER_POINTS)) {
-            registerBuiltInCurrency(new PlayerPointsCurrency(configProvider));
+            registerBuiltInCurrency(QuestCurrencies.PLAYER_POINTS, "PlayerPoints", () -> new PlayerPointsCurrency(configProvider));
         }
     }
 
-    private void registerBuiltInCurrency(QuestCurrency currency) {
+    private void registerBuiltInCurrency(QuestCurrencyKey key, String pluginName, Supplier<QuestCurrency> factory) {
+        Plugin dependency = Bukkit.getPluginManager().getPlugin(pluginName);
+        if (dependency == null || !dependency.isEnabled()) {
+            log.warn("Configured currency '{}' is enabled but {} is not installed or enabled; hiding it from the reset purchase menu.", key.key(), pluginName);
+            return;
+        }
         try {
+            QuestCurrency currency = factory.get();
             if (currency instanceof Enableable enableable) {
                 enableable.onEnable();
             }
@@ -220,8 +234,8 @@ public class QuestApiService implements QuestApi, Enableable, Disableable {
             if (!currency.isAvailable()) {
                 log.error("Configured currency '{}' is enabled but unavailable; hiding it from the reset purchase menu until it is available.", currency.key().key());
             }
-        } catch (RuntimeException exception) {
-            log.error("Configured currency '{}' failed to initialize; hiding it from the reset purchase menu.", currency.key().key(), exception);
+        } catch (RuntimeException | LinkageError exception) {
+            log.error("Configured currency '{}' failed to initialize; hiding it from the reset purchase menu.", key.key(), exception);
         }
     }
 

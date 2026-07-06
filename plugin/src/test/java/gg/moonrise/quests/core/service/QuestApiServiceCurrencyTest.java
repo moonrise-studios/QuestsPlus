@@ -6,11 +6,8 @@ import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
-import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.ServicePriority;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
@@ -18,11 +15,8 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,9 +56,8 @@ class QuestApiServiceCurrencyTest {
     }
 
     @Test
-    public void builtInVaultCurrencyResolvesEconomyProviderAfterInitialRegistration() {
+    public void builtInVaultCurrencyIsSkippedWhenVaultPluginIsMissing() {
         MockBukkit.mock();
-        MockBukkit.createMockPlugin("Vault");
         QuestResetPurchaseService resetPurchaseService = resetPurchaseService();
         QuestApiService api = api(
                 resetPurchaseService,
@@ -73,18 +66,8 @@ class QuestApiServiceCurrencyTest {
 
         api.onEnable();
 
-        QuestCurrency vault = resetPurchaseService.registeredCurrency(QuestCurrencies.VAULT);
-        assertEquals(List.of(QuestCurrencies.VAULT), api.registeredCurrencies());
-        assertNotNull(vault);
-        assertEquals(QuestCurrencies.VAULT, vault.key());
-        assertFalse(vault.isAvailable());
-
-        Economy economy = mock(Economy.class);
-        when(economy.format(1000.0D)).thenReturn("$1,000.00");
-        Bukkit.getServicesManager().register(Economy.class, economy, MockBukkit.createMockPlugin("EconomyPlugin"), ServicePriority.Normal);
-
-        assertTrue(vault.isAvailable());
-        assertEquals("$1,000.00", vault.displayAmount(mock(Player.class)));
+        assertEquals(List.of(), api.registeredCurrencies());
+        assertNull(resetPurchaseService.registeredCurrency(QuestCurrencies.VAULT));
     }
 
     private static QuestApiService api(QuestResetPurchaseService resetPurchaseService) {

@@ -127,6 +127,14 @@ public class SqlProvider implements Disableable {
         return currentDatabase().incrementQuestResetSql();
     }
 
+    public String insertQuestResetUsageIfAbsentSql() {
+        return currentDatabase().insertQuestResetUsageIfAbsentSql();
+    }
+
+    public String claimQuestResetUsageSql() {
+        return currentDatabase().claimQuestResetUsageSql();
+    }
+
     public String incrementQuestRerollSql() {
         return currentDatabase().incrementQuestRerollSql();
     }
@@ -164,25 +172,28 @@ public class SqlProvider implements Disableable {
     }
 
     private synchronized boolean reconnect() {
-        closeResources();
-
         Config.Storage storage = configProvider.get().getStorage();
         SQLDatabase newDatabase = database(storage);
         HikariDataSource newDataSource = null;
+        ExecutorService newExecutor = null;
         try {
             HikariConfig hikariConfig = newDatabase.hikariConfig(plugin, storage);
             newDataSource = new HikariDataSource(hikariConfig);
             newDatabase.createTables(newDataSource);
-            dataSource.set(newDataSource);
-            executor = Executors.newSingleThreadExecutor(sqlThreadFactory());
+            newExecutor = Executors.newSingleThreadExecutor(sqlThreadFactory());
+
+            HikariDataSource oldDataSource = dataSource.getAndSet(newDataSource);
+            ExecutorService oldExecutor = executor;
+            executor = newExecutor;
             database = newDatabase;
+            closeExecutor(oldExecutor);
+            closeDataSource(oldDataSource);
             log.info("Connected to QuestsPlus {} database.", newDatabase.displayName());
             return true;
         } catch (SQLException | RuntimeException exception) {
             log.error("Failed to initialize QuestsPlus {} database.", newDatabase.displayName(), exception);
-            if (newDataSource != null && !newDataSource.isClosed()) {
-                newDataSource.close();
-            }
+            closeExecutor(newExecutor);
+            closeDataSource(newDataSource);
             return false;
         }
     }
@@ -206,16 +217,23 @@ public class SqlProvider implements Disableable {
     }
 
     private synchronized void closeResources() {
-        if (executor != null) {
-            executor.shutdown();
-            executor = null;
-        }
+        closeExecutor(executor);
+        executor = null;
 
-        HikariDataSource current = dataSource.getAndSet(null);
-        if (current != null && !current.isClosed()) {
-            current.close();
-        }
+        closeDataSource(dataSource.getAndSet(null));
         database = null;
+    }
+
+    private void closeExecutor(ExecutorService executorService) {
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+    }
+
+    private void closeDataSource(HikariDataSource source) {
+        if (source != null && !source.isClosed()) {
+            source.close();
+        }
     }
 
     private void rollback(Connection connection, Throwable cause) {

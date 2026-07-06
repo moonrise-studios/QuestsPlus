@@ -54,7 +54,7 @@ public class QuestDifficultyPickerUI extends ChestMenu {
     }
 
     private static int rows(Config.DifficultyPicker picker) {
-        return Math.max(1, Math.min(6, picker.getRows()));
+        return Math.clamp(picker.getRows(), 1, 6);
     }
 
     private Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {

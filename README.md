@@ -333,7 +333,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("gg.moonrise.quests:quests-sdk:0.1-SNAPSHOT")
+    compileOnly("gg.moonrise.quests:quests-sdk:0.1")
 }
 ```
 
@@ -355,7 +355,7 @@ dependencies {
     <dependency>
         <groupId>gg.moonrise.quests</groupId>
         <artifactId>quests-sdk</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>0.1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>

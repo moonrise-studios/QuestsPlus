@@ -66,6 +66,20 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
     }
 
     @Override
+    public boolean refund(Player player, double amount) {
+        if (points == null) {
+            log.warn("PlayerPoints currency refund rejected for {} because PlayerPoints is unavailable.", player.getUniqueId());
+            return false;
+        }
+        int roundedAmount = (int) Math.max(0, Math.round(amount));
+        if (roundedAmount <= 0) {
+            return true;
+        }
+
+        return points.give(player.getUniqueId(), roundedAmount);
+    }
+
+    @Override
     public boolean isAvailable() {
         return points != null || resolvePoints() != null;
     }
