@@ -68,6 +68,20 @@ public class VaultCurrency implements QuestCurrency, Enableable {
     }
 
     @Override
+    public boolean refund(Player player, double amount) {
+        if (economy == null) {
+            log.warn("Vault currency refund rejected for {} because Vault economy is unavailable.", player.getUniqueId());
+            return false;
+        }
+        double refundAmount = Math.max(0.0D, amount);
+        if (refundAmount <= 0.0D) {
+            return true;
+        }
+        EconomyResponse response = economy.depositPlayer(player, refundAmount);
+        return response.transactionSuccess();
+    }
+
+    @Override
     public boolean isAvailable() {
         return economy != null || resolveEconomy() != null;
     }

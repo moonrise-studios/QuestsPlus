@@ -225,7 +225,7 @@ public class QuestProgressIndicatorService {
         if (quest.goalAmount() <= 0) {
             return 0.0D;
         }
-        return Math.max(0.0D, Math.min(1.0D, quest.progress() / (double) quest.goalAmount()));
+        return Math.clamp(quest.progress() / (double) quest.goalAmount(), 0.0D, 1.0D);
     }
 
     private String percent(int value, int max) {
@@ -239,7 +239,7 @@ public class QuestProgressIndicatorService {
         if (quest.goalAmount() <= 0) {
             return "0.00%";
         }
-        double percent = Math.max(0.0D, Math.min(100.0D, (quest.progress() * 100.0D) / quest.goalAmount()));
+        double percent = Math.clamp((quest.progress() * 100.0D) / quest.goalAmount(), 0.0D, 100.0D);
         return PERCENT_FORMATTER.get().format(percent) + "%";
     }
 

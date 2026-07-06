@@ -337,33 +337,33 @@ public class QuestDefinitionService implements Reloadable {
                 throw new IllegalArgumentException("Duplicate quest definition id: " + id);
             }
 
-            QuestType type;
             try {
-                type = QuestType.of(config.getType());
-            } catch (IllegalArgumentException exception) {
-                log.error("Skipping invalid QuestsPlus quest definition '{}': {}", id, exception.getMessage());
-                continue;
-            }
-            String difficultyId = QuestNames.normalize(config.getDifficulty());
-            QuestDifficulty difficulty = difficulties.get(difficultyId);
-            if (difficulty == null) {
-                throw new IllegalArgumentException("Quest definition " + id + " references unknown difficulty " + difficultyId);
-            }
+                QuestType type = QuestType.of(config.getType());
+                String difficultyId = QuestNames.normalize(config.getDifficulty());
+                QuestDifficulty difficulty = difficulties.get(difficultyId);
+                if (difficulty == null) {
+                    throw new IllegalArgumentException("Quest definition " + id + " references unknown difficulty " + difficultyId);
+                }
 
-            Map<String, String> selectorTypes = new LinkedHashMap<>();
-            Map<String, List<String>> selectorValues = new LinkedHashMap<>();
-            Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
-            for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
-                String variableKey = QuestNames.normalize(entry.getKey());
-                Config.VariableConfig variable = entry.getValue();
-                String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
-                selector(selectorType);
-                selectorTypes.put(variableKey, selectorType);
-                selectorValues.put(variableKey, safeList(variable.getValues()));
-            }
-            Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
+                Map<String, String> selectorTypes = new LinkedHashMap<>();
+                Map<String, List<String>> selectorValues = new LinkedHashMap<>();
+                Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
+                for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
+                    String variableKey = QuestNames.normalize(entry.getKey());
+                    if (variableKey.isBlank()) {
+                        throw new IllegalArgumentException("Quest definition " + id + " has a blank variable key");
+                    }
+                    Config.VariableConfig variable = entry.getValue();
+                    if (variable == null || variable.getSelector() == null || variable.getSelector().isBlank()) {
+                        throw new IllegalArgumentException("Quest definition " + id + " variable " + variableKey + " has a blank selector");
+                    }
+                    String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
+                    selector(selectorType);
+                    selectorTypes.put(variableKey, selectorType);
+                    selectorValues.put(variableKey, safeList(variable.getValues()));
+                }
+                Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
 
-            try {
                 QuestDefinition definition = new QuestDefinition(
                         id,
                         type,
@@ -379,7 +379,7 @@ public class QuestDefinitionService implements Reloadable {
                 );
                 handler(type).validateDefinition(definition);
                 loaded.add(definition);
-            } catch (IllegalArgumentException exception) {
+            } catch (RuntimeException exception) {
                 log.error("Skipping invalid QuestsPlus quest definition '{}': {}", id, exception.getMessage());
                 continue;
             }

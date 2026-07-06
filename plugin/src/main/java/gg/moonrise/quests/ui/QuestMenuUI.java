@@ -25,7 +25,8 @@ public class QuestMenuUI extends ChestMenu {
         Config.QuestMenu menu = menuService.config().getMenu();
         int totalSlots = rows(menu) * 9;
         int globalSlot = menuService.globalQuestSlot();
-        List<Integer> contentSlots = sanitizeContentSlots(menu.getContentSlots(), totalSlots, globalSlot);
+        Set<Integer> reservedSlots = reservedSlots(menuService, menu, totalSlots, globalSlot);
+        List<Integer> contentSlots = sanitizeContentSlots(menu.getContentSlots(), totalSlots, reservedSlots);
         Set<Integer> occupiedSlots = new HashSet<>();
 
         if (globalSlot >= 0 && globalSlot < totalSlots) {
@@ -93,12 +94,34 @@ public class QuestMenuUI extends ChestMenu {
     }
 
     private static int rows(Config.QuestMenu menu) {
-        return Math.max(1, Math.min(6, menu.getRows()));
+        return Math.clamp(menu.getRows(), 1, 6);
     }
 
-    private static List<Integer> sanitizeContentSlots(List<Integer> configuredSlots, int totalSlots, int reservedSlot) {
-        List<Integer> sanitized = new ArrayList<>(configuredSlots.stream()
-                .filter(slot -> slot >= 0 && slot < totalSlots && slot != reservedSlot)
+    private static Set<Integer> reservedSlots(QuestMenuService menuService, Config.QuestMenu menu, int totalSlots, int globalSlot) {
+        Set<Integer> reserved = new HashSet<>();
+        addReservedSlot(reserved, globalSlot, totalSlots);
+        if (menuService.canShowMilestoneButton()) {
+            addReservedSlot(reserved, menu.getMilestoneButton().getSlot(), totalSlots);
+        }
+        if (menuService.canShowStreakButton()) {
+            addReservedSlot(reserved, menu.getStreakButton().getSlot(), totalSlots);
+        }
+        if (menuService.canShowQuestResetButton()) {
+            addReservedSlot(reserved, menu.getResetButton().getSlot(), totalSlots);
+        }
+        return reserved;
+    }
+
+    private static void addReservedSlot(Set<Integer> reservedSlots, int slot, int totalSlots) {
+        if (slot >= 0 && slot < totalSlots) {
+            reservedSlots.add(slot);
+        }
+    }
+
+    private static List<Integer> sanitizeContentSlots(List<Integer> configuredSlots, int totalSlots, Set<Integer> reservedSlots) {
+        List<Integer> safeConfiguredSlots = configuredSlots == null ? List.of() : configuredSlots;
+        List<Integer> sanitized = new ArrayList<>(safeConfiguredSlots.stream()
+                .filter(slot -> slot >= 0 && slot < totalSlots && !reservedSlots.contains(slot))
                 .collect(LinkedHashSet::new, LinkedHashSet::add, LinkedHashSet::addAll));
 
         if (!sanitized.isEmpty()) {
@@ -106,7 +129,7 @@ public class QuestMenuUI extends ChestMenu {
         }
 
         return IntStream.range(0, totalSlots)
-                .filter(slot -> slot != reservedSlot)
+                .filter(slot -> !reservedSlots.contains(slot))
                 .boxed()
                 .toList();
     }

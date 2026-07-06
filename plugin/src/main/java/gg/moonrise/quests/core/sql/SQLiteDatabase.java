@@ -59,6 +59,24 @@ public class SQLiteDatabase extends AbstractSQLDatabase {
     }
 
     @Override
+    public String insertQuestResetUsageIfAbsentSql() {
+        return """
+                INSERT INTO player_quest_resets (player_uuid, reset_key, used_count)
+                VALUES (?, ?, 0)
+                ON CONFLICT(player_uuid, reset_key) DO NOTHING
+                """;
+    }
+
+    @Override
+    public String claimQuestResetUsageSql() {
+        return """
+                UPDATE player_quest_resets
+                SET used_count = used_count + 1
+                WHERE player_uuid = ? AND reset_key = ? AND used_count < ?
+                """;
+    }
+
+    @Override
     public String incrementQuestRerollSql() {
         return """
                 INSERT INTO player_quest_rerolls (player_uuid, reset_key, used_count)

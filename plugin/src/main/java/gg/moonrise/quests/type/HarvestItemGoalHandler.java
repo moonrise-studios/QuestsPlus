@@ -49,7 +49,7 @@ public class HarvestItemGoalHandler implements GoalHandler {
         return QuestTypeSupport.itemTypePlaceholders(quest);
     }
 
-    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockDropItem(BlockDropItemEvent event) {
         Map<String, Integer> droppedItems = new LinkedHashMap<>();
         for (Item item : event.getItems()) {

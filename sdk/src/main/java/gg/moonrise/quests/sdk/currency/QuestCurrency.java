@@ -60,6 +60,20 @@ public interface QuestCurrency {
     public boolean charge(Player player, double amount);
 
     /**
+     * Reverses a completed charge when QuestsPlus cannot apply the purchase after payment.
+     *
+     * <p>The default implementation returns {@code false} so existing integrations keep their
+     * current behavior until they opt in to compensation.</p>
+     *
+     * @param player player to refund
+     * @param amount amount to refund
+     * @return true when the refund completed
+     */
+    public default boolean refund(Player player, double amount) {
+        return false;
+    }
+
+    /**
      * Checks whether the backing currency integration is usable right now.
      *
      * @return true when this currency can process purchases

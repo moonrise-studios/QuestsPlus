@@ -725,6 +725,20 @@ public class QuestMenuService {
         }
     }
 
+    private void refundCurrency(Player player, QuestCurrency currency) {
+        if (currency == null) {
+            return;
+        }
+        double amount = Math.max(0.0D, currency.questResetCost());
+        try {
+            if (!currency.refund(player, amount)) {
+                log.error("QuestsPlus currency {} did not refund {} after a failed reset purchase.", currencyKey(currency), player.getUniqueId());
+            }
+        } catch (RuntimeException exception) {
+            log.error("QuestsPlus currency {} failed to refund {} after a failed reset purchase.", currencyKey(currency), player.getUniqueId(), exception);
+        }
+    }
+
     private String currencyDisplayName(QuestCurrency currency, String fallback) {
         if (currency == null) {
             return fallback;
@@ -852,6 +866,7 @@ public class QuestMenuService {
                                                     Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
                                             );
                                         } else {
+                                            refundCurrency(player, currency);
                                             sendResetLimitReached(player, eligibility);
                                         }
                                         openDailyQuests(player);
@@ -861,6 +876,7 @@ public class QuestMenuService {
                                     log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
                                     scheduleResetPurchaseCompletion(player, failedTask -> {
                                         if (player.isOnline()) {
+                                            refundCurrency(player, currency);
                                             config().getMessages().getQuestResetFailed().send(player);
                                         }
                                     });

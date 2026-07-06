@@ -39,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -53,6 +54,7 @@ public class QuestService {
     private final QuestProgressIndicatorService progressIndicatorService;
 
     private final Cache<UUID, PlayerQuestState> stateCache = Caffeine.newBuilder().maximumSize(10_000).build();
+    private final Cache<StateLoadKey, CompletableFuture<PlayerQuestState>> stateLoadCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<RerollUsageKey, Integer> rerollUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<ResetPurchaseUsageKey, Integer> resetPurchaseUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
 
@@ -62,13 +64,16 @@ public class QuestService {
             return CompletableFuture.completedFuture(cached);
         }
 
-        return questRepository.loadQuests(playerId, resetKey)
+        StateLoadKey key = new StateLoadKey(playerId, resetKey);
+        CompletableFuture<PlayerQuestState> future = stateLoadCache.asMap().computeIfAbsent(key, ignored -> questRepository.loadQuests(playerId, resetKey)
                 .thenCombine(questRepository.loadDifficultyCompletedCounts(playerId), LoadedState::new)
                 .thenCombine(questRepository.loadExecutedMilestones(playerId), (loaded, executedMilestones) -> {
                     PlayerQuestState state = new PlayerQuestState(playerId, resetKey, normalizeQuestSlots(loaded.quests()), loaded.difficultyCompletions(), executedMilestones);
                     stateCache.put(playerId, state);
                     return state;
-                });
+                }));
+        future.whenComplete((state, throwable) -> stateLoadCache.asMap().remove(key, future));
+        return future;
     }
 
     public CompletableFuture<PlayerQuestState> ensurePlayerStateAsync(Player player, String resetKey) {
@@ -94,6 +99,7 @@ public class QuestService {
 
     public CompletableFuture<Void> resetDaily(UUID playerId, String resetKey) {
         stateCache.invalidate(playerId);
+        stateLoadCache.invalidate(new StateLoadKey(playerId, resetKey));
         return questRepository.resetDailyQuests(playerId, resetKey);
     }
 
@@ -109,14 +115,16 @@ public class QuestService {
                     }
                     resetPurchaseUsageCache.put(new ResetPurchaseUsageKey(playerId, resetKey), updatedUsed);
                     stateCache.invalidate(playerId);
+                    stateLoadCache.invalidate(new StateLoadKey(playerId, resetKey));
                     return true;
                 });
     }
 
     public CompletableFuture<Integer> completeDailyQuests(Player player, String resetKey) {
         return ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> {
+                .thenCompose(state -> runOnEntity(player, () -> {
                     List<GeneratedQuest> completedQuests = new ArrayList<>();
+                    List<GeneratedQuest> previousQuests = new ArrayList<>();
                     synchronized (state) {
                         for (GeneratedQuest quest : state.quests()) {
                             if (quest.completed() || !canAccessQuest(player, quest)) {
@@ -124,6 +132,7 @@ public class QuestService {
                             }
                             GeneratedQuest completed = quest.withProgress(quest.goalAmount(), true);
                             state.replaceQuest(completed);
+                            previousQuests.add(quest);
                             completedQuests.add(completed);
                             progressIndicatorService.showPersonal(player, completed, quest.progress());
                         }
@@ -133,18 +142,15 @@ public class QuestService {
                         return CompletableFuture.completedFuture(0);
                     }
 
-                    List<CompletableFuture<Void>> updates = new ArrayList<>(completedQuests.size());
-                    for (GeneratedQuest quest : completedQuests) {
-                        updates.add(questRepository.updateProgress(quest)
-                                .exceptionally(throwable -> {
-                                    log.error("Failed to persist QuestsPlus admin completion for quest {}.", quest.instanceId(), throwable);
-                                    return null;
-                                }));
-                        completeQuest(player, state, quest);
+                    List<CompletableFuture<Boolean>> updates = new ArrayList<>(completedQuests.size());
+                    for (int index = 0; index < completedQuests.size(); index++) {
+                        GeneratedQuest previous = previousQuests.get(index);
+                        GeneratedQuest quest = completedQuests.get(index);
+                        updates.add(persistProgress(player, state, previous, quest, "admin completion"));
                     }
                     return CompletableFuture.allOf(updates.toArray(CompletableFuture[]::new))
-                            .thenApply(unused -> completedQuests.size());
-                });
+                            .thenApply(unused -> (int) updates.stream().filter(CompletableFuture::join).count());
+                }));
     }
 
     public CompletableFuture<PlayerQuestState> rerollDaily(UUID playerId, String resetKey) {
@@ -161,15 +167,19 @@ public class QuestService {
     }
 
     public int dailyQuestSlots() {
-        return Math.max(1, configProvider.get().getDaily().getQuestCount());
+        int capacity = questSlotCapacity();
+        if (capacity <= 0) {
+            return 0;
+        }
+        return Math.clamp(configProvider.get().getDaily().getQuestCount(), 1, capacity);
     }
 
     public int totalQuestSlots(Player player) {
-        return dailyQuestSlots() + premiumSlotLimit(player);
+        return Math.min(questSlotCapacity(), dailyQuestSlots() + premiumSlotLimit(player));
     }
 
     public int totalVisibleQuestSlots() {
-        return dailyQuestSlots() + visiblePremiumSlotLimit();
+        return Math.min(questSlotCapacity(), dailyQuestSlots() + visiblePremiumSlotLimit());
     }
 
     public int visiblePremiumSlotLimit() {
@@ -185,7 +195,7 @@ public class QuestService {
                 highest = limit;
             }
         }
-        return highest;
+        return Math.clamp(highest, 0, Math.max(0, questSlotCapacity() - dailyQuestSlots()));
     }
 
     public int premiumSlotLimit(Player player) {
@@ -205,7 +215,7 @@ public class QuestService {
                 highest = limit;
             }
         }
-        return highest;
+        return Math.clamp(highest, 0, Math.max(0, questSlotCapacity() - dailyQuestSlots()));
     }
 
     public boolean isPremiumSlot(int slotIndex) {
@@ -327,8 +337,10 @@ public class QuestService {
 
     public CompletableFuture<QuestSelectionResult> selectQuestDifficulty(Player player, String resetKey, int slotIndex, String difficultyId) {
         String normalizedDifficulty = QuestNames.normalize(difficultyId);
+        UUID playerId = player.getUniqueId();
+        int rerollLimit = rerollLimit(player);
         if (!canAccessSlot(player, slotIndex) || normalizedDifficulty.isBlank()) {
-            return ensurePlayerStateAsync(player, resetKey).thenApply(state -> new QuestSelectionResult(state, QuestSelectionStatus.INVALID, cachedRerollsUsed(player.getUniqueId(), resetKey), rerollLimit(player)));
+            return ensurePlayerStateAsync(player, resetKey).thenApply(state -> new QuestSelectionResult(state, QuestSelectionStatus.INVALID, cachedRerollsUsed(playerId, resetKey), rerollLimit));
         }
 
         return ensurePlayerStateAsync(player, resetKey)
@@ -336,34 +348,35 @@ public class QuestService {
                     GeneratedQuest generated;
                     synchronized (state) {
                         if (state.hasQuestAtSlot(slotIndex)) {
-                            return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.SLOT_FILLED, cachedRerollsUsed(player.getUniqueId(), resetKey), rerollLimit(player)));
+                            return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.SLOT_FILLED, cachedRerollsUsed(playerId, resetKey), rerollLimit));
                         }
                         QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
                         if (difficulty != null && !difficulty.requirementsMet(state)) {
-                            return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.REQUIREMENTS_NOT_MET, cachedRerollsUsed(player.getUniqueId(), resetKey), rerollLimit(player)));
+                            return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.REQUIREMENTS_NOT_MET, cachedRerollsUsed(playerId, resetKey), rerollLimit));
                         }
 
-                        generated = generateQuestForDifficultySlot(player.getUniqueId(), resetKey, slotIndex, normalizedDifficulty, state, null);
+                        generated = generateQuestForDifficultySlot(playerId, resetKey, slotIndex, normalizedDifficulty, state, null);
                         if (generated == null) {
-                            return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.NO_AVAILABLE_QUEST, cachedRerollsUsed(player.getUniqueId(), resetKey), rerollLimit(player)));
+                            return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.NO_AVAILABLE_QUEST, cachedRerollsUsed(playerId, resetKey), rerollLimit));
                         }
                         state.replaceQuest(generated);
                     }
 
                     return questRepository.saveGeneratedQuests(List.of(generated))
-                            .thenApply(unused -> new QuestSelectionResult(state, QuestSelectionStatus.SELECTED, cachedRerollsUsed(player.getUniqueId(), resetKey), rerollLimit(player)));
+                            .thenApply(unused -> new QuestSelectionResult(state, QuestSelectionStatus.SELECTED, cachedRerollsUsed(playerId, resetKey), rerollLimit));
                 });
     }
 
     public CompletableFuture<QuestSelectionResult> rerollQuestDifficulty(Player player, String resetKey, int slotIndex, String difficultyId) {
         String normalizedDifficulty = QuestNames.normalize(difficultyId);
+        UUID playerId = player.getUniqueId();
+        int limit = rerollLimit(player);
         if (!canAccessSlot(player, slotIndex) || normalizedDifficulty.isBlank()) {
-            return ensurePlayerStateAsync(player, resetKey).thenApply(state -> new QuestSelectionResult(state, QuestSelectionStatus.INVALID, cachedRerollsUsed(player.getUniqueId(), resetKey), rerollLimit(player)));
+            return ensurePlayerStateAsync(player, resetKey).thenApply(state -> new QuestSelectionResult(state, QuestSelectionStatus.INVALID, cachedRerollsUsed(playerId, resetKey), limit));
         }
 
         return ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenCompose(used -> {
-                    int limit = rerollLimit(player);
+                .thenCompose(state -> ensureRerollUsageAsync(playerId, resetKey).thenCompose(used -> {
                     GeneratedQuest existing;
                     GeneratedQuest generated;
                     synchronized (state) {
@@ -382,7 +395,7 @@ public class QuestService {
                             return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.NO_REROLLS, used, limit));
                         }
 
-                        generated = generateQuestForDifficultySlot(player.getUniqueId(), resetKey, slotIndex, normalizedDifficulty, state, existing);
+                        generated = generateQuestForDifficultySlot(playerId, resetKey, slotIndex, normalizedDifficulty, state, existing);
                         if (generated == null) {
                             return CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.NO_AVAILABLE_QUEST, used, limit));
                         }
@@ -393,7 +406,7 @@ public class QuestService {
                                 synchronized (state) {
                                     state.replaceQuestAtSlot(slotIndex, generated);
                                 }
-                                rerollUsageCache.put(new RerollUsageKey(player.getUniqueId(), resetKey), updatedUsed);
+                                rerollUsageCache.put(new RerollUsageKey(playerId, resetKey), updatedUsed);
                                 return new QuestSelectionResult(state, QuestSelectionStatus.REROLLED, updatedUsed, limit);
                             });
                 }));
@@ -429,13 +442,22 @@ public class QuestService {
             return List.of();
         }
 
-        globalQuestService.progressMatching(player, type, amount, matcher, cause);
-
         PlayerQuestState state = cachedState(player.getUniqueId(), resetKey);
         if (state == null) {
-            ensurePlayerStateAsync(player, resetKey);
+            ensurePlayerStateAsync(player, resetKey)
+                    .thenRun(() -> Scheduler.entity(player).run(task -> {
+                        if (player.isOnline()) {
+                            progressMatching(player, type, resetKey, amount, matcher, cause);
+                        }
+                    }))
+                    .exceptionally(throwable -> {
+                        log.error("Failed to load QuestsPlus player state before applying {} progress for {}.", type.key(), player.getUniqueId(), throwable);
+                        return null;
+                    });
             return List.of();
         }
+
+        globalQuestService.progressMatching(player, type, amount, matcher, cause);
 
         List<QuestProgressResult> results = new ArrayList<>();
         synchronized (state) {
@@ -449,21 +471,14 @@ public class QuestService {
                     continue;
                 }
 
-                int updatedProgress = Math.min(quest.goalAmount(), quest.progress() + approvedAmount);
+                int updatedProgress = clampedProgress(quest.progress(), approvedAmount, quest.goalAmount());
                 boolean completedNow = updatedProgress >= quest.goalAmount();
                 GeneratedQuest updated = quest.withProgress(updatedProgress, completedNow);
                 state.replaceQuest(updated);
                 results.add(new QuestProgressResult(updated, completedNow));
                 progressIndicatorService.showPersonal(player, updated, quest.progress());
 
-                questRepository.updateProgress(updated)
-                        .exceptionally(throwable -> {
-                            log.error("Failed to persist QuestsPlus progress for quest {}.", updated.instanceId(), throwable);
-                            return null;
-                        });
-                if (completedNow) {
-                    completeQuest(player, state, updated);
-                }
+                persistProgress(player, state, quest, updated, "progress");
             }
         }
         return results;
@@ -495,21 +510,14 @@ public class QuestService {
                     continue;
                 }
 
-                int updatedProgress = Math.min(quest.goalAmount(), quest.progress() + approvedAmount);
+                int updatedProgress = clampedProgress(quest.progress(), approvedAmount, quest.goalAmount());
                 boolean completedNow = updatedProgress >= quest.goalAmount();
                 GeneratedQuest updated = quest.withProgress(updatedProgress, completedNow);
                 state.replaceQuest(updated);
                 results.add(new QuestProgressResult(updated, completedNow));
                 progressIndicatorService.showPersonal(player, updated, quest.progress());
 
-                questRepository.updateProgress(updated)
-                        .exceptionally(throwable -> {
-                            log.error("Failed to persist QuestsPlus command progress for quest {}.", updated.instanceId(), throwable);
-                            return null;
-                        });
-                if (completedNow) {
-                    completeQuest(player, state, updated);
-                }
+                persistProgress(player, state, quest, updated, "command progress");
             }
         }
         return results;
@@ -537,24 +545,114 @@ public class QuestService {
                     continue;
                 }
 
-                int updatedProgress = Math.min(quest.goalAmount(), quest.progress() + approvedAmount);
+                int updatedProgress = clampedProgress(quest.progress(), approvedAmount, quest.goalAmount());
                 boolean completedNow = updatedProgress >= quest.goalAmount();
                 GeneratedQuest updated = quest.withProgress(updatedProgress, completedNow);
                 state.replaceQuest(updated);
                 results.add(new QuestProgressResult(updated, completedNow));
                 progressIndicatorService.showPersonal(player, updated, quest.progress());
 
-                questRepository.updateProgress(updated)
-                        .exceptionally(throwable -> {
-                            log.error("Failed to persist QuestsPlus command progress for quest {}.", updated.instanceId(), throwable);
-                            return null;
-                        });
-                if (completedNow) {
-                    completeQuest(player, state, updated);
-                }
+                persistProgress(player, state, quest, updated, "command progress");
             }
         }
         return results;
+    }
+
+    private CompletableFuture<Boolean> persistProgress(Player player, PlayerQuestState state, GeneratedQuest previous, GeneratedQuest updated, String context) {
+        return questRepository.updateProgress(updated)
+                .thenApply(applied -> {
+                    if (!applied) {
+                        synchronized (state) {
+                            if (state.questAtSlot(updated.slotIndex()) != null && state.questAtSlot(updated.slotIndex()).instanceId().equals(updated.instanceId())) {
+                                state.replaceQuest(previous);
+                            }
+                        }
+                        log.warn("Skipped QuestsPlus {} side effects for quest {} because the progress row was not updated.", context, updated.instanceId());
+                        return false;
+                    }
+                    if (updated.completed() && !previous.completed()) {
+                        Scheduler.entity(player).run(task -> {
+                            if (player.isOnline()) {
+                                completeQuest(player, state, updated);
+                            }
+                        });
+                    }
+                    return true;
+                })
+                .exceptionally(throwable -> {
+                    synchronized (state) {
+                        if (state.questAtSlot(updated.slotIndex()) != null && state.questAtSlot(updated.slotIndex()).instanceId().equals(updated.instanceId())) {
+                            state.replaceQuest(previous);
+                        }
+                    }
+                    log.error("Failed to persist QuestsPlus {} for quest {}.", context, updated.instanceId(), throwable);
+                    return false;
+                });
+    }
+
+    private <T> CompletableFuture<T> runOnEntity(Player player, Supplier<CompletableFuture<T>> supplier) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        try {
+            Scheduler.entity(player).run(task -> {
+                try {
+                    supplier.get().whenComplete((result, throwable) -> {
+                        if (throwable == null) {
+                            future.complete(result);
+                        } else {
+                            future.completeExceptionally(throwable);
+                        }
+                    });
+                } catch (RuntimeException exception) {
+                    future.completeExceptionally(exception);
+                }
+            }, () -> future.completeExceptionally(new IllegalStateException("Player is not available")));
+        } catch (RuntimeException exception) {
+            future.completeExceptionally(exception);
+        }
+        return future;
+    }
+
+    private int clampedProgress(int progress, int amount, int goalAmount) {
+        return Math.clamp((long) progress + amount, 0, Math.max(0, goalAmount));
+    }
+
+    private int questSlotCapacity() {
+        Config config = configProvider.get();
+        Config.QuestMenu menu = config.getMenu();
+        int totalSlots = Math.clamp(menu.getRows(), 1, 6) * 9;
+        Set<Integer> reservedSlots = new java.util.HashSet<>();
+        addReservedSlot(reservedSlots, config.getGlobalQuests().getMenu().getSlot(), totalSlots);
+        Config.MilestoneButton milestoneButton = menu.getMilestoneButton();
+        if (config.isQuestMilestonesEnabled() && milestoneButton != null && milestoneButton.isEnabled()) {
+            addReservedSlot(reservedSlots, milestoneButton.getSlot(), totalSlots);
+        }
+        Config.Streaks streaks = config.getStreaks();
+        Config.StreakButton streakButton = menu.getStreakButton();
+        if (streaks != null && streaks.isEnabled() && streakButton != null && streakButton.isEnabled()) {
+            addReservedSlot(reservedSlots, streakButton.getSlot(), totalSlots);
+        }
+        Config.QuestResetButton resetButton = menu.getResetButton();
+        if (resetButton != null && resetButton.isEnabled()) {
+            addReservedSlot(reservedSlots, resetButton.getSlot(), totalSlots);
+        }
+
+        List<Integer> contentSlots = menu.getContentSlots() == null ? List.of() : menu.getContentSlots();
+        long configuredCapacity = contentSlots.stream()
+                .filter(slot -> slot >= 0 && slot < totalSlots && !reservedSlots.contains(slot))
+                .distinct()
+                .count();
+        if (configuredCapacity > 0) {
+            return Math.toIntExact(configuredCapacity);
+        }
+        return (int) java.util.stream.IntStream.range(0, totalSlots)
+                .filter(slot -> !reservedSlots.contains(slot))
+                .count();
+    }
+
+    private void addReservedSlot(Set<Integer> reservedSlots, int slot, int totalSlots) {
+        if (slot >= 0 && slot < totalSlots) {
+            reservedSlots.add(slot);
+        }
     }
 
     private int approveProgress(Player player, GeneratedQuest quest, int amount, QuestProgressEvent.Cause cause) {
@@ -944,6 +1042,9 @@ public class QuestService {
             List<GeneratedQuest> quests,
             Map<String, Integer> difficultyCompletions
     ) {
+    }
+
+    private record StateLoadKey(UUID playerId, String resetKey) {
     }
 
     private record RerollUsageKey(UUID playerId, String resetKey) {

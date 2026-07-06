@@ -57,6 +57,10 @@ public class QuestResetPurchaseService {
         currencies.put(key, new CurrencyRegistration(null, currency, true));
     }
 
+    public synchronized void unregisterBuiltInCurrencies() {
+        currencies.entrySet().removeIf(entry -> entry.getValue().builtIn());
+    }
+
     public synchronized void unregisterCurrency(Plugin owner, QuestCurrencyKey key) {
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(key, "key");

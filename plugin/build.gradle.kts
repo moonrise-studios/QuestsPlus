@@ -57,6 +57,24 @@ dependencies {
         isTransitive = false
     }
 
+    testRuntimeOnly(libs.engine)
+    testRuntimeOnly(libs.paper)
+    testRuntimeOnly(libs.springContext)
+    testRuntimeOnly(libs.jakarta)
+    testRuntimeOnly(libs.cloudAnnotations)
+    testRuntimeOnly(libs.cloudPaper)
+    testRuntimeOnly(libs.mossCommon)
+    testRuntimeOnly(libs.mossPaper)
+    testRuntimeOnly(libs.configLib)
+    testRuntimeOnly(libs.hikari)
+    testRuntimeOnly(libs.sqlite)
+    testRuntimeOnly(libs.mariadb)
+    testRuntimeOnly(libs.mysql)
+    testRuntimeOnly(libs.postgresql)
+    testRuntimeOnly(libs.cache)
+    testRuntimeOnly(libs.gson)
+    testRuntimeOnly(libs.roseStacker)
+
     // Lombok
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)

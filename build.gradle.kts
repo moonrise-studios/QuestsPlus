@@ -25,9 +25,6 @@ subprojects {
     configurations.named("testCompileOnly") {
         extendsFrom(configurations.named("compileOnly").get())
     }
-    configurations.named("testRuntimeOnly") {
-        extendsFrom(configurations.named("compileOnly").get())
-    }
     configurations.named("testAnnotationProcessor") {
         extendsFrom(configurations.named("annotationProcessor").get())
     }

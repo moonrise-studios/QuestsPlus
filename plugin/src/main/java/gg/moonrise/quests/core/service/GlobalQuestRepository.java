@@ -33,21 +33,8 @@ public class GlobalQuestRepository {
 
     public CompletableFuture<GlobalQuestState> loadActive(String periodKey) {
         return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         SELECT instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
-                                display_name, description, variables, goal_amount, progress, completed, rewards_executed
-                         FROM global_quests
-                         WHERE period_key = ?
-                         """)) {
-                statement.setString(1, periodKey);
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    if (!resultSet.next()) {
-                        return null;
-                    }
-                    UUID instanceId = UUID.fromString(resultSet.getString("instance_id"));
-                    return readState(resultSet, loadContributions(connection, instanceId));
-                }
+            try (Connection connection = sqlProvider.getConnection()) {
+                return loadActive(connection, periodKey);
             }
         });
     }
@@ -75,13 +62,13 @@ public class GlobalQuestRepository {
         });
     }
 
-    public CompletableFuture<Void> save(GlobalQuestState state) {
-        return sqlProvider.runAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertGlobalQuestSql())) {
+    public CompletableFuture<GlobalQuestState> save(GlobalQuestState state) {
+        return sqlProvider.supplyInTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertGlobalQuestSql())) {
                 bindState(statement, state);
                 statement.executeUpdate();
             }
+            return loadActive(connection, state.periodKey());
         });
     }
 
@@ -225,6 +212,24 @@ public class GlobalQuestRepository {
                 contributions,
                 resultSet.getInt("rewards_executed") == 1
         );
+    }
+
+    private GlobalQuestState loadActive(Connection connection, String periodKey) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
+                       display_name, description, variables, goal_amount, progress, completed, rewards_executed
+                FROM global_quests
+                WHERE period_key = ?
+                """)) {
+            statement.setString(1, periodKey);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                UUID instanceId = UUID.fromString(resultSet.getString("instance_id"));
+                return readState(resultSet, loadContributions(connection, instanceId));
+            }
+        }
     }
 
     private Map<UUID, Integer> loadContributions(Connection connection, UUID instanceId) throws SQLException {

@@ -88,6 +88,19 @@ class QuestRepositoryDatabaseTest {
     }
 
     @Test
+    public void updateProgressReportsWhetherQuestRowWasPersisted() {
+        UUID playerId = UUID.randomUUID();
+        GeneratedQuest quest = quest(playerId, "daily", "tracked", 0, false, 0, false);
+
+        assertEquals(false, repository.updateProgress(quest.withProgress(5, false)).join());
+
+        repository.saveGeneratedQuests(List.of(quest)).join();
+
+        assertEquals(true, repository.updateProgress(quest.withProgress(5, false)).join());
+        assertEquals(5, repository.loadQuests(playerId, "daily").join().getFirst().progress());
+    }
+
+    @Test
     public void purchasedQuestResetClearsOnlyTheCurrentPlayerWindowAndHonorsLimit() {
         UUID playerId = UUID.randomUUID();
         UUID otherPlayerId = UUID.randomUUID();

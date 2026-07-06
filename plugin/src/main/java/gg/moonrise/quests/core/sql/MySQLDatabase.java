@@ -60,6 +60,23 @@ public class MySQLDatabase extends SQLiteDatabase {
     }
 
     @Override
+    public String insertQuestResetUsageIfAbsentSql() {
+        return """
+                INSERT IGNORE INTO player_quest_resets (player_uuid, reset_key, used_count)
+                VALUES (?, ?, 0)
+                """;
+    }
+
+    @Override
+    public String claimQuestResetUsageSql() {
+        return """
+                UPDATE player_quest_resets
+                SET used_count = used_count + 1
+                WHERE player_uuid = ? AND reset_key = ? AND used_count < ?
+                """;
+    }
+
+    @Override
     public String incrementQuestRerollSql() {
         return """
                 INSERT INTO player_quest_rerolls (player_uuid, reset_key, used_count)

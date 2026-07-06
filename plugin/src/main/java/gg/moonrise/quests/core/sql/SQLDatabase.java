@@ -19,6 +19,10 @@ public interface SQLDatabase {
 
     public String incrementQuestResetSql();
 
+    public String insertQuestResetUsageIfAbsentSql();
+
+    public String claimQuestResetUsageSql();
+
     public String incrementQuestRerollSql();
 
     public String incrementDifficultyStatsSql();

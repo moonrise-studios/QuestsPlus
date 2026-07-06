@@ -28,22 +28,28 @@ public class RoseStackerMobKillListener implements Listener {
     public void onStackMultipleDeath(EntityStackMultipleDeathEvent event) {
         Player killer = event.getKiller();
         int additionalKills = additionalKillCount(event.getEntityKillCount());
-        if (killer == null || additionalKills <= 0 || event.getMainEntity() instanceof Player) {
+        if (killer == null || additionalKills <= 0) {
+            return;
+        }
+        if (event.isAsynchronous()) {
+            Scheduler.entity(killer).run(task -> progressStackedEvent(killer, event, additionalKills));
+            return;
+        }
+        progressStackedEvent(killer, event, additionalKills);
+    }
+
+    public int additionalKillCount(int roseStackerKillCount) {
+        return Math.max(0, roseStackerKillCount - 1);
+    }
+
+    private void progressStackedEvent(Player killer, EntityStackMultipleDeathEvent event, int additionalKills) {
+        if (event.getMainEntity() instanceof Player) {
             return;
         }
 
         EntityType killedType = event.getMainEntity().getType();
         World killedWorld = event.getMainEntity().getWorld();
-        Runnable progress = () -> progressStackedKills(killer, killedType, killedWorld.getName(), additionalKills);
-        if (event.isAsynchronous()) {
-            Scheduler.entity(killer).run(task -> progress.run());
-            return;
-        }
-        progress.run();
-    }
-
-    public int additionalKillCount(int roseStackerKillCount) {
-        return Math.max(0, roseStackerKillCount - 1);
+        progressStackedKills(killer, killedType, killedWorld.getName(), additionalKills);
     }
 
     public void progressStackedKills(Player killer, EntityType killedType, String killedWorldName, int amount) {
