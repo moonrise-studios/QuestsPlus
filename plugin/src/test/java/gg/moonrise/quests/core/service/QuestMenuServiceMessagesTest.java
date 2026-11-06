@@ -4,6 +4,9 @@ import gg.moonrise.engine.message.Message;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.EntityScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Messages;
+import gg.moonrise.quests.config.SharedMessages;
+import gg.moonrise.quests.config.SharedMessagesFile;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -80,7 +83,7 @@ class QuestMenuServiceMessagesTest {
 
     @Test
     public void menuMessagesDefaultToThePreviousHardCodedText() {
-        Config.Messages messages = Config.compose(null, null, null, null, null, null, null).getMessages();
+        Messages messages = Config.compose(null, null, null, null, null, null, null).getMessages();
 
         assertEquals("<red>Failed to open quests right now.", messages.getMenuOpenFailed().content());
         assertEquals("<red>Quest milestones are disabled.", messages.getQuestMilestonesDisabled().content());
@@ -97,7 +100,7 @@ class QuestMenuServiceMessagesTest {
 
     @Test
     public void disabledFeaturesSendConfiguredMessages() throws ReflectiveOperationException {
-        Config.SharedMessages shared = new Config.SharedMessages();
+        SharedMessages shared = new SharedMessages();
         setField(shared, "questMilestonesDisabled", Message.of("Milestones are off."));
         setField(shared, "questStreaksDisabled", Message.of("Streaks are off."));
         Config config = configWith(shared);
@@ -116,7 +119,7 @@ class QuestMenuServiceMessagesTest {
 
     @Test
     public void failedMenuLoadSendsConfiguredFailureMessage() throws ReflectiveOperationException {
-        Config.SharedMessages shared = new Config.SharedMessages();
+        SharedMessages shared = new SharedMessages();
         setField(shared, "menuOpenFailed", Message.of("Quests are unavailable."));
         when(configProvider.get()).thenReturn(configWith(shared));
         when(questService.ensurePlayerStateAsync(player, "daily")).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
@@ -141,8 +144,8 @@ class QuestMenuServiceMessagesTest {
         return PLAIN_TEXT.serialize(message);
     }
 
-    private static Config configWith(Config.SharedMessages shared) throws ReflectiveOperationException {
-        Config.SharedMessagesFile file = new Config.SharedMessagesFile();
+    private static Config configWith(SharedMessages shared) throws ReflectiveOperationException {
+        SharedMessagesFile file = new SharedMessagesFile();
         setField(file, "messages", shared);
         return Config.compose(null, null, null, null, file, null, null);
     }

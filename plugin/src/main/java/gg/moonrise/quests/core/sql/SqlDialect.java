@@ -2,7 +2,7 @@ package gg.moonrise.quests.core.sql;
 
 import com.zaxxer.hikari.HikariConfig;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -19,7 +19,7 @@ public interface SqlDialect {
 
     public String displayName();
 
-    public HikariConfig hikariConfig(@NotNull QuestsPlusPlugin plugin, @NotNull Config.Storage storage);
+    public HikariConfig hikariConfig(@NotNull QuestsPlusPlugin plugin, @NotNull Storage storage);
 
     public String columnType(@NotNull SqlColumnType type);
 
@@ -51,8 +51,8 @@ public interface SqlDialect {
         }
     }
 
-    public static SqlDialect forStorageType(Config.Storage.StorageType type) {
-        return switch (type == null ? Config.Storage.StorageType.SQLITE : type) {
+    public static SqlDialect forStorageType(Storage.StorageType type) {
+        return switch (type == null ? Storage.StorageType.SQLITE : type) {
             case MARIADB -> MySqlDialect.mariaDb();
             case MYSQL -> MySqlDialect.mysql();
             case POSTGRESQL -> new PostgreSQLDialect();

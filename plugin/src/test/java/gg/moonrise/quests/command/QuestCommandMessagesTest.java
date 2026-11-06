@@ -4,6 +4,9 @@ import gg.moonrise.engine.message.Message;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.EntityScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Messages;
+import gg.moonrise.quests.config.SharedMessages;
+import gg.moonrise.quests.config.SharedMessagesFile;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.core.service.GlobalQuestService;
 import gg.moonrise.quests.core.service.QuestApiService;
@@ -107,7 +110,7 @@ public class QuestCommandMessagesTest {
 
     @Test
     public void commandMessagesDefaultToThePreviousHardCodedText() {
-        Config.Messages messages = Config.compose(null, null, null, null, null, null, null).getMessages();
+        Messages messages = Config.compose(null, null, null, null, null, null, null).getMessages();
 
         assertEquals("<red>Failed to load quest progress right now.", messages.getProgressLoadFailed().content());
         assertEquals("<red>Failed to load completed quest count right now.", messages.getCompletedCountLoadFailed().content());
@@ -121,7 +124,7 @@ public class QuestCommandMessagesTest {
 
     @Test
     public void disabledStreaksSendConfiguredMessage() throws ReflectiveOperationException {
-        Config.SharedMessages shared = new Config.SharedMessages();
+        SharedMessages shared = new SharedMessages();
         setField(shared, "questStreaksDisabled", Message.of("Streaks are off."));
         when(configProvider.get()).thenReturn(configWith(shared));
         when(streakService.isEnabled()).thenReturn(false);
@@ -133,7 +136,7 @@ public class QuestCommandMessagesTest {
 
     @Test
     public void failedAdminActionsSendConfiguredMessages() throws ReflectiveOperationException {
-        Config.SharedMessages shared = new Config.SharedMessages();
+        SharedMessages shared = new SharedMessages();
         setField(shared, "resetPlayerFailed", Message.of("Reset broke."));
         setField(shared, "rerollsResetFailed", Message.of("Reroll reset broke."));
         setField(shared, "streakCurrencyUpdateFailed", Message.of("Currency broke."));
@@ -167,8 +170,8 @@ public class QuestCommandMessagesTest {
         return PLAIN_TEXT.serialize(message);
     }
 
-    private static Config configWith(Config.SharedMessages shared) throws ReflectiveOperationException {
-        Config.SharedMessagesFile file = new Config.SharedMessagesFile();
+    private static Config configWith(SharedMessages shared) throws ReflectiveOperationException {
+        SharedMessagesFile file = new SharedMessagesFile();
         setField(file, "messages", shared);
         return Config.compose(null, null, null, null, file, null, null);
     }

@@ -1,6 +1,7 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.indicator.QuestProgressIndicator;
 import gg.moonrise.quests.indicator.QuestProgressIndicatorContext;
 import gg.moonrise.quests.model.GlobalQuestState;
@@ -246,12 +247,12 @@ class QuestProgressIndicatorServiceTest {
         }
 
         @Override
-        public boolean isEnabled(Config.ProgressIndicators config) {
+        public boolean isEnabled(ProgressIndicators config) {
             return enabled;
         }
 
         @Override
-        public String titleTemplate(Config.ProgressIndicators config) {
+        public String titleTemplate(ProgressIndicators config) {
             return template;
         }
 

@@ -7,7 +7,8 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.kyori.adventure.bossbar.BossBar;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.BossBarProgressIndicator;
+import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -33,12 +34,12 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
     }
 
     @Override
-    public boolean isEnabled(Config.ProgressIndicators config) {
+    public boolean isEnabled(ProgressIndicators config) {
         return settings(config).isEnabled();
     }
 
     @Override
-    public String titleTemplate(Config.ProgressIndicators config) {
+    public String titleTemplate(ProgressIndicators config) {
         return settings(config).getTitle();
     }
 
@@ -52,7 +53,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
 
             hide(player);
 
-            Config.BossBarProgressIndicator config = config();
+            BossBarProgressIndicator config = config();
             BossBar bossBar = BossBar.bossBar(
                     context.title(),
                     (float) Math.clamp(context.progress(), 0.0D, 1.0D),
@@ -126,13 +127,13 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
         return active != null && active.bossBar() == bossBar && activeBars.remove(playerId, active);
     }
 
-    private Config.BossBarProgressIndicator config() {
-        Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
-        return indicators == null ? new Config.BossBarProgressIndicator() : settings(indicators);
+    private BossBarProgressIndicator config() {
+        ProgressIndicators indicators = configProvider.get().getProgressIndicators();
+        return indicators == null ? new BossBarProgressIndicator() : settings(indicators);
     }
 
-    private Config.BossBarProgressIndicator settings(Config.ProgressIndicators config) {
-        return config.getBossBar() == null ? new Config.BossBarProgressIndicator() : config.getBossBar();
+    private BossBarProgressIndicator settings(ProgressIndicators config) {
+        return config.getBossBar() == null ? new BossBarProgressIndicator() : config.getBossBar();
     }
 
     private BossBar.Color color(String raw) {

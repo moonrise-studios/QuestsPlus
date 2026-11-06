@@ -12,8 +12,8 @@ class ConfigPermissionLimitsTest {
 
     @Test
     public void rerollAndPremiumDefaultsUseTheSameRankLimits() {
-        Map<String, Integer> rerollLimits = new Config.Rerolls().getPermissionLimits();
-        Map<String, Integer> premiumLimits = new Config.PremiumQuestsFile().getPermissionLimits();
+        Map<String, Integer> rerollLimits = new Rerolls().getPermissionLimits();
+        Map<String, Integer> premiumLimits = new PremiumQuestsFile().getPermissionLimits();
 
         assertEquals(Map.of("vip", 1, "vipplus", 2, "mvp", 3), rerollLimits);
         assertEquals(List.of("vip", "vipplus", "mvp"), List.copyOf(rerollLimits.keySet()));
@@ -22,9 +22,9 @@ class ConfigPermissionLimitsTest {
 
     @Test
     public void eachConfigInstanceOwnsItsDefaultLimitMap() {
-        Map<String, Integer> first = new Config.Rerolls().getPermissionLimits();
-        Map<String, Integer> second = new Config.Rerolls().getPermissionLimits();
-        Map<String, Integer> premium = new Config.PremiumQuestsFile().getPermissionLimits();
+        Map<String, Integer> first = new Rerolls().getPermissionLimits();
+        Map<String, Integer> second = new Rerolls().getPermissionLimits();
+        Map<String, Integer> premium = new PremiumQuestsFile().getPermissionLimits();
 
         assertNotSame(first, second);
         assertNotSame(first, premium);

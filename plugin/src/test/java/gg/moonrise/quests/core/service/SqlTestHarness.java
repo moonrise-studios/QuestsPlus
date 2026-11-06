@@ -2,6 +2,7 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.QuestsPlusPlugin;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;
@@ -36,14 +37,14 @@ final class SqlTestHarness {
     }
 
     public static DatabaseTarget sqlite() {
-        return new DatabaseTarget("sqlite", "SQLite", Config.Storage.StorageType.SQLITE, null, null, null);
+        return new DatabaseTarget("sqlite", "SQLite", Storage.StorageType.SQLITE, null, null, null);
     }
 
     public static List<DatabaseTarget> configuredExternalTargets() {
         List<DatabaseTarget> targets = new ArrayList<>();
-        addExternalTarget(targets, "mariadb", "MariaDB", Config.Storage.StorageType.MARIADB, "QUESTSPLUS_TEST_MARIADB");
-        addExternalTarget(targets, "mysql", "MySQL", Config.Storage.StorageType.MYSQL, "QUESTSPLUS_TEST_MYSQL");
-        addExternalTarget(targets, "postgresql", "PostgreSQL", Config.Storage.StorageType.POSTGRESQL, "QUESTSPLUS_TEST_POSTGRESQL", "QUESTSPLUS_TEST_POSTGRES");
+        addExternalTarget(targets, "mariadb", "MariaDB", Storage.StorageType.MARIADB, "QUESTSPLUS_TEST_MARIADB");
+        addExternalTarget(targets, "mysql", "MySQL", Storage.StorageType.MYSQL, "QUESTSPLUS_TEST_MYSQL");
+        addExternalTarget(targets, "postgresql", "PostgreSQL", Storage.StorageType.POSTGRESQL, "QUESTSPLUS_TEST_POSTGRESQL", "QUESTSPLUS_TEST_POSTGRES");
         return List.copyOf(targets);
     }
 
@@ -71,9 +72,9 @@ final class SqlTestHarness {
         return provider;
     }
 
-    public static Config.Storage sqliteStorage(String databaseFile) {
-        Config.Storage storage = new Config().getStorage();
-        setField(storage, "type", Config.Storage.StorageType.SQLITE);
+    public static Storage sqliteStorage(String databaseFile) {
+        Storage storage = new Config().getStorage();
+        setField(storage, "type", Storage.StorageType.SQLITE);
         setField(storage, "databaseFile", databaseFile);
         return storage;
     }
@@ -82,7 +83,7 @@ final class SqlTestHarness {
         return "Set QUESTSPLUS_TEST_MARIADB_URL, QUESTSPLUS_TEST_MYSQL_URL, or QUESTSPLUS_TEST_POSTGRESQL_URL to run live network database tests.";
     }
 
-    private static void addExternalTarget(List<DatabaseTarget> targets, String id, String displayName, Config.Storage.StorageType type, String... prefixes) {
+    private static void addExternalTarget(List<DatabaseTarget> targets, String id, String displayName, Storage.StorageType type, String... prefixes) {
         for (String prefix : prefixes) {
             String url = env(prefix + "_URL");
             if (url == null) {
@@ -100,7 +101,7 @@ final class SqlTestHarness {
         }
     }
 
-    private static void configureStorage(Config.Storage storage, DatabaseTarget target) {
+    private static void configureStorage(Storage storage, DatabaseTarget target) {
         setField(storage, "type", target.storageType());
         if (target.sqlite()) {
             return;
@@ -150,14 +151,14 @@ final class SqlTestHarness {
     record DatabaseTarget(
             String id,
             String displayName,
-            Config.Storage.StorageType storageType,
+            Storage.StorageType storageType,
             String connectionUrl,
             String username,
             String password
     ) {
 
         public boolean sqlite() {
-            return storageType == Config.Storage.StorageType.SQLITE;
+            return storageType == Storage.StorageType.SQLITE;
         }
 
         @Override

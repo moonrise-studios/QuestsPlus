@@ -1,6 +1,8 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.config.Rerolls;
 import gg.moonrise.quests.util.QuestNames;
 import org.bukkit.permissions.Permissible;
 import org.jetbrains.annotations.NotNull;
@@ -36,7 +38,7 @@ public record PermissionLimits(int highestConfigured, @NotNull List<Tier> tiers)
      * Premium quest slot limits, or none if premium quests are disabled.
      */
     public static PermissionLimits premiumSlots(@NotNull Config config) {
-        Config.PremiumQuestsFile premium = config.getPremiumQuests();
+        PremiumQuestsFile premium = config.getPremiumQuests();
         if (premium == null || !premium.isEnabled()) {
             return NONE;
         }
@@ -47,7 +49,7 @@ public record PermissionLimits(int highestConfigured, @NotNull List<Tier> tiers)
      * Daily reroll limits.
      */
     public static PermissionLimits rerolls(@NotNull Config config) {
-        Config.Rerolls rerolls = config.getDaily().getRerolls();
+        Rerolls rerolls = config.getDaily().getRerolls();
         return rerolls == null ? NONE : of(REROLL_PERMISSION_PREFIX, rerolls.getPermissionLimits());
     }
 

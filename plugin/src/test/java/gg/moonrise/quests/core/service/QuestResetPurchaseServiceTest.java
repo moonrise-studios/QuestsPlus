@@ -1,6 +1,8 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.PlayerPointsCurrencyConfig;
+import gg.moonrise.quests.config.VaultCurrencyConfig;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
@@ -44,8 +46,8 @@ class QuestResetPurchaseServiceTest {
 
     @Test
     public void externalCurrenciesRegisterThroughSdkContract() {
-        Config.PlayerPointsCurrency playerPoints = new Config.PlayerPointsCurrency("Player Points", 25, new Config.PlayerPointsCurrency().getButton());
-        Config.VaultCurrency vault = new Config.VaultCurrency("Ingame Money", 1000.0D, new Config.VaultCurrency().getButton());
+        PlayerPointsCurrencyConfig playerPoints = new PlayerPointsCurrencyConfig("Player Points", 25, new PlayerPointsCurrencyConfig().getButton());
+        VaultCurrencyConfig vault = new VaultCurrencyConfig("Ingame Money", 1000.0D, new VaultCurrencyConfig().getButton());
         QuestResetPurchaseService service = service(Config.compose(null, null, null, null, null, null, null, playerPoints, vault));
         Plugin owner = plugin("ExternalEconomy", true);
         Player player = player(UUID.randomUUID());

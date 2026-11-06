@@ -4,7 +4,7 @@ import gg.moonrise.moss.spring.Disableable;
 import gg.moonrise.moss.spring.Enableable;
 import gg.moonrise.engine.state.Reloadable;
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Currencies;
 import gg.moonrise.quests.currency.PlayerPointsCurrency;
 import gg.moonrise.quests.currency.VaultCurrency;
 import lombok.RequiredArgsConstructor;
@@ -260,7 +260,7 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
     }
 
     private Set<QuestCurrencyKey> enabledCurrencies() {
-        Config.Currencies currencies = configProvider.get().getCurrencies();
+        Currencies currencies = configProvider.get().getCurrencies();
         List<String> configuredKeys = currencies == null || currencies.getEnabledCurrencies() == null
                 ? List.of()
                 : currencies.getEnabledCurrencies();

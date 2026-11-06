@@ -2,7 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ConfirmationMenu;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestStreakState;
@@ -15,7 +15,7 @@ public class QuestStreakConfirmUI extends ChestMenu {
     public QuestStreakConfirmUI(Player player, QuestMenuService menuService, PlayerQuestState questState, QuestStreakState streakState) {
         super(player, title(menuService), rows(menuService.config().getStreaks().getMenu().getConfirmation()));
 
-        Config.ConfirmationMenu menu = menuService.config().getStreaks().getMenu().getConfirmation();
+        ConfirmationMenu menu = menuService.config().getStreaks().getMenu().getConfirmation();
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
@@ -37,11 +37,11 @@ public class QuestStreakConfirmUI extends ChestMenu {
     }
 
     private static String title(QuestMenuService menuService) {
-        Config.ConfirmationMenu menu = menuService.config().getStreaks().getMenu().getConfirmation();
+        ConfirmationMenu menu = menuService.config().getStreaks().getMenu().getConfirmation();
         return menu.getRecoveryTitle();
     }
 
-    private static int rows(Config.ConfirmationMenu menu) {
+    private static int rows(ConfirmationMenu menu) {
         return MenuSlots.clampRows(menu.getRows());
     }
 }

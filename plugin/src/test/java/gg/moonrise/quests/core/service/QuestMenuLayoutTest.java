@@ -1,6 +1,9 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.DailyFile;
+import gg.moonrise.quests.config.PremiumQuestMenu;
+import gg.moonrise.quests.config.PremiumQuestsFile;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -79,8 +82,8 @@ class QuestMenuLayoutTest {
         Map<String, Integer> limits = new LinkedHashMap<>();
         limits.put("vip", 1);
         limits.put("mvp", 5);
-        Config.PremiumQuestsFile premium = new Config.PremiumQuestsFile(limits, new Config.PremiumQuestMenu(Map.of()));
-        Config config = Config.compose(null, new Config.DailyFile(3), null, null, null, null, premium);
+        PremiumQuestsFile premium = new PremiumQuestsFile(limits, new PremiumQuestMenu(Map.of()));
+        Config config = Config.compose(null, new DailyFile(3), null, null, null, null, premium);
 
         QuestMenuLayout layout = QuestMenuLayout.of(config);
 

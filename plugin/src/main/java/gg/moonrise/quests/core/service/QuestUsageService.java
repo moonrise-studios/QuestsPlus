@@ -3,7 +3,7 @@ package gg.moonrise.quests.core.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.QuestResetMenu;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;
 
@@ -85,8 +85,8 @@ public class QuestUsageService {
     }
 
     public int questResetDailyLimit() {
-        Config.QuestResetMenu menu = configProvider.get().getMenu().getResetMenu();
-        return Math.max(0, menu == null ? new Config.QuestResetMenu().getDailyLimit() : menu.getDailyLimit());
+        QuestResetMenu menu = configProvider.get().getMenu().getResetMenu();
+        return Math.max(0, menu == null ? new QuestResetMenu().getDailyLimit() : menu.getDailyLimit());
     }
 
     public int questResetPurchasesRemaining(UUID playerId, String resetKey) {

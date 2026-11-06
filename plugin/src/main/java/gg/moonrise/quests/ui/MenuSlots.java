@@ -2,7 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.engine.paper.item.ItemBuilder;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.MenuItem;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import org.jetbrains.annotations.NotNull;
 
@@ -53,13 +53,13 @@ public final class MenuSlots {
     /**
      * Places a filler button in every slot that no {@link #add(int, Button)} call has taken.
      */
-    public void fill(@NotNull QuestMenuService menuService, @NotNull Config.MenuItem item) {
+    public void fill(@NotNull QuestMenuService menuService, @NotNull MenuItem item) {
         IntStream.range(0, totalSlots)
                 .filter(slot -> !occupiedSlots.contains(slot))
                 .forEach(slot -> buttonSink.accept(slot, fillerButton(menuService, item)));
     }
 
-    private static Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {
+    private static Button fillerButton(QuestMenuService menuService, MenuItem item) {
         return Button.builder()
                 .item(player -> ItemBuilder.of(menuService.items().buildMenuItem(item)).hideToolTip(true).build())
                 .build();

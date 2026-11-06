@@ -2,7 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.StreakMenu;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestStreakMilestone;
@@ -17,7 +17,7 @@ public class QuestStreakMenuUI extends ChestMenu {
     public QuestStreakMenuUI(Player player, QuestMenuService menuService, PlayerQuestState questState, QuestStreakState streakState) {
         super(player, menuService.config().getStreaks().getMenu().getTitle(), rows(menuService.config().getStreaks().getMenu()));
 
-        Config.StreakMenu menu = menuService.config().getStreaks().getMenu();
+        StreakMenu menu = menuService.config().getStreaks().getMenu();
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
@@ -64,7 +64,7 @@ public class QuestStreakMenuUI extends ChestMenu {
         menuSlots.fill(menuService, menu.getFiller());
     }
 
-    private static int rows(Config.StreakMenu menu) {
+    private static int rows(StreakMenu menu) {
         return MenuSlots.clampRows(menu.getRows());
     }
 }

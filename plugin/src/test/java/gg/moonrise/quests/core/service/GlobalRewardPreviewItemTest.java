@@ -2,6 +2,8 @@ package gg.moonrise.quests.core.service;
 
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalRewardTierConfig;
+import gg.moonrise.quests.config.MenuItem;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -51,7 +53,7 @@ class GlobalRewardPreviewItemTest {
 
     @Test
     public void globalRewardPreviewUsesConfiguredTierItem() {
-        Config.MenuItem item = new Config.MenuItem(
+        MenuItem item = new MenuItem(
                 "DIAMOND",
                 "<green><reward_display_name>",
                 List.of(
@@ -59,7 +61,7 @@ class GlobalRewardPreviewItemTest {
                         "<yellow>Custom reward lore"
                 )
         );
-        Config.GlobalRewardTierConfig tier = new Config.GlobalRewardTierConfig(
+        GlobalRewardTierConfig tier = new GlobalRewardTierConfig(
                 3,
                 "<aqua>Custom Tier",
                 item,
@@ -76,7 +78,7 @@ class GlobalRewardPreviewItemTest {
 
     @Test
     public void globalRewardPreviewFallsBackToSharedTemplateWhenTierItemIsUnset() {
-        Config.GlobalRewardTierConfig tier = new Config.GlobalRewardTierConfig(
+        GlobalRewardTierConfig tier = new GlobalRewardTierConfig(
                 10,
                 "<yellow>Fallback Tier",
                 List.of("eco give <player> 50")

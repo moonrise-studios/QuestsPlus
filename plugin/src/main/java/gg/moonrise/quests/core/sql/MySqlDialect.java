@@ -2,7 +2,7 @@ package gg.moonrise.quests.core.sql;
 
 import com.zaxxer.hikari.HikariConfig;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -23,10 +23,10 @@ public final class MySqlDialect implements SqlDialect {
     private static final String TABLE_OPTIONS = " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
     private final String displayName;
-    private final Function<Config.Storage, NetworkSettings> settings;
+    private final Function<Storage, NetworkSettings> settings;
     private final InsertedValueSyntax insertedValueSyntax;
 
-    private MySqlDialect(String displayName, Function<Config.Storage, NetworkSettings> settings, InsertedValueSyntax insertedValueSyntax) {
+    private MySqlDialect(String displayName, Function<Storage, NetworkSettings> settings, InsertedValueSyntax insertedValueSyntax) {
         this.displayName = displayName;
         this.settings = settings;
         this.insertedValueSyntax = insertedValueSyntax;
@@ -46,7 +46,7 @@ public final class MySqlDialect implements SqlDialect {
     }
 
     @Override
-    public HikariConfig hikariConfig(@NotNull QuestsPlusPlugin plugin, @NotNull Config.Storage storage) {
+    public HikariConfig hikariConfig(@NotNull QuestsPlusPlugin plugin, @NotNull Storage storage) {
         return settings.apply(storage).hikariConfig("QuestsPlus-" + displayName);
     }
 

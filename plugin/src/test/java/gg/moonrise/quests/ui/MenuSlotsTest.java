@@ -2,6 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.MenuItem;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -52,7 +53,7 @@ class MenuSlotsTest {
     @Test
     public void fillPlacesFillersOnlyInUnoccupiedSlots() {
         QuestMenuService menuService = mock(QuestMenuService.class);
-        Config.MenuItem fillerItem = new Config().getMenu().getFiller();
+        MenuItem fillerItem = new Config().getMenu().getFiller();
         MenuSlots menuSlots = new MenuSlots(this::capture, 9);
         Button first = button();
         Button last = button();

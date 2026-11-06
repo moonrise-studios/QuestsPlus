@@ -6,7 +6,8 @@ import gg.moonrise.moss.spring.SpringComponent;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ChatProgressIndicator;
+import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestTokens;
@@ -35,18 +36,18 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
     }
 
     @Override
-    public boolean isEnabled(Config.ProgressIndicators config) {
+    public boolean isEnabled(ProgressIndicators config) {
         return settings(config).isEnabled();
     }
 
     @Override
-    public String titleTemplate(Config.ProgressIndicators config) {
+    public String titleTemplate(ProgressIndicators config) {
         return settings(config).getLine();
     }
 
     @Override
     public void show(QuestProgressIndicatorContext context) {
-        Config.ChatProgressIndicator config = config();
+        ChatProgressIndicator config = config();
         if (!config.isEnabled()) {
             return;
         }
@@ -111,7 +112,7 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
             return;
         }
 
-        Config.ChatProgressIndicator config = config();
+        ChatProgressIndicator config = config();
         Map<BatchKey, BatchEntry> entries = batch.entries();
         if (entries.isEmpty()) {
             return;
@@ -126,13 +127,13 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
         }
     }
 
-    private Config.ChatProgressIndicator config() {
-        Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
-        return indicators == null ? new Config.ChatProgressIndicator() : settings(indicators);
+    private ChatProgressIndicator config() {
+        ProgressIndicators indicators = configProvider.get().getProgressIndicators();
+        return indicators == null ? new ChatProgressIndicator() : settings(indicators);
     }
 
-    private Config.ChatProgressIndicator settings(Config.ProgressIndicators config) {
-        return config.getChat() == null ? new Config.ChatProgressIndicator() : config.getChat();
+    private ChatProgressIndicator settings(ProgressIndicators config) {
+        return config.getChat() == null ? new ChatProgressIndicator() : config.getChat();
     }
 
     private record BatchKey(QuestProgressIndicatorContext.Scope scope, UUID instanceId) {

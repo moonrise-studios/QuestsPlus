@@ -2,7 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.QuestMenu;
 import gg.moonrise.quests.core.service.QuestMenuLayout;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -27,7 +27,7 @@ public class QuestMenuUI extends ChestMenu {
     private QuestMenuUI(Player player, QuestMenuService menuService, QuestMenuLayout layout, PlayerQuestState state, @Nullable GlobalQuestState globalState) {
         super(player, menuService.config().getMenu().getTitle(), layout.rows());
 
-        Config.QuestMenu menu = menuService.config().getMenu();
+        QuestMenu menu = menuService.config().getMenu();
         List<Integer> contentSlots = layout.contentSlots();
         MenuSlots menuSlots = new MenuSlots(this::addButton, layout.totalSlots());
 

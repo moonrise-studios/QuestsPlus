@@ -1,7 +1,7 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Currencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
@@ -128,7 +128,7 @@ public class QuestResetCurrencies {
         if (currency == null || currency.key() == null) {
             return false;
         }
-        Config.Currencies currencies = configProvider.get().getCurrencies();
+        Currencies currencies = configProvider.get().getCurrencies();
         List<String> enabledCurrencies = currencies == null || currencies.getEnabledCurrencies() == null
                 ? List.of()
                 : currencies.getEnabledCurrencies();

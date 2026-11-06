@@ -1,6 +1,10 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalQuestsFile;
+import gg.moonrise.quests.config.QuestDefinitionConfig;
+import gg.moonrise.quests.config.QuestDifficultyConfig;
+import gg.moonrise.quests.config.VariableConfig;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.QuestVariableSelector;
@@ -82,7 +86,7 @@ class QuestDefinitionServiceTest {
 
     @Test
     public void globalDefinitionsAreParsedOnReloadAndLookedUpById() {
-        Config.GlobalQuestsFile globalQuests = globalQuests(List.of(
+        GlobalQuestsFile globalQuests = globalQuests(List.of(
                 definition("global-zulu"),
                 definition("global-alpha"),
                 definition("global-unknown-type", "NOT_REGISTERED")
@@ -104,7 +108,7 @@ class QuestDefinitionServiceTest {
     @Test
     public void globalDefinitionsAreReparsedWhenGoalHandlerIsRegistered() {
         QuestType fishType = QuestType.of("FISH");
-        Config.GlobalQuestsFile globalQuests = globalQuests(List.of(definition("global-fish", fishType.key())));
+        GlobalQuestsFile globalQuests = globalQuests(List.of(definition("global-fish", fishType.key())));
         Config config = config(List.of("easy"), List.of());
         when(config.getGlobalQuests()).thenReturn(globalQuests);
         QuestDefinitionService service = service(config);
@@ -121,21 +125,21 @@ class QuestDefinitionServiceTest {
 
     @Test
     public void personalAndGlobalDefinitionsShareParsingButKeepTheirIdPolicies() {
-        Config.QuestDefinitionConfig blankSelector = definition("global-blank-selector");
-        Map<String, Config.VariableConfig> blankSelectorVariables = Map.of("block", variable(" ", List.of("STONE")));
+        QuestDefinitionConfig blankSelector = definition("global-blank-selector");
+        Map<String, VariableConfig> blankSelectorVariables = Map.of("block", variable(" ", List.of("STONE")));
         when(blankSelector.getVariables()).thenReturn(blankSelectorVariables);
-        Config.QuestDefinitionConfig unknownDifficulty = definition("global-unknown-difficulty");
+        QuestDefinitionConfig unknownDifficulty = definition("global-unknown-difficulty");
         when(unknownDifficulty.getDifficulty()).thenReturn("legendary");
-        Config.GlobalQuestsFile globalQuests = globalQuests(List.of(
+        GlobalQuestsFile globalQuests = globalQuests(List.of(
                 definition("global-valid"),
                 definition("GLOBAL_VALID"),
                 definition(" "),
                 blankSelector,
                 unknownDifficulty
         ));
-        Config.QuestDefinitionConfig personalUnknownDifficulty = definition("personal-unknown-difficulty");
+        QuestDefinitionConfig personalUnknownDifficulty = definition("personal-unknown-difficulty");
         when(personalUnknownDifficulty.getDifficulty()).thenReturn("legendary");
-        List<Config.QuestDefinitionConfig> personalDefinitions = List.of(definition("personal-valid"), personalUnknownDifficulty);
+        List<QuestDefinitionConfig> personalDefinitions = List.of(definition("personal-valid"), personalUnknownDifficulty);
         Config config = config(List.of("easy"), List.of());
         when(config.getQuestDefinitions()).thenReturn(personalDefinitions);
         when(config.getGlobalQuests()).thenReturn(globalQuests);
@@ -161,11 +165,11 @@ class QuestDefinitionServiceTest {
         QuestVariableSelector selector = mock(QuestVariableSelector.class);
         when(selector.type()).thenReturn("list");
         when(selector.select(eq(List.of("STONE", "DIRT")), any())).thenReturn("DIRT");
-        Config.QuestDefinitionConfig withVariable = definition("block-quest");
-        Map<String, Config.VariableConfig> variables = Map.of("Block_Type", variable("list", List.of("STONE", "DIRT")));
+        QuestDefinitionConfig withVariable = definition("block-quest");
+        Map<String, VariableConfig> variables = Map.of("Block_Type", variable("list", List.of("STONE", "DIRT")));
         when(withVariable.getVariables()).thenReturn(variables);
         Config config = config(List.of("easy"), List.of());
-        List<Config.QuestDefinitionConfig> definitions = List.of(withVariable);
+        List<QuestDefinitionConfig> definitions = List.of(withVariable);
         when(config.getQuestDefinitions()).thenReturn(definitions);
         QuestDefinitionService service = service(config, List.of(selector));
 
@@ -175,15 +179,15 @@ class QuestDefinitionServiceTest {
         assertEquals(Map.of("block-type", "DIRT"), service.resolveVariables(definition));
     }
 
-    private static Config.VariableConfig variable(String selector, List<String> values) {
-        Config.VariableConfig variable = mock(Config.VariableConfig.class);
+    private static VariableConfig variable(String selector, List<String> values) {
+        VariableConfig variable = mock(VariableConfig.class);
         when(variable.getSelector()).thenReturn(selector);
         when(variable.getValues()).thenReturn(values);
         return variable;
     }
 
-    private static Config.GlobalQuestsFile globalQuests(List<Config.QuestDefinitionConfig> definitions) {
-        Config.GlobalQuestsFile globalQuests = mock(Config.GlobalQuestsFile.class);
+    private static GlobalQuestsFile globalQuests(List<QuestDefinitionConfig> definitions) {
+        GlobalQuestsFile globalQuests = mock(GlobalQuestsFile.class);
         when(globalQuests.getQuestDefinitions()).thenReturn(definitions);
         return globalQuests;
     }
@@ -214,11 +218,11 @@ class QuestDefinitionServiceTest {
     }
 
     private static Config config(List<String> difficultyIds, List<String> definitionIds) {
-        Map<String, Config.QuestDifficultyConfig> difficulties = new LinkedHashMap<>();
+        Map<String, QuestDifficultyConfig> difficulties = new LinkedHashMap<>();
         for (String id : difficultyIds) {
-            difficulties.put(id, new Config.QuestDifficultyConfig());
+            difficulties.put(id, new QuestDifficultyConfig());
         }
-        List<Config.QuestDefinitionConfig> definitions = definitionIds.stream()
+        List<QuestDefinitionConfig> definitions = definitionIds.stream()
                 .map(QuestDefinitionServiceTest::definition)
                 .toList();
         Config config = mock(Config.class);
@@ -227,12 +231,12 @@ class QuestDefinitionServiceTest {
         return config;
     }
 
-    private static Config.QuestDefinitionConfig definition(String id) {
+    private static QuestDefinitionConfig definition(String id) {
         return definition(id, TYPE.key());
     }
 
-    private static Config.QuestDefinitionConfig definition(String id, String type) {
-        Config.QuestDefinitionConfig definition = mock(Config.QuestDefinitionConfig.class);
+    private static QuestDefinitionConfig definition(String id, String type) {
+        QuestDefinitionConfig definition = mock(QuestDefinitionConfig.class);
         when(definition.getId()).thenReturn(id);
         when(definition.getType()).thenReturn(type);
         when(definition.isEnabled()).thenReturn(true);

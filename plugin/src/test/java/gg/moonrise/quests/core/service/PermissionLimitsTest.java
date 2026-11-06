@@ -1,6 +1,9 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.DailyFile;
+import gg.moonrise.quests.config.PremiumQuestMenu;
+import gg.moonrise.quests.config.PremiumQuestsFile;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
@@ -53,8 +56,8 @@ class PermissionLimitsTest {
         assertSame(PermissionLimits.none(), PermissionLimits.of("questsplus.reroll.", null));
         assertSame(PermissionLimits.none(), PermissionLimits.of("questsplus.reroll.", Map.of()));
 
-        Config.PremiumQuestsFile premium = new Config.PremiumQuestsFile(limits("vip", 1, "mvp", 2, "elite", 3), new Config.PremiumQuestMenu(Map.of()));
-        Config config = Config.compose(null, new Config.DailyFile(3), null, null, null, null, premium);
+        PremiumQuestsFile premium = new PremiumQuestsFile(limits("vip", 1, "mvp", 2, "elite", 3), new PremiumQuestMenu(Map.of()));
+        Config config = Config.compose(null, new DailyFile(3), null, null, null, null, premium);
         Player player = mock(Player.class);
         when(player.hasPermission("questsplus.premium.mvp")).thenReturn(true);
 

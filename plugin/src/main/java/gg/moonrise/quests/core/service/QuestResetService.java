@@ -8,7 +8,8 @@ import gg.moonrise.moss.spring.SpringComponent;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Daily;
+import gg.moonrise.quests.config.GlobalSchedule;
 import gg.moonrise.quests.util.QuestSchedules;
 import org.bukkit.Bukkit;
 
@@ -40,10 +41,10 @@ public class QuestResetService implements Enableable, Reloadable, Disableable {
 
     @Override
     public void reload() {
-        Config.Daily daily = configProvider.get().getDaily();
+        Daily daily = configProvider.get().getDaily();
         this.weekly = daily.isWeekly();
         if (weekly) {
-            Config.GlobalSchedule schedule = daily.getSchedule() == null ? new Config.GlobalSchedule() : daily.getSchedule();
+            GlobalSchedule schedule = daily.getSchedule() == null ? new GlobalSchedule() : daily.getSchedule();
             this.weeklyDay = QuestSchedules.parseDay(schedule.getDayOfWeek(), "weekly quest");
             this.resetTime = QuestSchedules.parseTime(schedule.getTime(), "daily reset");
         } else {

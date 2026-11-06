@@ -2,7 +2,8 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.config.Rewards;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestCompletionStats;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -263,9 +264,9 @@ public class QuestRewardService {
                 .flatMap(difficulty -> randomDifficultyRewardCommand(difficulty.rewardCommands()))
                 .ifPresent(commands::add);
         if (quest.premium() && premiumRewardsAccessible) {
-            Config.PremiumQuestsFile premium = configProvider.get().getPremiumQuests();
-            Map<String, Config.Rewards> rewards = premium == null || premium.getRewards() == null ? Map.of() : premium.getRewards();
-            Config.Rewards bonus = rewards.get(quest.difficultyId());
+            PremiumQuestsFile premium = configProvider.get().getPremiumQuests();
+            Map<String, Rewards> rewards = premium == null || premium.getRewards() == null ? Map.of() : premium.getRewards();
+            Rewards bonus = rewards.get(quest.difficultyId());
             if (bonus == null) {
                 bonus = rewards.get(QuestNames.normalize(quest.difficultyId()));
             }

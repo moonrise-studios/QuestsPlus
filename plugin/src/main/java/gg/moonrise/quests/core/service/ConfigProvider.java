@@ -9,6 +9,21 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import gg.moonrise.quests.QuestsPlusPlugin;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Currencies;
+import gg.moonrise.quests.config.DailyFile;
+import gg.moonrise.quests.config.DifficultyConfig;
+import gg.moonrise.quests.config.DifficultyDirectory;
+import gg.moonrise.quests.config.DifficultyMilestonesFile;
+import gg.moonrise.quests.config.GlobalQuestsFile;
+import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.config.ProgressIndicatorsFile;
+import gg.moonrise.quests.config.QuestMenuFile;
+import gg.moonrise.quests.config.QuestMilestonesFile;
+import gg.moonrise.quests.config.QuestResetsFile;
+import gg.moonrise.quests.config.QuestsFile;
+import gg.moonrise.quests.config.SharedMessagesFile;
+import gg.moonrise.quests.config.Storage;
+import gg.moonrise.quests.config.StreaksFile;
 import gg.moonrise.quests.core.yml.MessageSerializer;
 import gg.moonrise.quests.util.QuestNames;
 
@@ -54,22 +69,22 @@ public class ConfigProvider implements Reloadable {
     }
 
     private Config loadConfig() {
-        Config.Storage storage = load("storage-settings.yml", Config.Storage.class);
-        Config.DailyFile daily = load("daily.yml", Config.DailyFile.class);
-        Config.QuestMenuFile questMenu = load("quest-menu.yml", Config.QuestMenuFile.class);
-        List<Config.DifficultyDirectory> difficulties = loadDifficulties();
-        Config.StreaksFile streaks = load("streaks.yml", Config.StreaksFile.class);
-        Config.SharedMessagesFile messages = load("messages.yml", Config.SharedMessagesFile.class);
-        Config.QuestMilestonesFile questMilestones = load("quest-milestones.yml", Config.QuestMilestonesFile.class);
-        Config.QuestResetsFile questResets = load("quest-resets.yml", Config.QuestResetsFile.class);
-        Config.ProgressIndicatorsFile progressIndicators = load("progress-indicators.yml", Config.ProgressIndicatorsFile.class);
-        Config.GlobalQuestsFile globalQuests = load("global-quests.yml", Config.GlobalQuestsFile.class);
-        Config.PremiumQuestsFile premiumQuests = load("premium_quests.yml", Config.PremiumQuestsFile.class);
-        Config.Currencies currenciesFile = load("currencies.yml", Config.Currencies.class);
+        Storage storage = load("storage-settings.yml", Storage.class);
+        DailyFile daily = load("daily.yml", DailyFile.class);
+        QuestMenuFile questMenu = load("quest-menu.yml", QuestMenuFile.class);
+        List<DifficultyDirectory> difficulties = loadDifficulties();
+        StreaksFile streaks = load("streaks.yml", StreaksFile.class);
+        SharedMessagesFile messages = load("messages.yml", SharedMessagesFile.class);
+        QuestMilestonesFile questMilestones = load("quest-milestones.yml", QuestMilestonesFile.class);
+        QuestResetsFile questResets = load("quest-resets.yml", QuestResetsFile.class);
+        ProgressIndicatorsFile progressIndicators = load("progress-indicators.yml", ProgressIndicatorsFile.class);
+        GlobalQuestsFile globalQuests = load("global-quests.yml", GlobalQuestsFile.class);
+        PremiumQuestsFile premiumQuests = load("premium_quests.yml", PremiumQuestsFile.class);
+        Currencies currenciesFile = load("currencies.yml", Currencies.class);
         return Config.compose(storage, daily, difficulties, streaks, messages, globalQuests, premiumQuests, questMenu, questMilestones, questResets, progressIndicators, currenciesFile);
     }
 
-    private List<Config.DifficultyDirectory> loadDifficulties() {
+    private List<DifficultyDirectory> loadDifficulties() {
         File root = new File(plugin.getDataFolder(), "difficulty");
         if (!root.exists() && !root.mkdirs()) {
             throw new IllegalStateException("Failed to create QuestsPlus difficulty config folder.");
@@ -80,7 +95,7 @@ public class ConfigProvider implements Reloadable {
             directories = new File[]{new File(root, "easy")};
         }
 
-        List<Config.DifficultyDirectory> loaded = new ArrayList<>();
+        List<DifficultyDirectory> loaded = new ArrayList<>();
         Arrays.stream(directories)
                 .sorted(Comparator.comparing(File::getName))
                 .forEach(directory -> {
@@ -94,11 +109,11 @@ public class ConfigProvider implements Reloadable {
                     if (!directory.getName().equals(difficultyId)) {
                         throw new IllegalArgumentException("Quest difficulty folder '" + directory.getName() + "' must be named '" + difficultyId + "'.");
                     }
-                    loaded.add(new Config.DifficultyDirectory(
+                    loaded.add(new DifficultyDirectory(
                             difficultyId,
-                            load(directory, "settings.yml", Config.DifficultyConfig.class),
-                            load(directory, "quests.yml", Config.QuestsFile.class),
-                            load(directory, "milestones.yml", Config.DifficultyMilestonesFile.class)
+                            load(directory, "settings.yml", DifficultyConfig.class),
+                            load(directory, "quests.yml", QuestsFile.class),
+                            load(directory, "milestones.yml", DifficultyMilestonesFile.class)
                     ));
                 });
         return List.copyOf(loaded);

@@ -3,6 +3,8 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalQuestsFile;
+import gg.moonrise.quests.config.GlobalRewardTierConfig;
 import gg.moonrise.quests.model.GlobalQuestContribution;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -361,7 +363,7 @@ class GlobalQuestServiceTest {
         Config config = configWithRewardTiers();
         when(configProvider.get()).thenReturn(config);
 
-        List<Config.GlobalRewardTierConfig> tiers = service.rewardTiersForProgress(globalQuest(49, 100, false));
+        List<GlobalRewardTierConfig> tiers = service.rewardTiersForProgress(globalQuest(49, 100, false));
 
         assertTrue(tiers.isEmpty());
     }
@@ -373,7 +375,7 @@ class GlobalQuestServiceTest {
         Config config = configWithRewardTiers();
         when(configProvider.get()).thenReturn(config);
 
-        List<Config.GlobalRewardTierConfig> tiers = service.rewardTiersForProgress(globalQuest(50, 100, false));
+        List<GlobalRewardTierConfig> tiers = service.rewardTiersForProgress(globalQuest(50, 100, false));
 
         assertEquals("Reduced Top 10%", tiers.getFirst().getDisplayName());
     }
@@ -385,7 +387,7 @@ class GlobalQuestServiceTest {
         Config config = configWithRewardTiers();
         when(configProvider.get()).thenReturn(config);
 
-        List<Config.GlobalRewardTierConfig> tiers = service.rewardTiersForProgress(globalQuest(100, 100, true));
+        List<GlobalRewardTierConfig> tiers = service.rewardTiersForProgress(globalQuest(100, 100, true));
 
         assertEquals("Full Top 10%", tiers.getFirst().getDisplayName());
     }
@@ -503,10 +505,10 @@ class GlobalQuestServiceTest {
     }
 
     private static Config configWithRewardTiers(double reducedRewardMinimumPercent) {
-        Config.GlobalQuestsFile globalQuests = new Config.GlobalQuestsFile(
-                List.of(new Config.GlobalRewardTierConfig(10, "Full Top 10%", List.of("eco give <player> 100"))),
+        GlobalQuestsFile globalQuests = new GlobalQuestsFile(
+                List.of(new GlobalRewardTierConfig(10, "Full Top 10%", List.of("eco give <player> 100"))),
                 reducedRewardMinimumPercent,
-                List.of(new Config.GlobalRewardTierConfig(10, "Reduced Top 10%", List.of("eco give <player> 50")))
+                List.of(new GlobalRewardTierConfig(10, "Reduced Top 10%", List.of("eco give <player> 50")))
         );
         return Config.compose(null, null, null, null, null, globalQuests, null);
     }

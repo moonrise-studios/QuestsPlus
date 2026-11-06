@@ -2,7 +2,8 @@ package gg.moonrise.quests.indicator;
 
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ActionBarProgressIndicator;
+import gg.moonrise.quests.config.ProgressIndicators;
 
 import java.util.UUID;
 
@@ -17,12 +18,12 @@ public class ActionBarQuestProgressIndicator implements QuestProgressIndicator {
     }
 
     @Override
-    public boolean isEnabled(Config.ProgressIndicators config) {
+    public boolean isEnabled(ProgressIndicators config) {
         return settings(config).isEnabled();
     }
 
     @Override
-    public String titleTemplate(Config.ProgressIndicators config) {
+    public String titleTemplate(ProgressIndicators config) {
         return settings(config).getTitle();
     }
 
@@ -46,7 +47,7 @@ public class ActionBarQuestProgressIndicator implements QuestProgressIndicator {
         // ActionBars expire client-side.
     }
 
-    private Config.ActionBarProgressIndicator settings(Config.ProgressIndicators config) {
-        return config.getActionBar() == null ? new Config.ActionBarProgressIndicator() : config.getActionBar();
+    private ActionBarProgressIndicator settings(ProgressIndicators config) {
+        return config.getActionBar() == null ? new ActionBarProgressIndicator() : config.getActionBar();
     }
 }

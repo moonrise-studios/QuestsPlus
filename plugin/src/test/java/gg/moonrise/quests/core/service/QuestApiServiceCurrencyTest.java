@@ -2,6 +2,7 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.QuestsPlusPlugin;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Currencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
@@ -62,7 +63,7 @@ class QuestApiServiceCurrencyTest {
         QuestResetPurchaseService resetPurchaseService = resetPurchaseService();
         QuestApiService api = api(
                 resetPurchaseService,
-                Config.compose(null, null, null, null, null, null, null, new Config.Currencies(List.of("vault"), null, null))
+                Config.compose(null, null, null, null, null, null, null, new Currencies(List.of("vault"), null, null))
         );
 
         api.onEnable();

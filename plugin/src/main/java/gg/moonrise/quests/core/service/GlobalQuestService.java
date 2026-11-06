@@ -9,7 +9,8 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalRewardTierConfig;
+import gg.moonrise.quests.config.GlobalSchedule;
 import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.GlobalQuestContribution;
@@ -74,7 +75,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     @Override
     public synchronized void reload() {
-        Config.GlobalSchedule schedule = configProvider.get().getGlobalQuests().getSchedule();
+        GlobalSchedule schedule = configProvider.get().getGlobalQuests().getSchedule();
         this.startDay = QuestSchedules.parseDay(schedule == null ? null : schedule.getDayOfWeek(), "global quest");
         this.startTime = QuestSchedules.parseTime(schedule == null ? null : schedule.getTime(), "global quest");
         synchronized (stateLock) {
@@ -353,7 +354,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     private CompletableFuture<Void> finalizeState(GlobalQuestState state) {
         Scheduler.sync().run(task -> Bukkit.broadcast(configProvider.get().getGlobalQuests().getMessages().getPeriodEnded().asComponent()));
-        List<Config.GlobalRewardTierConfig> tiers = rewardTiersForProgress(state.quest());
+        List<GlobalRewardTierConfig> tiers = rewardTiersForProgress(state.quest());
         if (tiers.isEmpty()) {
             return repository.markRewardsExecuted(state.quest().instanceId()).thenApply(unused -> null);
         }
@@ -363,10 +364,10 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                         .thenApply(unused -> null));
     }
 
-    private CompletableFuture<Void> dispatchTierRewards(GlobalQuestState state, List<GlobalQuestContribution> contributions, List<Config.GlobalRewardTierConfig> tiers) {
+    private CompletableFuture<Void> dispatchTierRewards(GlobalQuestState state, List<GlobalQuestContribution> contributions, List<GlobalRewardTierConfig> tiers) {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (GlobalQuestContribution contribution : contributions) {
-            for (Config.GlobalRewardTierConfig tier : tiers) {
+            for (GlobalRewardTierConfig tier : tiers) {
                 if (!qualifies(contribution.rank(), contribution.participants(), tier.getPercentile())) {
                     continue;
                 }
@@ -386,7 +387,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
-    private void dispatchTierCommands(GlobalQuestState state, GlobalQuestContribution contribution, Config.GlobalRewardTierConfig tier) {
+    private void dispatchTierCommands(GlobalQuestState state, GlobalQuestContribution contribution, GlobalRewardTierConfig tier) {
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(contribution.playerId());
         String playerName = offlinePlayer.getName() == null ? contribution.playerId().toString() : offlinePlayer.getName();
         for (String command : safeList(tier.getCommands())) {
@@ -394,7 +395,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         }
     }
 
-    public List<Config.GlobalRewardTierConfig> rewardTiersForProgress(GeneratedQuest quest) {
+    public List<GlobalRewardTierConfig> rewardTiersForProgress(GeneratedQuest quest) {
         double completionPercent = completionPercent(quest);
         if (quest.completed() || completionPercent >= 100.0D) {
             return fullRewardTiers();
@@ -425,23 +426,23 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return rank <= Math.max(1, cutoff);
     }
 
-    public List<Config.GlobalRewardTierConfig> fullRewardTiers() {
-        List<Config.GlobalRewardTierConfig> configured = configProvider.get().getGlobalQuests().getRewardTiers();
+    public List<GlobalRewardTierConfig> fullRewardTiers() {
+        List<GlobalRewardTierConfig> configured = configProvider.get().getGlobalQuests().getRewardTiers();
         return sanitizeRewardTiers(configured);
     }
 
-    public List<Config.GlobalRewardTierConfig> reducedRewardTiers() {
-        List<Config.GlobalRewardTierConfig> configured = configProvider.get().getGlobalQuests().getReducedRewardTiers();
+    public List<GlobalRewardTierConfig> reducedRewardTiers() {
+        List<GlobalRewardTierConfig> configured = configProvider.get().getGlobalQuests().getReducedRewardTiers();
         return sanitizeRewardTiers(configured);
     }
 
-    private List<Config.GlobalRewardTierConfig> sanitizeRewardTiers(List<Config.GlobalRewardTierConfig> configured) {
+    private List<GlobalRewardTierConfig> sanitizeRewardTiers(List<GlobalRewardTierConfig> configured) {
         if (configured == null) {
             return List.of();
         }
         return configured.stream()
                 .filter(tier -> tier != null && tier.getPercentile() > 0)
-                .sorted(Comparator.comparingInt(Config.GlobalRewardTierConfig::getPercentile))
+                .sorted(Comparator.comparingInt(GlobalRewardTierConfig::getPercentile))
                 .toList();
     }
 

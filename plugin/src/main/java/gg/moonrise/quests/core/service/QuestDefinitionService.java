@@ -5,7 +5,12 @@ import gg.moonrise.moss.spring.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalQuestsFile;
+import gg.moonrise.quests.config.MilestoneConfig;
+import gg.moonrise.quests.config.QuestDefinitionConfig;
+import gg.moonrise.quests.config.QuestDifficultyConfig;
+import gg.moonrise.quests.config.Rewards;
+import gg.moonrise.quests.config.VariableConfig;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -288,12 +293,12 @@ public class QuestDefinitionService implements Reloadable {
 
     private Map<String, QuestDifficulty> loadDifficulties() {
         Map<String, QuestDifficulty> loaded = new LinkedHashMap<>();
-        Map<String, Config.QuestDifficultyConfig> configured = configProvider.get().getQuestDifficulties();
+        Map<String, QuestDifficultyConfig> configured = configProvider.get().getQuestDifficulties();
         if (configured == null || configured.isEmpty()) {
-            configured = Map.of(DEFAULT_DIFFICULTY, new Config.QuestDifficultyConfig());
+            configured = Map.of(DEFAULT_DIFFICULTY, new QuestDifficultyConfig());
         }
 
-        for (Map.Entry<String, Config.QuestDifficultyConfig> entry : configured.entrySet()) {
+        for (Map.Entry<String, QuestDifficultyConfig> entry : configured.entrySet()) {
             String id = QuestNames.normalize(entry.getKey());
             if (id.isBlank()) {
                 throw new IllegalArgumentException("Quest difficulty id cannot be blank");
@@ -302,8 +307,8 @@ public class QuestDefinitionService implements Reloadable {
                 throw new IllegalArgumentException("Duplicate quest difficulty id after normalization: " + id);
             }
 
-            Config.QuestDifficultyConfig config = entry.getValue() == null ? new Config.QuestDifficultyConfig() : entry.getValue();
-            Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
+            QuestDifficultyConfig config = entry.getValue() == null ? new QuestDifficultyConfig() : entry.getValue();
+            Rewards rewards = config.getRewards() == null ? new Rewards() : config.getRewards();
             List<QuestMilestone> milestones = loadMilestones(id, config);
             Map<String, Integer> requirements = loadRequirements(id, config.getRequirements());
             loaded.put(id, new QuestDifficulty(
@@ -349,11 +354,11 @@ public class QuestDefinitionService implements Reloadable {
         return Collections.unmodifiableMap(requirements);
     }
 
-    private List<QuestMilestone> loadMilestones(String difficultyId, Config.QuestDifficultyConfig config) {
+    private List<QuestMilestone> loadMilestones(String difficultyId, QuestDifficultyConfig config) {
         List<QuestMilestone> milestones = new ArrayList<>();
         Map<Integer, Boolean> completedValues = new HashMap<>();
-        List<Config.MilestoneConfig> configured = config.getMilestones() == null ? List.of() : config.getMilestones();
-        for (Config.MilestoneConfig milestoneConfig : configured) {
+        List<MilestoneConfig> configured = config.getMilestones() == null ? List.of() : config.getMilestones();
+        for (MilestoneConfig milestoneConfig : configured) {
             int completed = milestoneConfig.getCompleted();
             if (completed <= 0) {
                 throw new IllegalArgumentException("Quest difficulty " + difficultyId + " has non-positive milestone completed value " + completed);
@@ -379,7 +384,7 @@ public class QuestDefinitionService implements Reloadable {
     }
 
     private List<QuestDefinition> loadGlobalDefinitions(Map<String, QuestDifficulty> difficulties) {
-        Config.GlobalQuestsFile globalQuests = configProvider.get().getGlobalQuests();
+        GlobalQuestsFile globalQuests = configProvider.get().getGlobalQuests();
         return loadDefinitions(globalQuests == null ? null : globalQuests.getQuestDefinitions(), DefinitionScope.GLOBAL, difficulties);
     }
 
@@ -388,13 +393,13 @@ public class QuestDefinitionService implements Reloadable {
      * duplicate personal id aborts the whole reload, because quests already stored for it would become ambiguous.
      */
     private List<QuestDefinition> loadDefinitions(
-            List<Config.QuestDefinitionConfig> questConfigs,
+            List<QuestDefinitionConfig> questConfigs,
             DefinitionScope scope,
             Map<String, QuestDifficulty> difficulties
     ) {
         List<QuestDefinition> loaded = new ArrayList<>();
         Set<String> ids = new HashSet<>();
-        for (Config.QuestDefinitionConfig config : questConfigs == null ? List.<Config.QuestDefinitionConfig>of() : questConfigs) {
+        for (QuestDefinitionConfig config : questConfigs == null ? List.<QuestDefinitionConfig>of() : questConfigs) {
             String id = QuestNames.normalize(config.getId());
             if (id.isBlank() || !ids.add(id)) {
                 if (scope.strictIds()) {
@@ -415,7 +420,7 @@ public class QuestDefinitionService implements Reloadable {
 
     private QuestDefinition parseDefinition(
             String id,
-            Config.QuestDefinitionConfig config,
+            QuestDefinitionConfig config,
             DefinitionScope scope,
             Map<String, QuestDifficulty> difficulties
     ) {
@@ -424,13 +429,13 @@ public class QuestDefinitionService implements Reloadable {
 
         Map<String, String> selectorTypes = new LinkedHashMap<>();
         Map<String, List<String>> selectorValues = new LinkedHashMap<>();
-        Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
-        for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
+        Map<String, VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
+        for (Map.Entry<String, VariableConfig> entry : variables.entrySet()) {
             String variableKey = QuestNames.normalize(entry.getKey());
             if (variableKey.isBlank()) {
                 throw new IllegalArgumentException("Quest definition " + id + " has a blank variable key");
             }
-            Config.VariableConfig variable = entry.getValue();
+            VariableConfig variable = entry.getValue();
             if (variable == null || variable.getSelector() == null || variable.getSelector().isBlank()) {
                 throw new IllegalArgumentException("Quest definition " + id + " variable " + variableKey + " has a blank selector");
             }
@@ -439,7 +444,7 @@ public class QuestDefinitionService implements Reloadable {
             selectorTypes.put(variableKey, selectorType);
             selectorValues.put(variableKey, safeList(variable.getValues()));
         }
-        Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
+        Rewards rewards = config.getRewards() == null ? new Rewards() : config.getRewards();
 
         QuestDefinition definition = new QuestDefinition(
                 id,
@@ -460,7 +465,7 @@ public class QuestDefinitionService implements Reloadable {
 
     private QuestDifficulty definitionDifficulty(
             String id,
-            Config.QuestDefinitionConfig config,
+            QuestDefinitionConfig config,
             DefinitionScope scope,
             Map<String, QuestDifficulty> difficulties
     ) {

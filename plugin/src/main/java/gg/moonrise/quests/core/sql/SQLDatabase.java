@@ -3,7 +3,7 @@ package gg.moonrise.quests.core.sql;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -34,7 +34,7 @@ public record SQLDatabase(
         @NotNull String upsertIndicatorPreferenceSql
 ) {
 
-    public static SQLDatabase forStorageType(Config.Storage.StorageType type) {
+    public static SQLDatabase forStorageType(Storage.StorageType type) {
         return of(SqlDialect.forStorageType(type));
     }
 
@@ -113,7 +113,7 @@ public record SQLDatabase(
         return dialect.displayName();
     }
 
-    public HikariConfig hikariConfig(@NotNull QuestsPlusPlugin plugin, @NotNull Config.Storage storage) {
+    public HikariConfig hikariConfig(@NotNull QuestsPlusPlugin plugin, @NotNull Storage storage) {
         return dialect.hikariConfig(plugin, storage);
     }
 

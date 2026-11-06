@@ -8,7 +8,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import gg.moonrise.quests.core.sql.KeyedSerialExecutor;
 import gg.moonrise.quests.core.sql.SQLDatabase;
 import org.jetbrains.annotations.NotNull;
@@ -55,7 +55,7 @@ public class SqlProvider implements Disableable {
      * Reconnects to the given storage on a dedicated reload thread, so building the pool and running
      * the schema DDL never blocks the caller. Storage settings equal to the connected ones are kept.
      */
-    public CompletableFuture<ReloadResult> reload(Config.Storage storage) {
+    public CompletableFuture<ReloadResult> reload(Storage storage) {
         try {
             return CompletableFuture.supplyAsync(() -> reconnectIfChanged(storage), reloadExecutor);
         } catch (RejectedExecutionException exception) {
@@ -165,14 +165,14 @@ public class SqlProvider implements Disableable {
         });
     }
 
-    private synchronized ReloadResult reconnectIfChanged(Config.Storage storage) {
+    private synchronized ReloadResult reconnectIfChanged(Storage storage) {
         if (isAvailable() && StorageSettings.of(storage).equals(connectedSettings)) {
             return new ReloadResult.Unchanged();
         }
         return reconnect(storage);
     }
 
-    private synchronized ReloadResult reconnect(Config.Storage storage) {
+    private synchronized ReloadResult reconnect(Storage storage) {
         SQLDatabase newDatabase = SQLDatabase.forStorageType(storage.getType());
         HikariDataSource newDataSource = null;
         try {
@@ -285,7 +285,7 @@ public class SqlProvider implements Disableable {
     }
 
     /**
-     * Outcome of {@link #reload(Config.Storage)}.
+     * Outcome of {@link #reload(Storage)}.
      */
     public sealed interface ReloadResult {
 
@@ -309,7 +309,7 @@ public class SqlProvider implements Disableable {
     }
 
     private record StorageSettings(
-            Config.Storage.StorageType type,
+            Storage.StorageType type,
             String databaseFile,
             String connectionUrl,
             String username,
@@ -317,24 +317,24 @@ public class SqlProvider implements Disableable {
             int poolSize
     ) {
 
-        private static StorageSettings of(Config.Storage storage) {
-            Config.Storage.StorageType type = storage.getType() == null ? Config.Storage.StorageType.SQLITE : storage.getType();
+        private static StorageSettings of(Storage storage) {
+            Storage.StorageType type = storage.getType() == null ? Storage.StorageType.SQLITE : storage.getType();
             return switch (type) {
                 case SQLITE -> new StorageSettings(type, storage.getDatabaseFile(), null, null, null, 0);
                 case MARIADB -> {
-                    Config.Storage.MariaDb settings = storage.getMariaDb();
+                    Storage.MariaDb settings = storage.getMariaDb();
                     yield settings == null
                             ? new StorageSettings(type, null, null, null, null, 0)
                             : new StorageSettings(type, null, settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
                 }
                 case MYSQL -> {
-                    Config.Storage.MySql settings = storage.getMysql();
+                    Storage.MySql settings = storage.getMysql();
                     yield settings == null
                             ? new StorageSettings(type, null, null, null, null, 0)
                             : new StorageSettings(type, null, settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
                 }
                 case POSTGRESQL -> {
-                    Config.Storage.PostgreSql settings = storage.getPostgresql();
+                    Storage.PostgreSql settings = storage.getPostgresql();
                     yield settings == null
                             ? new StorageSettings(type, null, null, null, null, 0)
                             : new StorageSettings(type, null, settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());

@@ -2,7 +2,8 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.BackButton;
+import gg.moonrise.quests.config.DifficultyPicker;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -17,11 +18,11 @@ public class QuestDifficultyPickerUI extends ChestMenu {
     public QuestDifficultyPickerUI(Player player, QuestMenuService menuService, int slotIndex, boolean reroll) {
         super(player, menuService.config().getMenu().getDifficultyPicker().getTitle(), rows(menuService.config().getMenu().getDifficultyPicker()));
 
-        Config.DifficultyPicker picker = menuService.config().getMenu().getDifficultyPicker();
+        DifficultyPicker picker = menuService.config().getMenu().getDifficultyPicker();
         int totalSlots = MenuSlots.totalSlots(rows(picker));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
-        Config.BackButton backButton = picker.getBackButton();
+        BackButton backButton = picker.getBackButton();
         Set<Integer> reservedSlots = backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots
                 ? Set.of(backButton.getSlot())
                 : Set.of();
@@ -51,7 +52,7 @@ public class QuestDifficultyPickerUI extends ChestMenu {
         menuSlots.fill(menuService, picker.getFiller());
     }
 
-    private static int rows(Config.DifficultyPicker picker) {
+    private static int rows(DifficultyPicker picker) {
         return MenuSlots.clampRows(picker.getRows());
     }
 }

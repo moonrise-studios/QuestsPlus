@@ -2,7 +2,8 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.BackButton;
+import gg.moonrise.quests.config.MilestoneMenu;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
@@ -19,11 +20,11 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
     public QuestMilestoneSelectorUI(Player player, QuestMenuService menuService, PlayerQuestState state) {
         super(player, menuService.config().getMilestoneMenu().getSelectorTitle(), selectorRows(menuService.config().getMilestoneMenu()));
 
-        Config.MilestoneMenu menu = menuService.config().getMilestoneMenu();
+        MilestoneMenu menu = menuService.config().getMilestoneMenu();
         int totalSlots = MenuSlots.totalSlots(selectorRows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
-        Config.BackButton backButton = menu.getSelectorBackButton();
+        BackButton backButton = menu.getSelectorBackButton();
         boolean showBackButton = backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots;
         Set<Integer> reservedSlots = showBackButton ? Set.of(backButton.getSlot()) : Set.of();
         List<QuestDifficulty> difficulties = menuService.items().difficulties();
@@ -52,7 +53,7 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
         menuSlots.fill(menuService, menu.getFiller());
     }
 
-    private static int selectorRows(Config.MilestoneMenu menu) {
+    private static int selectorRows(MilestoneMenu menu) {
         return MenuSlots.clampRows(menu.getSelectorRows());
     }
 }

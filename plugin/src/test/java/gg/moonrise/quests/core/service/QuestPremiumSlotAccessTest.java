@@ -2,6 +2,17 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.engine.message.Message;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Currencies;
+import gg.moonrise.quests.config.DailyFile;
+import gg.moonrise.quests.config.MilestoneMenu;
+import gg.moonrise.quests.config.MilestoneMessages;
+import gg.moonrise.quests.config.PremiumQuestMenu;
+import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.config.QuestMenu;
+import gg.moonrise.quests.config.QuestMenuFile;
+import gg.moonrise.quests.config.QuestMilestonesFile;
+import gg.moonrise.quests.config.QuestResetMenu;
+import gg.moonrise.quests.config.SharedMessagesFile;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestResetEligibility;
 import gg.moonrise.quests.model.QuestSelectionStatus;
@@ -198,7 +209,7 @@ class QuestPremiumSlotAccessTest {
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
                 Map.of(),
-                new Config.QuestResetMenu(-1)
+                new QuestResetMenu(-1)
         );
         QuestServices service = questServices(config);
 
@@ -207,13 +218,13 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questResetStatusOutputsAreConfigurable() {
-        Config.QuestResetMenu menu = new Config.QuestResetMenu();
+        QuestResetMenu menu = new QuestResetMenu();
 
         assertEquals("Ready", menu.getStatusReady());
         assertEquals("Complete all quests", menu.getStatusIncomplete());
         assertEquals("You have already used your resets for the day", menu.getStatusLimitReached());
 
-        menu = new Config.QuestResetMenu("Can reset", "Finish your quests", "No resets left");
+        menu = new QuestResetMenu("Can reset", "Finish your quests", "No resets left");
 
         assertEquals("Can reset", menu.getStatusReady());
         assertEquals("Finish your quests", menu.getStatusIncomplete());
@@ -314,13 +325,13 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void milestoneMessagesComposeIntoRuntimeMessages() {
-        Config.MilestoneMessages milestoneMessages = new Config.MilestoneMessages(
+        MilestoneMessages milestoneMessages = new MilestoneMessages(
                 Message.of("<green>Completed <milestone_display_name>"),
                 Message.of("<green>Claimed <milestone_display_name>")
         );
-        Config.SharedMessagesFile sharedMessages = new Config.SharedMessagesFile(milestoneMessages);
+        SharedMessagesFile sharedMessages = new SharedMessagesFile(milestoneMessages);
 
-        Config config = Config.compose(null, new Config.DailyFile(), null, null, sharedMessages, null, null);
+        Config config = Config.compose(null, new DailyFile(), null, null, sharedMessages, null, null);
 
         assertEquals("<green>Completed <milestone_display_name>", config.getMessages().getMilestoneCompleted().content());
         assertEquals("<green>Claimed <milestone_display_name>", config.getMessages().getMilestoneClaimed().content());
@@ -328,18 +339,18 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questMilestonesFileOverridesSharedMilestoneMessages() {
-        Config.MilestoneMessages sharedMilestoneMessages = new Config.MilestoneMessages(
+        MilestoneMessages sharedMilestoneMessages = new MilestoneMessages(
                 Message.of("<red>Legacy completed"),
                 Message.of("<red>Legacy claimed")
         );
-        Config.MilestoneMessages modularMilestoneMessages = new Config.MilestoneMessages(
+        MilestoneMessages modularMilestoneMessages = new MilestoneMessages(
                 Message.of("<green>Modular completed"),
                 Message.of("<green>Modular claimed")
         );
-        Config.SharedMessagesFile sharedMessages = new Config.SharedMessagesFile(sharedMilestoneMessages);
-        Config.QuestMilestonesFile questMilestones = new Config.QuestMilestonesFile(modularMilestoneMessages, new Config.MilestoneMenu());
+        SharedMessagesFile sharedMessages = new SharedMessagesFile(sharedMilestoneMessages);
+        QuestMilestonesFile questMilestones = new QuestMilestonesFile(modularMilestoneMessages, new MilestoneMenu());
 
-        Config config = Config.compose(null, new Config.DailyFile(), null, null, sharedMessages, null, null, questMilestones, null, (Config.Currencies) null);
+        Config config = Config.compose(null, new DailyFile(), null, null, sharedMessages, null, null, questMilestones, null, (Currencies) null);
 
         assertEquals("<green>Modular completed", config.getMessages().getMilestoneCompleted().content());
         assertEquals("<green>Modular claimed", config.getMessages().getMilestoneClaimed().content());
@@ -347,12 +358,12 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questMenuFileOverridesDailyMenuFallback() {
-        Config.QuestMenu legacyMenu = new Config.QuestMenu(new Config.QuestResetMenu("Legacy", "Legacy incomplete", "Legacy limit"));
-        Config.QuestMenu modularMenu = new Config.QuestMenu(new Config.QuestResetMenu("Modular", "Modular incomplete", "Modular limit"));
-        Config.DailyFile daily = new Config.DailyFile(3, legacyMenu);
-        Config.QuestMenuFile questMenu = new Config.QuestMenuFile(modularMenu);
+        QuestMenu legacyMenu = new QuestMenu(new QuestResetMenu("Legacy", "Legacy incomplete", "Legacy limit"));
+        QuestMenu modularMenu = new QuestMenu(new QuestResetMenu("Modular", "Modular incomplete", "Modular limit"));
+        DailyFile daily = new DailyFile(3, legacyMenu);
+        QuestMenuFile questMenu = new QuestMenuFile(modularMenu);
 
-        Config config = Config.compose(null, daily, null, null, null, null, null, questMenu, null, null, null, (Config.Currencies) null);
+        Config config = Config.compose(null, daily, null, null, null, null, null, questMenu, null, null, null, (Currencies) null);
 
         assertEquals("Modular", config.getMenu().getResetMenu().getStatusReady());
     }
@@ -400,12 +411,12 @@ class QuestPremiumSlotAccessTest {
         return config(questCount, premiumLimits, lockedRanks, null);
     }
 
-    private static Config config(int questCount, Map<String, Integer> premiumLimits, Map<String, String> lockedRanks, Config.QuestResetMenu resetMenu) {
-        Config.DailyFile daily = resetMenu == null
-                ? new Config.DailyFile(questCount)
-                : new Config.DailyFile(questCount, new Config.QuestMenu(resetMenu));
-        Config.PremiumQuestMenu menu = new Config.PremiumQuestMenu(lockedRanks);
-        Config.PremiumQuestsFile premium = new Config.PremiumQuestsFile(premiumLimits, menu);
+    private static Config config(int questCount, Map<String, Integer> premiumLimits, Map<String, String> lockedRanks, QuestResetMenu resetMenu) {
+        DailyFile daily = resetMenu == null
+                ? new DailyFile(questCount)
+                : new DailyFile(questCount, new QuestMenu(resetMenu));
+        PremiumQuestMenu menu = new PremiumQuestMenu(lockedRanks);
+        PremiumQuestsFile premium = new PremiumQuestsFile(premiumLimits, menu);
         return Config.compose(null, daily, null, null, null, null, premium);
     }
 

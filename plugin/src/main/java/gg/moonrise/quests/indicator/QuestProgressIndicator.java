@@ -1,6 +1,6 @@
 package gg.moonrise.quests.indicator;
 
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ProgressIndicators;
 
 import java.util.UUID;
 
@@ -12,13 +12,13 @@ public interface QuestProgressIndicator {
      * @param config the progress indicator settings, never null
      * @return whether server owners enabled this indicator
      */
-    public boolean isEnabled(Config.ProgressIndicators config);
+    public boolean isEnabled(ProgressIndicators config);
 
     /**
      * @param config the progress indicator settings, never null
      * @return the MiniMessage template rendered into {@link QuestProgressIndicatorContext#title()}
      */
-    public String titleTemplate(Config.ProgressIndicators config);
+    public String titleTemplate(ProgressIndicators config);
 
     public void show(QuestProgressIndicatorContext context);
 

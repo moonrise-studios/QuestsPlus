@@ -4,6 +4,7 @@ import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.EntityScheduler;
 import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.DailyFile;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestCompletionStats;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -80,7 +81,7 @@ class QuestServiceTest {
     @BeforeEach
     public void setUp() {
         configProvider = mock(ConfigProvider.class);
-        when(configProvider.get()).thenReturn(Config.compose(null, new Config.DailyFile(3), null, null, null, null, null));
+        when(configProvider.get()).thenReturn(Config.compose(null, new DailyFile(3), null, null, null, null, null));
         definitionService = mock(QuestDefinitionService.class);
         repository = mock(QuestRepository.class);
         streakService = mock(QuestStreakService.class);

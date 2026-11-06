@@ -2,7 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.MilestoneMenu;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
@@ -21,7 +21,7 @@ public class QuestMilestoneMenuUI extends ChestMenu {
     public QuestMilestoneMenuUI(Player player, QuestMenuService menuService, PlayerQuestState state, QuestDifficulty difficulty, int page) {
         super(player, title(menuService, difficulty), rows(menuService.config().getMilestoneMenu()));
 
-        Config.MilestoneMenu menu = menuService.config().getMilestoneMenu();
+        MilestoneMenu menu = menuService.config().getMilestoneMenu();
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         int safePage = Math.max(0, page);
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
@@ -93,7 +93,7 @@ public class QuestMilestoneMenuUI extends ChestMenu {
                 .replace("<difficulty_id>", difficulty.id());
     }
 
-    private static int rows(Config.MilestoneMenu menu) {
+    private static int rows(MilestoneMenu menu) {
         return MenuSlots.clampRows(menu.getRows());
     }
 }

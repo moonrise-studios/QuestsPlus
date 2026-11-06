@@ -1,6 +1,10 @@
 package gg.moonrise.quests.indicator;
 
+import gg.moonrise.quests.config.ActionBarProgressIndicator;
+import gg.moonrise.quests.config.BossBarProgressIndicator;
+import gg.moonrise.quests.config.ChatProgressIndicator;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
@@ -13,14 +17,14 @@ import static org.mockito.Mockito.when;
 class QuestProgressIndicatorConfigTest {
 
     private final ConfigProvider configProvider = mock(ConfigProvider.class);
-    private final Config.ProgressIndicators defaults = new Config().getProgressIndicators();
+    private final ProgressIndicators defaults = new Config().getProgressIndicators();
 
     @Test
     public void indicatorsReadTheirOwnSection() {
-        Config.ProgressIndicators config = mock(Config.ProgressIndicators.class);
-        Config.BossBarProgressIndicator bossBar = mock(Config.BossBarProgressIndicator.class);
-        Config.ActionBarProgressIndicator actionBar = mock(Config.ActionBarProgressIndicator.class);
-        Config.ChatProgressIndicator chat = mock(Config.ChatProgressIndicator.class);
+        ProgressIndicators config = mock(ProgressIndicators.class);
+        BossBarProgressIndicator bossBar = mock(BossBarProgressIndicator.class);
+        ActionBarProgressIndicator actionBar = mock(ActionBarProgressIndicator.class);
+        ChatProgressIndicator chat = mock(ChatProgressIndicator.class);
         when(config.getBossBar()).thenReturn(bossBar);
         when(config.getActionBar()).thenReturn(actionBar);
         when(config.getChat()).thenReturn(chat);
@@ -41,7 +45,7 @@ class QuestProgressIndicatorConfigTest {
 
     @Test
     public void missingSectionsFallBackToDefaults() {
-        Config.ProgressIndicators empty = mock(Config.ProgressIndicators.class);
+        ProgressIndicators empty = mock(ProgressIndicators.class);
 
         assertTrue(new BossBarQuestProgressIndicator(configProvider).isEnabled(empty));
         assertEquals(defaults.getBossBar().getTitle(), new BossBarQuestProgressIndicator(configProvider).titleTemplate(empty));

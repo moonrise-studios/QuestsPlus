@@ -1,6 +1,7 @@
 package gg.moonrise.quests.core.service;
 
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.QuestScheduleBoundConfig;
+import gg.moonrise.quests.config.QuestScheduleConfig;
 import gg.moonrise.quests.sdk.model.QuestDefinitionSchedule;
 
 import java.time.Instant;
@@ -16,7 +17,7 @@ public final class QuestDefinitionSchedules {
     private QuestDefinitionSchedules() {
     }
 
-    public static QuestDefinitionSchedule parse(Config.QuestScheduleConfig schedule, String definitionId) {
+    public static QuestDefinitionSchedule parse(QuestScheduleConfig schedule, String definitionId) {
         if (schedule == null) {
             return QuestDefinitionSchedule.alwaysActive();
         }
@@ -29,7 +30,7 @@ public final class QuestDefinitionSchedules {
         return new QuestDefinitionSchedule(begin, end);
     }
 
-    private static Instant parseBound(Config.QuestScheduleBoundConfig bound, String definitionId, String name) {
+    private static Instant parseBound(QuestScheduleBoundConfig bound, String definitionId, String name) {
         if (bound == null || blank(bound.getDate()) && blank(bound.getTime()) && blank(bound.getTimezone())) {
             return null;
         }

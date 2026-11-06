@@ -3,6 +3,18 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.engine.paper.item.ItemBuilder;
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalRewardPreviewMenu;
+import gg.moonrise.quests.config.GlobalRewardTierConfig;
+import gg.moonrise.quests.config.MenuItem;
+import gg.moonrise.quests.config.MilestoneButton;
+import gg.moonrise.quests.config.MilestoneItem;
+import gg.moonrise.quests.config.PremiumQuestMenu;
+import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.config.QuestItem;
+import gg.moonrise.quests.config.QuestResetButton;
+import gg.moonrise.quests.config.QuestResetMenu;
+import gg.moonrise.quests.config.StreakButton;
+import gg.moonrise.quests.config.StreakMilestoneItem;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -69,7 +81,7 @@ public class QuestMenuItems {
         return slotService.canAccessSlot(player, slotIndex);
     }
 
-    public ItemStack buildMenuItem(Config.MenuItem item) {
+    public ItemStack buildMenuItem(MenuItem item) {
         if (item == null) {
             return new ItemStack(Material.STONE);
         }
@@ -80,23 +92,23 @@ public class QuestMenuItems {
     }
 
     public boolean canShowQuestResetButton() {
-        Config.QuestResetButton button = config().getMenu().getResetButton();
+        QuestResetButton button = config().getMenu().getResetButton();
         return button != null && button.isEnabled() && currencies.hasAvailableQuestResetCurrency();
     }
 
     public ItemStack buildQuestResetButtonItem(Player viewer, PlayerQuestState state) {
         QuestResetEligibility eligibility = slotService.resetEligibility(viewer, state);
-        Config.QuestResetButton button = config().getMenu().getResetButton();
-        Config.MenuItem item = button == null || button.getItem() == null
-                ? new Config.MenuItem("AMETHYST_SHARD", "<gold>Reset Quests", List.of("<gray><completed>/<required> completed."))
+        QuestResetButton button = config().getMenu().getResetButton();
+        MenuItem item = button == null || button.getItem() == null
+                ? new MenuItem("AMETHYST_SHARD", "<gold>Reset Quests", List.of("<gray><completed>/<required> completed."))
                 : button.getItem();
         return buildTokenItem(item, resetTokens(viewer, eligibility, null), Material.AMETHYST_SHARD);
     }
 
     public ItemStack buildQuestResetPurchaseItem(Player viewer, QuestCurrencyButton button, QuestCurrency currency, QuestResetEligibility eligibility) {
-        Config.MenuItem template = button == null
-                ? new Config.MenuItem("PAPER", "<gold><payment>", List.of("<gray>Cost: <white><amount></white>"))
-                : new Config.MenuItem(button.material(), button.name(), button.lore());
+        MenuItem template = button == null
+                ? new MenuItem("PAPER", "<gold><payment>", List.of("<gray>Cost: <white><amount></white>"))
+                : new MenuItem(button.material(), button.name(), button.lore());
         return buildTokenItem(template, resetTokens(viewer, eligibility, currency), Material.PAPER);
     }
 
@@ -109,17 +121,17 @@ public class QuestMenuItems {
     }
 
     public boolean canShowMilestoneButton() {
-        Config.MilestoneButton button = config().getMenu().getMilestoneButton();
+        MilestoneButton button = config().getMenu().getMilestoneButton();
         return button != null && button.isEnabled() && config().isQuestMilestonesEnabled();
     }
 
     public boolean canShowStreakButton() {
-        Config.StreakButton button = config().getMenu().getStreakButton();
+        StreakButton button = config().getMenu().getStreakButton();
         return button != null && button.isEnabled() && streakService.isEnabled();
     }
 
     public ItemStack buildQuestItem(Player viewer, GeneratedQuest quest) {
-        Config.QuestItem template = questTemplate(quest.completed()
+        QuestItem template = questTemplate(quest.completed()
                 ? config().getMenu().getCompletedQuest()
                 : config().getMenu().getActiveQuest());
         ItemStack item = new ItemStack(resolveMaterial(template.getMaterial(), quest.completed() ? Material.WRITABLE_BOOK : Material.BOOK));
@@ -161,7 +173,7 @@ public class QuestMenuItems {
             return buildMenuItem(config().getGlobalQuests().getMenu().getNoActiveQuest());
         }
 
-        Config.QuestItem template = questTemplate(state.quest().completed()
+        QuestItem template = questTemplate(state.quest().completed()
                 ? config().getGlobalQuests().getMenu().getCompletedQuest()
                 : config().getGlobalQuests().getMenu().getActiveQuest());
         ItemStack item = new ItemStack(resolveMaterial(template.getMaterial(), state.quest().completed() ? Material.EMERALD : Material.NETHER_STAR));
@@ -183,22 +195,22 @@ public class QuestMenuItems {
         return item;
     }
 
-    private Config.QuestItem questTemplate(Config.QuestItem template) {
-        return template == null ? new Config.QuestItem() : template;
+    private QuestItem questTemplate(QuestItem template) {
+        return template == null ? new QuestItem() : template;
     }
 
-    public List<Config.GlobalRewardTierConfig> fullGlobalRewardTiers() {
+    public List<GlobalRewardTierConfig> fullGlobalRewardTiers() {
         return globalQuestService.fullRewardTiers();
     }
 
-    public List<Config.GlobalRewardTierConfig> reducedGlobalRewardTiers() {
+    public List<GlobalRewardTierConfig> reducedGlobalRewardTiers() {
         return globalQuestService.reducedRewardTiers();
     }
 
-    public ItemStack buildGlobalRewardPreviewItem(Config.GlobalRewardTierConfig tier, boolean reduced) {
-        Config.GlobalRewardPreviewMenu menu = config().getGlobalQuests().getMenu().getRewardPreview();
-        Config.MenuItem defaultTemplate = reduced ? menu.getReducedRewardItem() : menu.getFullRewardItem();
-        Config.MenuItem template = tier.getItem() == null ? defaultTemplate : tier.getItem();
+    public ItemStack buildGlobalRewardPreviewItem(GlobalRewardTierConfig tier, boolean reduced) {
+        GlobalRewardPreviewMenu menu = config().getGlobalQuests().getMenu().getRewardPreview();
+        MenuItem defaultTemplate = reduced ? menu.getReducedRewardItem() : menu.getFullRewardItem();
+        MenuItem template = tier.getItem() == null ? defaultTemplate : tier.getItem();
         Material fallback = reduced ? Material.GOLD_INGOT : Material.EMERALD;
         MenuTokens tokens = new MenuTokens()
                 .putNumber("reward_percentile", tier.getPercentile())
@@ -221,15 +233,15 @@ public class QuestMenuItems {
                 .putNumber("premium_slot", premiumSlotIndex + 1)
                 .putNumber("premium_slot_index", premiumSlotIndex)
                 .put("rank", lockedPremiumRank(slotIndex));
-        Config.PremiumQuestMenu menu = premiumMenu();
-        Config.MenuItem lockedQuest = menu.getLockedQuest() == null
-                ? new Config.MenuItem("BARRIER", "<gold>Premium Quest <slot>", List.of("<gray>Requires <rank></gray>"))
+        PremiumQuestMenu menu = premiumMenu();
+        MenuItem lockedQuest = menu.getLockedQuest() == null
+                ? new MenuItem("BARRIER", "<gold>Premium Quest <slot>", List.of("<gray>Requires <rank></gray>"))
                 : menu.getLockedQuest();
         return buildTokenItem(lockedQuest, tokens, Material.BARRIER);
     }
 
     public String lockedPremiumRank(int slotIndex) {
-        Config.PremiumQuestMenu menu = premiumMenu();
+        PremiumQuestMenu menu = premiumMenu();
         Map<String, String> ranks = menu.getLockedRanks() == null ? Map.of() : menu.getLockedRanks();
         String displayedSlot = Integer.toString(slotIndex + 1);
         String rank = ranks.get(displayedSlot);
@@ -260,7 +272,7 @@ public class QuestMenuItems {
         int completed = state.difficultyCompletions(difficulty.id());
         boolean reached = completed >= milestone.completed();
         boolean claimed = state.hasExecutedMilestone(difficulty.id(), milestone.completed());
-        Config.MilestoneItem template = reached
+        MilestoneItem template = reached
                 ? claimed ? config().getMilestoneMenu().getClaimedMilestone() : config().getMilestoneMenu().getUnlockedMilestone()
                 : config().getMilestoneMenu().getLockedMilestone();
         MenuTokens tokens = new MenuTokens()
@@ -287,7 +299,7 @@ public class QuestMenuItems {
 
     public ItemStack buildStreakMilestoneItem(Player viewer, PlayerQuestState questState, QuestStreakState streakState, QuestStreakMilestone milestone) {
         boolean reached = streakState.currentStreak() >= milestone.streak();
-        Config.StreakMilestoneItem template = reached
+        StreakMilestoneItem template = reached
                 ? config().getStreaks().getMenu().getClaimedMilestone()
                 : config().getStreaks().getMenu().getLockedMilestone();
         MenuTokens tokens = streakTokens(viewer, questState, streakState)
@@ -331,23 +343,23 @@ public class QuestMenuItems {
     }
 
     private String questResetStatus(QuestResetEligibility eligibility, int remainingResets) {
-        Config.QuestResetMenu menu = config().getMenu().getResetMenu();
-        Config.QuestResetMenu resetMenu = menu == null ? new Config.QuestResetMenu() : menu;
+        QuestResetMenu menu = config().getMenu().getResetMenu();
+        QuestResetMenu resetMenu = menu == null ? new QuestResetMenu() : menu;
         if (remainingResets <= 0) {
             return resetMenu.getStatusLimitReached();
         }
         return eligibility.eligible() ? resetMenu.getStatusReady() : resetMenu.getStatusIncomplete();
     }
 
-    public ItemStack buildTokenItem(Config.MenuItem item, MenuTokens tokens, Material fallback) {
+    public ItemStack buildTokenItem(MenuItem item, MenuTokens tokens, Material fallback) {
         return buildTokenItem(item, tokens, fallback, List.of());
     }
 
-    public ItemStack buildTokenItem(Config.MenuItem item, MenuTokens tokens, Material fallback, List<String> appendedLore) {
+    public ItemStack buildTokenItem(MenuItem item, MenuTokens tokens, Material fallback, List<String> appendedLore) {
         return buildTokenItem(item, tokens, fallback, appendedLore, null);
     }
 
-    public ItemStack buildTokenItem(Config.MenuItem item, MenuTokens tokens, Material fallback, List<String> appendedLore, String lorePlaceholder) {
+    public ItemStack buildTokenItem(MenuItem item, MenuTokens tokens, Material fallback, List<String> appendedLore, String lorePlaceholder) {
         if (item == null) {
             return new ItemStack(fallback);
         }
@@ -388,7 +400,7 @@ public class QuestMenuItems {
         if (quest == null || !quest.premium()) {
             return;
         }
-        Config.PremiumQuestMenu menu = premiumMenu();
+        PremiumQuestMenu menu = premiumMenu();
         Map<String, List<String>> configuredLore = menu == null ? Map.of() : menu.getLore();
         if (configuredLore == null || configuredLore.isEmpty()) {
             return;
@@ -430,7 +442,7 @@ public class QuestMenuItems {
         if (!quest.premium()) {
             return;
         }
-        Config.PremiumQuestMenu menu = premiumMenu();
+        PremiumQuestMenu menu = premiumMenu();
         String tooltipStyle = menu == null ? "" : menu.getTooltipStyle();
         if (tooltipStyle == null || tooltipStyle.isBlank()) {
             return;
@@ -446,7 +458,7 @@ public class QuestMenuItems {
         if (!quest.premium()) {
             return displayName;
         }
-        Config.PremiumQuestMenu menu = premiumMenu();
+        PremiumQuestMenu menu = premiumMenu();
         String suffix = menu == null ? "" : menu.getDisplayNameSuffix();
         if (suffix == null || suffix.isBlank()) {
             return displayName;
@@ -454,10 +466,10 @@ public class QuestMenuItems {
         return displayName + suffix;
     }
 
-    private Config.PremiumQuestMenu premiumMenu() {
-        Config.PremiumQuestsFile premium = config().getPremiumQuests();
-        Config.PremiumQuestMenu menu = premium == null ? null : premium.getMenu();
-        return menu == null ? new Config.PremiumQuestMenu() : menu;
+    private PremiumQuestMenu premiumMenu() {
+        PremiumQuestsFile premium = config().getPremiumQuests();
+        PremiumQuestMenu menu = premium == null ? null : premium.getMenu();
+        return menu == null ? new PremiumQuestMenu() : menu;
     }
 
     private String difficultyDisplayName(String difficultyId) {

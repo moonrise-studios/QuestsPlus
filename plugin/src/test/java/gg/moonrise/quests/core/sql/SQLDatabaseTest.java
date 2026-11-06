@@ -2,7 +2,7 @@ package gg.moonrise.quests.core.sql;
 
 import com.zaxxer.hikari.HikariConfig;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -95,15 +95,15 @@ class SQLDatabaseTest {
     @Test
     public void storageTypesSelectMatchingDialects() {
         assertEquals("SQLite", SQLDatabase.forStorageType(null).displayName());
-        assertEquals("SQLite", SQLDatabase.forStorageType(Config.Storage.StorageType.SQLITE).displayName());
-        assertEquals("MySQL", SQLDatabase.forStorageType(Config.Storage.StorageType.MYSQL).displayName());
-        assertEquals("MariaDB", SQLDatabase.forStorageType(Config.Storage.StorageType.MARIADB).displayName());
-        assertEquals("PostgreSQL", SQLDatabase.forStorageType(Config.Storage.StorageType.POSTGRESQL).displayName());
+        assertEquals("SQLite", SQLDatabase.forStorageType(Storage.StorageType.SQLITE).displayName());
+        assertEquals("MySQL", SQLDatabase.forStorageType(Storage.StorageType.MYSQL).displayName());
+        assertEquals("MariaDB", SQLDatabase.forStorageType(Storage.StorageType.MARIADB).displayName());
+        assertEquals("PostgreSQL", SQLDatabase.forStorageType(Storage.StorageType.POSTGRESQL).displayName());
     }
 
     @Test
     public void networkBackendsUseConfiguredConnectionUrl() {
-        Config.Storage storage = new Config.Storage();
+        Storage storage = new Storage();
         setField(storage.getMariaDb(), "connectionUrl", "jdbc:mariadb://db.example:3307/quests?connectTimeout=1000");
         setField(storage.getMariaDb(), "username", "maria-user");
         setField(storage.getMariaDb(), "password", "maria-pass");

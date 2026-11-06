@@ -28,10 +28,10 @@ import static org.mockito.Mockito.when;
 class ConfigMessagesTest {
 
     private static final List<Class<?>> MESSAGE_SOURCES = List.of(
-            Config.SharedMessages.class,
-            Config.DailyMessages.class,
-            Config.MilestoneMessages.class,
-            Config.StreakMessages.class
+            SharedMessages.class,
+            DailyMessages.class,
+            MilestoneMessages.class,
+            StreakMessages.class
     );
 
     @TempDir
@@ -42,7 +42,7 @@ class ConfigMessagesTest {
         List<Method> getters = messageGetters();
         assertFalse(getters.isEmpty());
 
-        for (Config.Messages messages : List.of(new Config().getMessages(), Config.compose(null, null, null, null, null, null, null).getMessages())) {
+        for (Messages messages : List.of(new Config().getMessages(), Config.compose(null, null, null, null, null, null, null).getMessages())) {
             for (Method getter : getters) {
                 assertNotNull(getter.invoke(messages), getter.getName() + " returned null");
             }
@@ -69,10 +69,10 @@ class ConfigMessagesTest {
 
     @Test
     public void valuesFromEachSourceSectionShowUpThroughMessages() throws Exception {
-        Config.SharedMessages shared = new Config.SharedMessages();
-        Config.DailyMessages daily = new Config.DailyMessages();
-        Config.MilestoneMessages milestone = new Config.MilestoneMessages();
-        Config.StreakMessages streak = new Config.StreakMessages();
+        SharedMessages shared = new SharedMessages();
+        DailyMessages daily = new DailyMessages();
+        MilestoneMessages milestone = new MilestoneMessages();
+        StreakMessages streak = new StreakMessages();
         List<Object> sources = List.of(shared, daily, milestone, streak);
         for (Object source : sources) {
             for (Field field : messageFields(source.getClass())) {
@@ -81,23 +81,23 @@ class ConfigMessagesTest {
                 field.set(source, field.getType() == Message.class ? Message.of(value) : value);
             }
         }
-        Config.SharedMessagesFile sharedFile = new Config.SharedMessagesFile();
-        Config.DailyFile dailyFile = new Config.DailyFile();
-        Config.QuestMilestonesFile milestonesFile = new Config.QuestMilestonesFile(milestone, null);
-        Config.StreaksFile streaksFile = new Config.StreaksFile();
-        Config.ProgressIndicators progressIndicators = new Config.ProgressIndicators();
+        SharedMessagesFile sharedFile = new SharedMessagesFile();
+        DailyFile dailyFile = new DailyFile();
+        QuestMilestonesFile milestonesFile = new QuestMilestonesFile(milestone, null);
+        StreaksFile streaksFile = new StreaksFile();
+        ProgressIndicators progressIndicators = new ProgressIndicators();
         set(sharedFile, "messages", shared);
         set(sharedFile, "progressIndicators", progressIndicators);
         set(dailyFile, "messages", daily);
         set(streaksFile, "messages", streak);
 
-        Config.Messages messages = Config.compose(null, dailyFile, null, streaksFile, sharedFile, null, null, milestonesFile, null, null).getMessages();
+        Messages messages = Config.compose(null, dailyFile, null, streaksFile, sharedFile, null, null, milestonesFile, null, null).getMessages();
 
         for (Object source : sources) {
             for (Field field : messageFields(source.getClass())) {
                 field.setAccessible(true);
                 Object expected = field.get(source);
-                Object actual = Config.Messages.class.getMethod(getterName(field)).invoke(messages);
+                Object actual = Messages.class.getMethod(getterName(field)).invoke(messages);
                 assertSame(expected, actual, field.getName());
             }
         }
@@ -106,17 +106,17 @@ class ConfigMessagesTest {
 
     @Test
     public void missingSourceSectionsFallBackToDefaults() throws Exception {
-        Config.SharedMessagesFile sharedFile = new Config.SharedMessagesFile();
-        Config.DailyFile dailyFile = new Config.DailyFile();
-        Config.StreaksFile streaksFile = new Config.StreaksFile();
+        SharedMessagesFile sharedFile = new SharedMessagesFile();
+        DailyFile dailyFile = new DailyFile();
+        StreaksFile streaksFile = new StreaksFile();
         set(sharedFile, "messages", null);
         set(sharedFile, "progressIndicators", null);
         set(dailyFile, "messages", null);
         set(streaksFile, "messages", null);
-        Config.QuestMilestonesFile milestonesFile = new Config.QuestMilestonesFile();
+        QuestMilestonesFile milestonesFile = new QuestMilestonesFile();
         set(milestonesFile, "messages", null);
 
-        Config.Messages messages = Config.compose(null, dailyFile, null, streaksFile, sharedFile, null, null, milestonesFile, null, null).getMessages();
+        Messages messages = Config.compose(null, dailyFile, null, streaksFile, sharedFile, null, null, milestonesFile, null, null).getMessages();
 
         for (Method getter : messageGetters()) {
             assertNotNull(getter.invoke(messages), getter.getName() + " returned null");
@@ -141,7 +141,7 @@ class ConfigMessagesTest {
         replace("quest-milestones.yml", "Milestone reward claimed:", "Custom claimed:");
         replace("streaks.yml", "No recoverable streak is available.", "Custom no recovery.");
 
-        Config.Messages messages = provider.loadFromDisk().getMessages();
+        Messages messages = provider.loadFromDisk().getMessages();
 
         assertEquals("<red>Custom player only.", messages.getPlayerOnly().content());
         assertEquals("<gray>Custom locked", messages.getStreakMilestoneLocked());
@@ -159,10 +159,10 @@ class ConfigMessagesTest {
 
     private static List<Method> messageGetters() {
         List<Method> getters = new ArrayList<>();
-        for (Method method : Config.Messages.class.getMethods()) {
+        for (Method method : Messages.class.getMethods()) {
             boolean messageType = method.getReturnType() == Message.class || method.getReturnType() == String.class;
             if (method.getName().startsWith("get") && method.getParameterCount() == 0 && messageType
-                    && method.getDeclaringClass() == Config.Messages.class) {
+                    && method.getDeclaringClass() == Messages.class) {
                 getters.add(method);
             }
         }

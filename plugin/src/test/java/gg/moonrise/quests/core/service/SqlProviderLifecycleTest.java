@@ -1,6 +1,6 @@
 package gg.moonrise.quests.core.service;
 
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -164,7 +164,7 @@ class SqlProviderLifecycleTest {
     @Test
     public void reloadWithChangedStorageReconnectsOffTheCallingThread() {
         AtomicReference<String> reconnectThread = new AtomicReference<>();
-        Config.Storage storage = spy(SqlTestHarness.sqliteStorage("storage/other.db"));
+        Storage storage = spy(SqlTestHarness.sqliteStorage("storage/other.db"));
         doAnswer(invocation -> {
             reconnectThread.compareAndSet(null, Thread.currentThread().getName());
             return invocation.callRealMethod();
@@ -190,7 +190,7 @@ class SqlProviderLifecycleTest {
         assertEquals(1, countWrites(sqlProvider));
     }
 
-    private SqlProvider.ReloadResult reload(Config.Storage storage) {
+    private SqlProvider.ReloadResult reload(Storage storage) {
         return sqlProvider.reload(storage).orTimeout(30, TimeUnit.SECONDS).join();
     }
 

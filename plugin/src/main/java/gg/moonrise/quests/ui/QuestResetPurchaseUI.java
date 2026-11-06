@@ -2,7 +2,8 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.BackButton;
+import gg.moonrise.quests.config.QuestResetMenu;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.QuestResetEligibility;
@@ -18,7 +19,7 @@ public class QuestResetPurchaseUI extends ChestMenu {
     public QuestResetPurchaseUI(Player player, QuestMenuService menuService, QuestResetEligibility eligibility) {
         super(player, menuService.config().getMenu().getResetMenu().getTitle(), rows(menuService.config().getMenu().getResetMenu()));
 
-        Config.QuestResetMenu menu = menuService.config().getMenu().getResetMenu();
+        QuestResetMenu menu = menuService.config().getMenu().getResetMenu();
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
@@ -26,7 +27,7 @@ public class QuestResetPurchaseUI extends ChestMenu {
             addPurchaseButton(menuService, menuSlots, currency, eligibility);
         }
 
-        Config.BackButton backButton = menu.getBackButton();
+        BackButton backButton = menu.getBackButton();
         if (backButton != null && backButton.isEnabled()) {
             menuSlots.add(backButton.getSlot(), Button.builder()
                     .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), Material.ARROW))
@@ -54,7 +55,7 @@ public class QuestResetPurchaseUI extends ChestMenu {
                 .build());
     }
 
-    private static int rows(Config.QuestResetMenu menu) {
+    private static int rows(QuestResetMenu menu) {
         return MenuSlots.clampRows(menu.getRows());
     }
 }

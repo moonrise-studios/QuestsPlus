@@ -1,6 +1,7 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.MenuItem;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -86,7 +87,7 @@ class QuestMenuItemsNullSafetyTest {
 
     @Test
     public void tokenAndMenuItemsWithNullLoreRenderWithoutLore() {
-        Config.MenuItem item = new Config.MenuItem("PAPER", "<gold>Paper", null);
+        MenuItem item = new MenuItem("PAPER", "<gold>Paper", null);
 
         ItemStack tokenItem = menuItems.buildTokenItem(item, new MenuTokens(), Material.STONE);
         ItemStack menuItem = menuItems.buildMenuItem(item);

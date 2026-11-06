@@ -2,7 +2,9 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.BackButton;
+import gg.moonrise.quests.config.GlobalRewardPreviewMenu;
+import gg.moonrise.quests.config.GlobalRewardTierConfig;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import org.bukkit.Material;
@@ -15,14 +17,14 @@ public class GlobalRewardPreviewUI extends ChestMenu {
     public GlobalRewardPreviewUI(Player player, QuestMenuService menuService) {
         super(player, menuService.config().getGlobalQuests().getMenu().getRewardPreview().getTitle(), rows(menuService.config().getGlobalQuests().getMenu().getRewardPreview()));
 
-        Config.GlobalRewardPreviewMenu menu = menuService.config().getGlobalQuests().getMenu().getRewardPreview();
+        GlobalRewardPreviewMenu menu = menuService.config().getGlobalQuests().getMenu().getRewardPreview();
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
         addRewardTierItems(menuService, menuSlots, menu.getFullRewardSlots(), menuService.items().fullGlobalRewardTiers(), false);
         addRewardTierItems(menuService, menuSlots, menu.getReducedRewardSlots(), menuService.items().reducedGlobalRewardTiers(), true);
 
-        Config.BackButton backButton = menu.getBackButton();
+        BackButton backButton = menu.getBackButton();
         if (backButton != null && backButton.isEnabled()) {
             menuSlots.add(backButton.getSlot(), Button.builder()
                     .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), Material.ARROW))
@@ -37,20 +39,20 @@ public class GlobalRewardPreviewUI extends ChestMenu {
             QuestMenuService menuService,
             MenuSlots menuSlots,
             List<Integer> slots,
-            List<Config.GlobalRewardTierConfig> tiers,
+            List<GlobalRewardTierConfig> tiers,
             boolean reduced
     ) {
         int count = Math.min(slots.size(), tiers.size());
         for (int index = 0; index < count; index++) {
             int slot = slots.get(index);
-            Config.GlobalRewardTierConfig tier = tiers.get(index);
+            GlobalRewardTierConfig tier = tiers.get(index);
             menuSlots.add(slot, Button.builder()
                     .item(viewer -> menuService.items().buildGlobalRewardPreviewItem(tier, reduced))
                     .build());
         }
     }
 
-    private static int rows(Config.GlobalRewardPreviewMenu menu) {
+    private static int rows(GlobalRewardPreviewMenu menu) {
         return MenuSlots.clampRows(menu.getRows());
     }
 }

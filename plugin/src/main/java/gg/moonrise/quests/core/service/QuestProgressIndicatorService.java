@@ -4,7 +4,7 @@ import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.indicator.QuestProgressIndicator;
 import gg.moonrise.quests.indicator.QuestProgressIndicatorContext;
 import gg.moonrise.quests.model.GlobalQuestState;
@@ -33,7 +33,7 @@ public class QuestProgressIndicatorService {
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
     public void showPersonal(Player player, GeneratedQuest quest, int previousProgress) {
-        Config.ProgressIndicators config = config();
+        ProgressIndicators config = config();
         if (!enabled(config)) {
             return;
         }
@@ -43,7 +43,7 @@ public class QuestProgressIndicatorService {
     }
 
     public void showGlobal(Player player, GlobalQuestState state, int previousProgress) {
-        Config.ProgressIndicators config = config();
+        ProgressIndicators config = config();
         if (!enabled(config)) {
             return;
         }
@@ -60,7 +60,7 @@ public class QuestProgressIndicatorService {
             int previousProgress,
             Map<String, String> values,
             double progress,
-            Config.ProgressIndicators config
+            ProgressIndicators config
     ) {
         List<String> selectedTypes = selectedTypes(player, scope, config);
         for (QuestProgressIndicator indicator : indicators) {
@@ -79,14 +79,14 @@ public class QuestProgressIndicatorService {
     }
 
     public List<String> availableIndicatorTypes() {
-        Config.ProgressIndicators config = config();
+        ProgressIndicators config = config();
         if (!enabled(config)) {
             return List.of();
         }
         return availableIndicatorTypes(config);
     }
 
-    private List<String> selectedTypes(Player player, QuestProgressIndicatorContext.Scope scope, Config.ProgressIndicators config) {
+    private List<String> selectedTypes(Player player, QuestProgressIndicatorContext.Scope scope, ProgressIndicators config) {
         List<String> available = availableIndicatorTypes(config);
         if (available.isEmpty()) {
             return List.of();
@@ -108,7 +108,7 @@ public class QuestProgressIndicatorService {
         return List.of(available.getFirst());
     }
 
-    private List<String> availableIndicatorTypes(Config.ProgressIndicators config) {
+    private List<String> availableIndicatorTypes(ProgressIndicators config) {
         LinkedHashSet<String> available = new LinkedHashSet<>();
         for (QuestProgressIndicator indicator : indicators) {
             if (indicator.isEnabled(config)) {
@@ -118,13 +118,13 @@ public class QuestProgressIndicatorService {
         return new ArrayList<>(available);
     }
 
-    private boolean enabled(Config.ProgressIndicators config) {
+    private boolean enabled(ProgressIndicators config) {
         return config != null && config.isEnabled();
     }
 
-    private Config.ProgressIndicators config() {
-        Config.ProgressIndicators indicatorsConfig = configProvider.get().getProgressIndicators();
-        return indicatorsConfig == null ? new Config.ProgressIndicators() : indicatorsConfig;
+    private ProgressIndicators config() {
+        ProgressIndicators indicatorsConfig = configProvider.get().getProgressIndicators();
+        return indicatorsConfig == null ? new ProgressIndicators() : indicatorsConfig;
     }
 
     private Map<String, String> personalPlaceholders(Player player, GeneratedQuest quest) {

@@ -1,7 +1,10 @@
 package gg.moonrise.quests.currency;
 
 import gg.moonrise.moss.spring.Enableable;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Currencies;
+import gg.moonrise.quests.config.MenuButton;
+import gg.moonrise.quests.config.MenuItem;
+import gg.moonrise.quests.config.VaultCurrencyConfig;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
@@ -48,10 +51,10 @@ public class VaultCurrency implements QuestCurrency, Enableable {
 
     @Override
     public QuestCurrencyButton button() {
-        Config.MenuButton button = config().getButton();
-        Config.MenuButton fallback = new Config.VaultCurrency().getButton();
-        Config.MenuButton resolvedButton = button == null ? fallback : button;
-        Config.MenuItem item = resolvedButton.getItem() == null ? fallback.getItem() : resolvedButton.getItem();
+        MenuButton button = config().getButton();
+        MenuButton fallback = new VaultCurrencyConfig().getButton();
+        MenuButton resolvedButton = button == null ? fallback : button;
+        MenuItem item = resolvedButton.getItem() == null ? fallback.getItem() : resolvedButton.getItem();
         return QuestCurrencyButton.of(resolvedButton.getSlot(), item.getMaterial(), item.getName(), item.getLore());
     }
 
@@ -108,8 +111,8 @@ public class VaultCurrency implements QuestCurrency, Enableable {
         return Optional.ofNullable(economy);
     }
 
-    private Config.VaultCurrency config() {
-        Config.Currencies currencies = configProvider.get().getCurrencies();
-        return currencies == null || currencies.getVault() == null ? new Config.VaultCurrency() : currencies.getVault();
+    private VaultCurrencyConfig config() {
+        Currencies currencies = configProvider.get().getCurrencies();
+        return currencies == null || currencies.getVault() == null ? new VaultCurrencyConfig() : currencies.getVault();
     }
 }

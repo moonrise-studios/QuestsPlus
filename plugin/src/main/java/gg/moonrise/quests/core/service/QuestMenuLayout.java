@@ -1,6 +1,12 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.GlobalQuestMenu;
+import gg.moonrise.quests.config.MilestoneButton;
+import gg.moonrise.quests.config.QuestMenu;
+import gg.moonrise.quests.config.QuestResetButton;
+import gg.moonrise.quests.config.StreakButton;
+import gg.moonrise.quests.config.Streaks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -47,7 +53,7 @@ public record QuestMenuLayout(
     }
 
     public static QuestMenuLayout of(@NotNull Config config) {
-        Config.QuestMenu menu = config.getMenu();
+        QuestMenu menu = config.getMenu();
         int totalSlots = Math.clamp(menu.getRows(), MIN_ROWS, MAX_ROWS) * SLOTS_PER_ROW;
         int globalQuestSlot = globalQuestSlot(config);
         Set<Integer> reservedSlots = reservedSlots(config, menu, totalSlots, globalQuestSlot);
@@ -62,7 +68,7 @@ public record QuestMenuLayout(
      * The configured global quest slot, clamped to the largest possible chest menu.
      */
     public static int globalQuestSlot(@NotNull Config config) {
-        Config.GlobalQuestMenu menu = config.getGlobalQuests().getMenu();
+        GlobalQuestMenu menu = config.getGlobalQuests().getMenu();
         return menu == null ? DEFAULT_GLOBAL_QUEST_SLOT : Math.clamp(menu.getSlot(), 0, MAX_INVENTORY_SLOT);
     }
 
@@ -88,19 +94,19 @@ public record QuestMenuLayout(
         return slotIndex >= dailyQuestSlots;
     }
 
-    private static Set<Integer> reservedSlots(Config config, Config.QuestMenu menu, int totalSlots, int globalQuestSlot) {
+    private static Set<Integer> reservedSlots(Config config, QuestMenu menu, int totalSlots, int globalQuestSlot) {
         Set<Integer> reserved = new LinkedHashSet<>();
         addReservedSlot(reserved, globalQuestSlot, totalSlots);
-        Config.MilestoneButton milestoneButton = menu.getMilestoneButton();
+        MilestoneButton milestoneButton = menu.getMilestoneButton();
         if (config.isQuestMilestonesEnabled() && milestoneButton != null && milestoneButton.isEnabled()) {
             addReservedSlot(reserved, milestoneButton.getSlot(), totalSlots);
         }
-        Config.Streaks streaks = config.getStreaks();
-        Config.StreakButton streakButton = menu.getStreakButton();
+        Streaks streaks = config.getStreaks();
+        StreakButton streakButton = menu.getStreakButton();
         if (streaks != null && streaks.isEnabled() && streakButton != null && streakButton.isEnabled()) {
             addReservedSlot(reserved, streakButton.getSlot(), totalSlots);
         }
-        Config.QuestResetButton resetButton = menu.getResetButton();
+        QuestResetButton resetButton = menu.getResetButton();
         if (resetButton != null && resetButton.isEnabled()) {
             addReservedSlot(reserved, resetButton.getSlot(), totalSlots);
         }

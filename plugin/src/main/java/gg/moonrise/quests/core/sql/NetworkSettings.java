@@ -1,7 +1,7 @@
 package gg.moonrise.quests.core.sql;
 
 import com.zaxxer.hikari.HikariConfig;
-import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.Storage;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -9,15 +9,15 @@ import org.jetbrains.annotations.NotNull;
  */
 public record NetworkSettings(String connectionUrl, String username, String password, int poolSize) {
 
-    public static NetworkSettings of(@NotNull Config.Storage.MySql settings) {
+    public static NetworkSettings of(@NotNull Storage.MySql settings) {
         return new NetworkSettings(settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
     }
 
-    public static NetworkSettings of(@NotNull Config.Storage.MariaDb settings) {
+    public static NetworkSettings of(@NotNull Storage.MariaDb settings) {
         return new NetworkSettings(settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
     }
 
-    public static NetworkSettings of(@NotNull Config.Storage.PostgreSql settings) {
+    public static NetworkSettings of(@NotNull Storage.PostgreSql settings) {
         return new NetworkSettings(settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
     }
 

@@ -1,6 +1,7 @@
 package gg.moonrise.quests.currency;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.PlayerPointsCurrencyConfig;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class PlayerPointsCurrencyTest {
 
     @Test
     public void displayAmountMatchesTheRoundedChargeAmount() {
-        PlayerPointsCurrency currency = currency(new Config.PlayerPointsCurrency("Player Points", 40, new Config.PlayerPointsCurrency().getButton()));
+        PlayerPointsCurrency currency = currency(new PlayerPointsCurrencyConfig("Player Points", 40, new PlayerPointsCurrencyConfig().getButton()));
 
         assertEquals(40.0D, currency.questResetCost());
         assertEquals(Integer.toString(PlayerPointsCurrency.toPoints(currency.questResetCost())), currency.displayAmount(null));
@@ -35,14 +36,14 @@ class PlayerPointsCurrencyTest {
 
     @Test
     public void negativeConfiguredCostDisplaysZero() {
-        PlayerPointsCurrency currency = currency(new Config.PlayerPointsCurrency("Player Points", -5, new Config.PlayerPointsCurrency().getButton()));
+        PlayerPointsCurrency currency = currency(new PlayerPointsCurrencyConfig("Player Points", -5, new PlayerPointsCurrencyConfig().getButton()));
 
         assertEquals("0", currency.displayAmount(null));
     }
 
     @Test
     public void chargeAndRefundAreRejectedWhenPlayerPointsIsUnavailable() {
-        PlayerPointsCurrency currency = currency(new Config.PlayerPointsCurrency());
+        PlayerPointsCurrency currency = currency(new PlayerPointsCurrencyConfig());
         Player player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
 
@@ -50,7 +51,7 @@ class PlayerPointsCurrencyTest {
         assertFalse(currency.refund(player, 4.5D));
     }
 
-    private static PlayerPointsCurrency currency(Config.PlayerPointsCurrency playerPoints) {
+    private static PlayerPointsCurrency currency(PlayerPointsCurrencyConfig playerPoints) {
         Config config = Config.compose(null, null, null, null, null, null, null, playerPoints, null);
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);

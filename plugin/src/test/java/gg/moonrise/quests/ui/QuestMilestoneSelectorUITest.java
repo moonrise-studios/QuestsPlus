@@ -1,6 +1,7 @@
 package gg.moonrise.quests.ui;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.MilestoneMenu;
 import gg.moonrise.quests.core.service.QuestMenuItems;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
@@ -41,7 +42,7 @@ class QuestMilestoneSelectorUITest {
     @Test
     public void nullSelectorBackButtonIsTreatedAsDisabled() throws ReflectiveOperationException {
         Config config = new Config();
-        Config.MilestoneMenu menu = config.getMilestoneMenu();
+        MilestoneMenu menu = config.getMilestoneMenu();
         int backSlot = menu.getSelectorBackButton().getSlot();
         setField(menu, "selectorBackButton", null);
         QuestMenuService menuService = mock(QuestMenuService.class);

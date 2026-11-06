@@ -7,6 +7,8 @@ import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.config.StreakMilestoneConfig;
+import gg.moonrise.quests.config.Streaks;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestStreakEvaluation;
 import gg.moonrise.quests.model.QuestStreakMilestone;
@@ -70,7 +72,7 @@ public class QuestStreakService {
         if (config == null) {
             return true;
         }
-        Config.Streaks streaks = config.getStreaks();
+        Streaks streaks = config.getStreaks();
         return streaks != null && streaks.isEnabled();
     }
 
@@ -202,11 +204,11 @@ public class QuestStreakService {
         }
         List<QuestStreakMilestone> milestones = new ArrayList<>();
         Set<Integer> seen = new LinkedHashSet<>();
-        List<Config.StreakMilestoneConfig> configured = configProvider.get().getStreaks().getMilestones();
+        List<StreakMilestoneConfig> configured = configProvider.get().getStreaks().getMilestones();
         if (configured == null) {
             return List.of();
         }
-        for (Config.StreakMilestoneConfig milestone : configured) {
+        for (StreakMilestoneConfig milestone : configured) {
             int streak = milestone.getStreak();
             if (streak <= 0 || !seen.add(streak)) {
                 continue;
