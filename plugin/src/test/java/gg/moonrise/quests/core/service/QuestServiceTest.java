@@ -1,23 +1,38 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.engine.paper.scheduler.Scheduler;
+import gg.moonrise.engine.paper.scheduler.impl.EntityScheduler;
+import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.model.QuestCompletionStats;
+import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.model.QuestSelectionResult;
 import gg.moonrise.quests.model.QuestSelectionStatus;
+import gg.moonrise.quests.model.QuestStreakEvaluation;
+import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import org.bukkit.Bukkit;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.PluginManager;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -28,7 +43,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,6 +64,11 @@ class QuestServiceTest {
     private QuestProgressIndicatorService indicatorService;
     private Player player;
     private QuestService service;
+    private PluginManager pluginManager;
+    private ConsoleCommandSender console;
+    private EntityScheduler entityScheduler;
+    private MockedStatic<Scheduler> scheduler;
+    private MockedStatic<Bukkit> bukkit;
 
     @BeforeEach
     public void setUp() {
@@ -60,6 +83,28 @@ class QuestServiceTest {
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getName()).thenReturn("Steve");
         service = new QuestService(configProvider, definitionService, repository, streakService, globalQuestService, indicatorService);
+
+        pluginManager = mock(PluginManager.class);
+        console = mock(ConsoleCommandSender.class);
+        entityScheduler = mock(EntityScheduler.class);
+        SyncScheduler syncScheduler = mock(SyncScheduler.class);
+        when(syncScheduler.run(any())).thenAnswer(invocation -> {
+            Consumer<ScheduledTask> task = invocation.getArgument(0);
+            task.accept(mock(ScheduledTask.class));
+            return mock(ScheduledTask.class);
+        });
+        scheduler = mockStatic(Scheduler.class);
+        scheduler.when(() -> Scheduler.entity(any())).thenReturn(entityScheduler);
+        scheduler.when(Scheduler::sync).thenReturn(syncScheduler);
+        bukkit = mockStatic(Bukkit.class);
+        bukkit.when(Bukkit::getPluginManager).thenReturn(pluginManager);
+        bukkit.when(Bukkit::getConsoleSender).thenReturn(console);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        bukkit.close();
+        scheduler.close();
     }
 
     @Test
@@ -200,6 +245,96 @@ class QuestServiceTest {
         assertEquals(QuestSelectionStatus.REROLLED, result.status());
         assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
         assertEquals(replacement.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+    }
+
+    @Test
+    public void completionWhilePlayerLogsOutStillRecordsStatsAndRunsRewards() {
+        GeneratedQuest almostDone = quest(0, 9, false);
+        stubCompletion(almostDone);
+        // Paper retires the entity's task queue when the player leaves and calls the retired callback instead.
+        when(entityScheduler.run(any(), any())).thenAnswer(invocation -> {
+            Runnable retired = invocation.getArgument(1);
+            retired.run();
+            return mock(ScheduledTask.class);
+        });
+
+        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+
+        verify(repository).incrementCompletionStats(eq(playerId), eq("easy"), any());
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
+        verify(streakService, never()).evaluateQuestCompletion(any(), any(), any());
+        assertEquals(1, service.cachedState(playerId, RESET_KEY).difficultyCompletions("easy"));
+    }
+
+    @Test
+    public void completionAfterPlayerEntityIsGoneStillRunsRewards() {
+        GeneratedQuest almostDone = quest(0, 9, false);
+        stubCompletion(almostDone);
+        // Scheduling on an already removed entity returns null without calling the retired callback.
+        when(entityScheduler.run(any(), any())).thenReturn(null);
+
+        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+
+        verify(repository).incrementCompletionStats(eq(playerId), eq("easy"), any());
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
+    }
+
+    @Test
+    public void completionWhileOnlineRunsRewardsAndStreakOnEntityThread() {
+        GeneratedQuest almostDone = quest(0, 9, false);
+        stubCompletion(almostDone);
+        when(player.isOnline()).thenReturn(true);
+        when(streakService.isEnabled()).thenReturn(true);
+        when(streakService.evaluateQuestCompletion(any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new QuestStreakEvaluation(QuestStreakState.empty(playerId), List.of())));
+        when(entityScheduler.run(any(), any())).thenAnswer(invocation -> {
+            Consumer<ScheduledTask> task = invocation.getArgument(0);
+            task.accept(mock(ScheduledTask.class));
+            return mock(ScheduledTask.class);
+        });
+
+        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
+        verify(streakService).evaluateQuestCompletion(eq(player), any(), any());
+        scheduler.verify(Scheduler::sync, never());
+    }
+
+    @Test
+    public void joinEvaluatesStreakThatWasMissedWhileOffline() {
+        GeneratedQuest completed = quest(0, 10, true);
+        stubLoad(List.of(completed));
+        when(streakService.isEnabled()).thenReturn(true);
+        QuestStreakState notYetAwarded = new QuestStreakState(playerId, 2, 2, "yesterday", "yesterday", 0, "", 0, 0, Set.of());
+        when(streakService.ensureState(player, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(notYetAwarded));
+        when(streakService.evaluateQuestCompletion(any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new QuestStreakEvaluation(notYetAwarded, List.of())));
+
+        service.ensurePlayerStateAsync(player, RESET_KEY).join();
+
+        verify(streakService).evaluateQuestCompletion(eq(player), any(), eq(List.of(completed)));
+    }
+
+    @Test
+    public void joinSkipsStreakEvaluationWhenWindowWasAlreadyAwarded() {
+        stubLoad(List.of(quest(0, 10, true)));
+        when(streakService.isEnabled()).thenReturn(true);
+        QuestStreakState awarded = new QuestStreakState(playerId, 3, 3, RESET_KEY, RESET_KEY, 0, "", 0, 0, Set.of());
+        when(streakService.ensureState(player, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(awarded));
+
+        service.ensurePlayerStateAsync(player, RESET_KEY).join();
+
+        verify(streakService, never()).evaluateQuestCompletion(any(), any(), any());
+    }
+
+    private void stubCompletion(GeneratedQuest quest) {
+        stubLoad(List.of(quest));
+        service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
+        when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
+        when(definitionService.difficulty("easy")).thenReturn(new QuestDifficulty("easy", "Easy", 0, 0, Map.of(), List.of("give <player> diamond"), List.of(), List.of()));
+        when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
+                .thenReturn(CompletableFuture.completedFuture(new QuestCompletionStats(1, 1, List.of())));
     }
 
     private GeneratedQuest stubReroll(QuestRepository.RerollOutcome outcome) {

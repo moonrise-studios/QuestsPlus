@@ -22,9 +22,11 @@ import gg.moonrise.quests.model.QuestResetEligibility;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.model.QuestSelectionResult;
 import gg.moonrise.quests.model.QuestSelectionStatus;
+import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -115,7 +117,30 @@ public class QuestService {
                     if (!streakService.isEnabled()) {
                         return CompletableFuture.completedFuture(state);
                     }
-                    return streakService.ensureState(player, resetKey).thenApply(unused -> state);
+                    return streakService.ensureState(player, resetKey)
+                            .thenCompose(streakState -> evaluateMissedStreakCompletion(player, state, streakState))
+                            .thenApply(unused -> state);
+                });
+    }
+
+    /**
+     * Awards the streak for the current reset window if the player finished it but the evaluation never ran,
+     * which happens when the last quest completed while they were logging out. Evaluation is idempotent per reset
+     * key and returns without a database round trip unless the window is actually complete.
+     */
+    private CompletableFuture<Void> evaluateMissedStreakCompletion(Player player, PlayerQuestState state, QuestStreakState streakState) {
+        if (state.resetKey().equals(streakState.lastCompletedResetKey())) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<GeneratedQuest> eligibleQuests;
+        synchronized (state) {
+            eligibleQuests = accessibleQuests(player, state);
+        }
+        return streakService.evaluateQuestCompletion(player, state, eligibleQuests)
+                .<Void>thenApply(unused -> null)
+                .exceptionally(throwable -> {
+                    log.error("Failed to evaluate QuestsPlus streak for {}.", player.getUniqueId(), throwable);
+                    return null;
                 });
     }
 
@@ -645,11 +670,12 @@ public class QuestService {
                         return false;
                     }
                     if (updated.completed() && !previous.completed()) {
-                        Scheduler.entity(player).run(task -> {
-                            if (player.isOnline()) {
-                                completeQuest(player, state, updated);
-                            }
-                        });
+                        try {
+                            completeQuest(player, state, updated);
+                        } catch (RuntimeException exception) {
+                            // The row is stored, so a failing side effect must not roll the cached quest back.
+                            log.error("Failed to run QuestsPlus completion side effects for quest {}.", updated.instanceId(), exception);
+                        }
                     }
                     return true;
                 })
@@ -846,16 +872,76 @@ public class QuestService {
         return Map.copyOf(resolved);
     }
 
-    private void handleCompletion(Player player, GeneratedQuest quest) {
-        configProvider.get().getMessages().getQuestCompleted().send(player, Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(quest.displayName())));
+    /**
+     * Runs the completion pipeline for a quest whose progress row is already stored as completed. Because the
+     * completion is committed, the stats, milestones and reward commands must happen even if the player has
+     * logged out meanwhile; only the chat message and the streak evaluation need them online. A streak missed
+     * that way is evaluated on the player's next join (see {@link #ensurePlayerStateAsync(Player, String)}).
+     */
+    private void completeQuest(Player player, PlayerQuestState state, GeneratedQuest quest) {
+        recordCompletionStats(player, state, quest);
+        runOnEntityOrRetired(player, () -> {
+            if (player.isOnline()) {
+                configProvider.get().getMessages().getQuestCompleted().send(player, Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(quest.displayName())));
+            }
+            // Already on the player's entity thread, so the commands run directly.
+            dispatchConsoleCommands(player.getUniqueId(), resolvedRewardCommands(player, quest, canAccessQuest(player, quest)));
+            evaluateStreak(player, state);
+        }, () -> {
+            // Progress is only credited to quests the player can access, so a premium quest that got completed
+            // was accessible; the permission is not re-checked because it may no longer be readable offline.
+            List<String> commands = resolvedRewardCommands(player, quest, quest.premium());
+            if (!commands.isEmpty()) {
+                Scheduler.sync().run(task -> dispatchConsoleCommands(player.getUniqueId(), commands));
+            }
+        });
+    }
 
-        // Already on the player's entity thread (see persistProgress), so the commands run directly.
-        for (String command : rewardCommands(player, quest)) {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceQuestRewardTokens(command, quest, player));
+    private List<String> resolvedRewardCommands(Player player, GeneratedQuest quest, boolean premiumRewardsAccessible) {
+        List<String> commands = new ArrayList<>();
+        for (String command : rewardCommands(quest, premiumRewardsAccessible)) {
+            commands.add(replaceQuestRewardTokens(command, quest, player));
+        }
+        return commands;
+    }
+
+    private void dispatchConsoleCommands(UUID playerId, List<String> commands) {
+        for (String command : commands) {
+            try {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+            } catch (RuntimeException exception) {
+                log.error("Failed to run QuestsPlus reward command '{}' for {}.", command, playerId, exception);
+            }
         }
     }
 
-    private void completeQuest(Player player, PlayerQuestState state, GeneratedQuest quest) {
+    private void evaluateStreak(Player player, PlayerQuestState state) {
+        if (!streakService.isEnabled()) {
+            return;
+        }
+        List<GeneratedQuest> eligibleQuests;
+        synchronized (state) {
+            eligibleQuests = accessibleQuests(player, state);
+        }
+        streakService.evaluateQuestCompletion(player, state, eligibleQuests)
+                .exceptionally(throwable -> {
+                    log.error("Failed to evaluate QuestsPlus streak for {}.", player.getUniqueId(), throwable);
+                    return null;
+                });
+    }
+
+    /**
+     * Runs {@code task} on the player's entity thread, or {@code retired} if the player is gone before it can run.
+     * Paper returns {@code null} without calling the retired callback when the entity is already removed.
+     */
+    private void runOnEntityOrRetired(Player player, Runnable task, Runnable retired) {
+        ScheduledTask scheduled = Scheduler.entity(player).run(ignored -> task.run(), retired);
+        if (scheduled == null) {
+            retired.run();
+        }
+    }
+
+    private void recordCompletionStats(Player player, PlayerQuestState state, GeneratedQuest quest) {
         QuestDifficulty difficulty = definitionService.difficulty(quest.difficultyId());
         List<QuestMilestone> milestones = !questMilestonesEnabled() || difficulty == null ? List.of() : difficulty.milestones();
         questRepository.incrementCompletionStats(player.getUniqueId(), quest.difficultyId(), milestones)
@@ -871,15 +957,7 @@ public class QuestService {
                 .exceptionally(throwable -> {
                     log.error("Failed to persist QuestsPlus completion stats for {}.", player.getUniqueId(), throwable);
                     return null;
-        });
-        handleCompletion(player, quest);
-        if (streakService.isEnabled()) {
-            streakService.evaluateQuestCompletion(player, state, accessibleQuests(player, state))
-                    .exceptionally(throwable -> {
-                        log.error("Failed to evaluate QuestsPlus streak for {}.", player.getUniqueId(), throwable);
-                        return null;
-                    });
-        }
+                });
     }
 
     private CompletableFuture<Void> claimRetroactiveMilestones(Player player, PlayerQuestState state) {
@@ -1002,13 +1080,13 @@ public class QuestService {
         return output;
     }
 
-    private List<String> rewardCommands(Player player, GeneratedQuest quest) {
+    private List<String> rewardCommands(GeneratedQuest quest, boolean premiumRewardsAccessible) {
         List<String> commands = new ArrayList<>();
         QuestDifficulty difficulty = definitionService.difficulty(quest.difficultyId());
         if (difficulty != null) {
             randomDifficultyRewardCommand(difficulty.rewardCommands()).ifPresent(commands::add);
         }
-        if (quest.premium() && canAccessQuest(player, quest)) {
+        if (quest.premium() && premiumRewardsAccessible) {
             Config.PremiumQuestsFile premium = configProvider.get().getPremiumQuests();
             Map<String, Config.Rewards> rewards = premium == null || premium.getRewards() == null ? Map.of() : premium.getRewards();
             Config.Rewards bonus = rewards.get(quest.difficultyId());
