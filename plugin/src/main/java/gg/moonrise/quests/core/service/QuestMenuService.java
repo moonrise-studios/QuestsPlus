@@ -43,6 +43,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.List;
 import java.util.Map;
@@ -812,126 +813,166 @@ public class QuestMenuService {
         String resetKey = resetService.currentResetKey();
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(state -> questService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
-                .thenAccept(state -> scheduleResetPurchaseTask(player, task -> {
-                    try {
-                        if (!player.isOnline()) {
-                            resetPurchaseService.finish(player);
-                            return;
-                        }
-                        QuestResetEligibility eligibility = questService.resetEligibility(player, state);
-                        if (!eligibility.eligible()) {
-                            try {
-                                config().getMessages().getQuestResetNotReady().send(
-                                        player,
-                                        Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
-                                        Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
-                                );
-                                openDailyQuests(player);
-                            } finally {
-                                resetPurchaseService.finish(player);
-                            }
-                            return;
-                        }
-                        if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
-                            try {
-                                sendResetLimitReached(player, eligibility);
-                                openDailyQuests(player);
-                            } finally {
-                                resetPurchaseService.finish(player);
-                            }
-                            return;
-                        }
-                        QuestCurrency currency = resetPurchaseService.registeredCurrency(currencyKey);
-                        if (!canShowQuestResetPayment(currency)) {
-                            try {
-                                sendPurchaseUnavailable(player, currency, eligibility);
-                                openQuestResetPurchase(player);
-                            } finally {
-                                resetPurchaseService.finish(player);
-                            }
-                            return;
-                        }
-                        if (!chargeCurrency(player, currency)) {
-                            try {
-                                sendPurchaseUnavailable(player, currency, eligibility);
-                                openQuestResetPurchase(player);
-                            } finally {
-                                resetPurchaseService.finish(player);
-                            }
-                            return;
-                        }
-                        questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey)
-                                .thenAccept(applied -> scheduleResetPurchaseCompletion(player, doneTask -> {
-                                    if (player.isOnline()) {
-                                        if (applied) {
-                                            config().getMessages().getQuestResetSuccess().send(
-                                                    player,
-                                                    Placeholder.unparsed("payment", currencyDisplayName(currency, "")),
-                                                    Placeholder.unparsed("reward", currencyDisplayName(currency, "")),
-                                                    Placeholder.unparsed("amount", currencyDisplayAmount(currency, player)),
-                                                    Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
-                                                    Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
-                                                    Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
-                                                    Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(questService.questResetDailyLimit())),
-                                                    Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
-                                            );
-                                        } else {
-                                            refundCurrency(player, currency);
-                                            sendResetLimitReached(player, eligibility);
-                                        }
-                                        openDailyQuests(player);
-                                    }
-                                }))
-                                .exceptionally(throwable -> {
-                                    log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
-                                    scheduleResetPurchaseCompletion(player, failedTask -> {
-                                        if (player.isOnline()) {
-                                            refundCurrency(player, currency);
-                                            config().getMessages().getQuestResetFailed().send(player);
-                                        }
-                                    });
-                                    return null;
-                                });
-                    } catch (RuntimeException exception) {
-                        try {
-                            log.error("Failed to process QuestsPlus reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), exception);
-                            if (player.isOnline()) {
-                                config().getMessages().getQuestResetFailed().send(player);
-                            }
-                        } finally {
-                            resetPurchaseService.finish(player);
-                        }
-                        throw exception;
+                .whenComplete((state, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
+                        settleResetPurchase(player, null, online -> config().getMessages().getQuestResetFailed().send(online));
+                        return;
                     }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
-                    scheduleResetPurchaseCompletion(player, task -> {
-                        if (player.isOnline()) {
-                            config().getMessages().getQuestResetFailed().send(player);
-                        }
-                    });
-                    return null;
+                    runOnPlayer(
+                            player,
+                            task -> processResetPurchase(player, currencyKey, resetKey, state),
+                            () -> resetPurchaseService.finish(player)
+                    );
                 });
     }
 
-    private void scheduleResetPurchaseTask(Player player, Consumer<ScheduledTask> action) {
+    private void processResetPurchase(Player player, QuestCurrencyKey currencyKey, String resetKey, PlayerQuestState state) {
         try {
-            Scheduler.entity(player).run(action, () -> resetPurchaseService.finish(player));
+            if (!player.isOnline()) {
+                resetPurchaseService.finish(player);
+                return;
+            }
+            QuestResetEligibility eligibility = questService.resetEligibility(player, state);
+            if (!eligibility.eligible()) {
+                try {
+                    config().getMessages().getQuestResetNotReady().send(
+                            player,
+                            Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
+                            Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
+                    );
+                    openDailyQuests(player);
+                } finally {
+                    resetPurchaseService.finish(player);
+                }
+                return;
+            }
+            if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
+                try {
+                    sendResetLimitReached(player, eligibility);
+                    openDailyQuests(player);
+                } finally {
+                    resetPurchaseService.finish(player);
+                }
+                return;
+            }
+            QuestCurrency currency = resetPurchaseService.registeredCurrency(currencyKey);
+            if (!canShowQuestResetPayment(currency) || !chargeCurrency(player, currency)) {
+                try {
+                    sendPurchaseUnavailable(player, currency, eligibility);
+                    openQuestResetPurchase(player);
+                } finally {
+                    resetPurchaseService.finish(player);
+                }
+                return;
+            }
+            resetAfterCharge(player, currencyKey, resetKey, currency, eligibility);
         } catch (RuntimeException exception) {
-            resetPurchaseService.finish(player);
-            log.error("Failed to schedule QuestsPlus reset purchase continuation for {}.", player.getUniqueId(), exception);
-        }
-    }
-
-    private void scheduleResetPurchaseCompletion(Player player, Consumer<ScheduledTask> action) {
-        scheduleResetPurchaseTask(player, task -> {
             try {
-                action.accept(task);
+                log.error("Failed to process QuestsPlus reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), exception);
+                if (player.isOnline()) {
+                    config().getMessages().getQuestResetFailed().send(player);
+                }
             } finally {
                 resetPurchaseService.finish(player);
             }
+            throw exception;
+        }
+    }
+
+    /**
+     * Applies the reset after the currency was charged. Every outcome other than an applied reset
+     * refunds the charge, including when the player logged out before the database answered.
+     */
+    private void resetAfterCharge(Player player, QuestCurrencyKey currencyKey, String resetKey, QuestCurrency currency, QuestResetEligibility eligibility) {
+        CompletableFuture<Boolean> reset;
+        try {
+            reset = questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey);
+        } catch (RuntimeException exception) {
+            reset = CompletableFuture.failedFuture(exception);
+        }
+        reset.whenComplete((applied, throwable) -> {
+            if (throwable != null) {
+                log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
+                settleResetPurchase(player, currency, online -> config().getMessages().getQuestResetFailed().send(online));
+            } else if (Boolean.TRUE.equals(applied)) {
+                settleResetPurchase(player, null, online -> {
+                    sendResetSuccess(online, currency, eligibility, resetKey);
+                    openDailyQuests(online);
+                });
+            } else {
+                settleResetPurchase(player, currency, online -> {
+                    sendResetLimitReached(online, eligibility);
+                    openDailyQuests(online);
+                });
+            }
         });
+    }
+
+    /**
+     * Ends a reset purchase exactly once: refunds {@code refund} when it is not null, releases the
+     * purchase lock and, only if the player is still online, notifies them. The refund and lock
+     * release also run when the player's entity scheduler has retired because they logged out.
+     */
+    private void settleResetPurchase(Player player, QuestCurrency refund, Consumer<Player> notifyOnline) {
+        AtomicBoolean settled = new AtomicBoolean();
+        Runnable settle = () -> {
+            if (!settled.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                if (refund != null) {
+                    refundCurrency(player, refund);
+                }
+            } finally {
+                resetPurchaseService.finish(player);
+            }
+        };
+        runOnPlayer(player, task -> {
+            settle.run();
+            if (player.isOnline()) {
+                notifyOnline.accept(player);
+            }
+        }, settle);
+    }
+
+    /**
+     * Runs {@code action} on the player's entity scheduler. When the player is already gone (the
+     * scheduler is retired or rejects the task), {@code retired} runs instead: directly from the
+     * retired callback, or on the global scheduler when the task could not be scheduled at all.
+     */
+    private void runOnPlayer(Player player, Consumer<ScheduledTask> action, Runnable retired) {
+        try {
+            if (Scheduler.entity(player).run(action, retired) != null) {
+                return;
+            }
+        } catch (RuntimeException exception) {
+            log.error("Failed to schedule QuestsPlus task for {}; running its fallback instead.", player.getUniqueId(), exception);
+        }
+        runGlobal(retired);
+    }
+
+    private void runGlobal(Runnable action) {
+        try {
+            Scheduler.sync().run(task -> action.run());
+        } catch (RuntimeException exception) {
+            log.error("Failed to schedule QuestsPlus global task; running it inline.", exception);
+            action.run();
+        }
+    }
+
+    private void sendResetSuccess(Player player, QuestCurrency currency, QuestResetEligibility eligibility, String resetKey) {
+        config().getMessages().getQuestResetSuccess().send(
+                player,
+                Placeholder.unparsed("payment", currencyDisplayName(currency, "")),
+                Placeholder.unparsed("reward", currencyDisplayName(currency, "")),
+                Placeholder.unparsed("amount", currencyDisplayAmount(currency, player)),
+                Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
+                Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
+                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
+                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(questService.questResetDailyLimit())),
+                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
+        );
     }
 
     private void sendPurchaseUnavailable(Player player, QuestCurrency currency, QuestResetEligibility eligibility) {
