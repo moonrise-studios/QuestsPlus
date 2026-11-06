@@ -22,12 +22,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
 @RequiredArgsConstructor
 public class SqlProvider implements Disableable {
+
+    private static final long SHUTDOWN_TIMEOUT_SECONDS = 10;
 
     private final QuestsPlusPlugin plugin;
     private final ConfigProvider configProvider;
@@ -217,11 +220,29 @@ public class SqlProvider implements Disableable {
     }
 
     private synchronized void closeResources() {
-        closeExecutor(executor);
+        ExecutorService currentExecutor = executor;
         executor = null;
+        drainExecutor(currentExecutor);
 
         closeDataSource(dataSource.getAndSet(null));
         database = null;
+    }
+
+    private void drainExecutor(ExecutorService executorService) {
+        if (executorService == null) {
+            return;
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                int dropped = executorService.shutdownNow().size();
+                log.warn("QuestsPlus SQL tasks did not finish within {} seconds; {} queued task(s) were dropped.", SHUTDOWN_TIMEOUT_SECONDS, dropped);
+            }
+        } catch (InterruptedException exception) {
+            int dropped = executorService.shutdownNow().size();
+            log.warn("Interrupted while waiting for QuestsPlus SQL tasks to finish; {} queued task(s) were dropped.", dropped);
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void closeExecutor(ExecutorService executorService) {
