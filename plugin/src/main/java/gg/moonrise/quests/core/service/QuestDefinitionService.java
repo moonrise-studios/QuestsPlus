@@ -37,8 +37,7 @@ public class QuestDefinitionService implements Reloadable {
     private final List<QuestVariableSelector> selectors;
     private final List<GoalHandler> goalHandlers;
 
-    private volatile List<QuestDefinition> definitions = List.of();
-    private volatile Map<String, QuestDifficulty> difficultiesById = Map.of();
+    private volatile DefinitionSnapshot snapshot = DefinitionSnapshot.EMPTY;
     private volatile Map<String, QuestVariableSelector> selectorsByType = Map.of();
     private volatile Map<QuestType, GoalHandler> handlersByType = Map.of();
     private volatile Map<QuestType, String> handlerOwnersByType = Map.of();
@@ -65,20 +64,19 @@ public class QuestDefinitionService implements Reloadable {
     @Override
     public synchronized void reload() {
         Map<String, QuestDifficulty> loadedDifficulties = loadDifficulties();
-        this.difficultiesById = loadedDifficulties;
-        this.definitions = loadDefinitions(loadedDifficulties);
+        this.snapshot = DefinitionSnapshot.of(loadedDifficulties, loadDefinitions(loadedDifficulties));
     }
 
     public List<QuestDefinition> enabledDefinitions() {
         Instant now = Instant.now();
-        return definitions.stream()
+        return snapshot.definitions().stream()
                 .filter(QuestDefinition::enabled)
                 .filter(definition -> definition.activeAt(now))
                 .toList();
     }
 
     public List<QuestDefinition> definitions() {
-        return definitions;
+        return snapshot.definitions();
     }
 
     public Optional<QuestDefinition> definition(String id) {
@@ -86,9 +84,7 @@ public class QuestDefinitionService implements Reloadable {
         if (normalized.isBlank()) {
             return Optional.empty();
         }
-        return definitions.stream()
-                .filter(definition -> definition.id().equals(normalized))
-                .findFirst();
+        return Optional.ofNullable(snapshot.definitionsById().get(normalized));
     }
 
     public Optional<QuestDefinition> definition(GeneratedQuest quest) {
@@ -100,6 +96,7 @@ public class QuestDefinitionService implements Reloadable {
 
     public QuestDifficulty difficulty(String id) {
         String normalized = QuestNames.normalize(id);
+        Map<String, QuestDifficulty> difficultiesById = snapshot.difficultiesById();
         QuestDifficulty difficulty = difficultiesById.get(normalized);
         if (difficulty == null) {
             return difficultiesById.get("easy");
@@ -108,7 +105,7 @@ public class QuestDefinitionService implements Reloadable {
     }
 
     public List<QuestDifficulty> difficulties() {
-        return List.copyOf(difficultiesById.values());
+        return List.copyOf(snapshot.difficultiesById().values());
     }
 
     public QuestVariableSelector selector(String type) {
@@ -390,5 +387,26 @@ public class QuestDefinitionService implements Reloadable {
 
     private List<String> safeList(List<String> values) {
         return values == null ? List.of() : List.copyOf(values);
+    }
+
+    /**
+     * Difficulties and definitions loaded by one reload, published together so readers never
+     * observe definitions from one reload paired with difficulties from another.
+     */
+    private record DefinitionSnapshot(
+            Map<String, QuestDifficulty> difficultiesById,
+            List<QuestDefinition> definitions,
+            Map<String, QuestDefinition> definitionsById
+    ) {
+
+        private static final DefinitionSnapshot EMPTY = new DefinitionSnapshot(Map.of(), List.of(), Map.of());
+
+        private static DefinitionSnapshot of(Map<String, QuestDifficulty> difficultiesById, List<QuestDefinition> definitions) {
+            Map<String, QuestDefinition> byId = new HashMap<>();
+            for (QuestDefinition definition : definitions) {
+                byId.put(definition.id(), definition);
+            }
+            return new DefinitionSnapshot(difficultiesById, definitions, Map.copyOf(byId));
+        }
     }
 }

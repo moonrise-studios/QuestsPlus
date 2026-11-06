@@ -13,6 +13,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -37,9 +38,42 @@ class QuestDefinitionServiceTest {
         assertEquals(ids, service.definitions().stream().map(QuestDefinition::id).toList());
     }
 
+    @Test
+    public void definitionLooksUpNormalizedIds() {
+        QuestDefinitionService service = service(config(List.of("easy"), List.of("alpha-quest", "bravo-quest")));
+
+        assertEquals("bravo-quest", service.definition(" BRAVO_QUEST ").map(QuestDefinition::id).orElseThrow());
+        assertEquals("alpha-quest", service.definition("alpha-quest").map(QuestDefinition::id).orElseThrow());
+        assertTrue(service.definition("missing-quest").isEmpty());
+        assertTrue(service.definition(" ").isEmpty());
+        assertTrue(service.definition((String) null).isEmpty());
+    }
+
+    @Test
+    public void reloadReplacesDefinitionsAndDifficultiesTogether() {
+        Config initial = config(List.of("easy"), List.of("alpha-quest"));
+        Config reloaded = config(List.of("easy", "hard"), List.of("bravo-quest"));
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        when(configProvider.get()).thenReturn(initial);
+        QuestDefinitionService service = service(configProvider);
+
+        when(configProvider.get()).thenReturn(reloaded);
+        service.reload();
+
+        assertTrue(service.definition("alpha-quest").isEmpty());
+        assertEquals("bravo-quest", service.definition("bravo-quest").map(QuestDefinition::id).orElseThrow());
+        assertEquals(List.of("bravo-quest"), service.definitions().stream().map(QuestDefinition::id).toList());
+        assertEquals("hard", service.difficulty("hard").id());
+        assertEquals("easy", service.difficulty("unknown").id());
+    }
+
     private static QuestDefinitionService service(Config config) {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);
+        return service(configProvider);
+    }
+
+    private static QuestDefinitionService service(ConfigProvider configProvider) {
         GoalHandler handler = mock(GoalHandler.class);
         when(handler.type()).thenReturn(TYPE);
         QuestDefinitionService service = new QuestDefinitionService(configProvider, List.of(), List.of(handler));
