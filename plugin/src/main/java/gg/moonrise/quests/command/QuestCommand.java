@@ -91,7 +91,7 @@ public class QuestCommand implements PaperCommand {
                 }))
                 .exceptionally(throwable -> {
                     log.error("Failed to load QuestsPlus progress for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to load quest progress right now."));
+                    Scheduler.entity(player).run(task -> configProvider.get().getMessages().getProgressLoadFailed().send(player));
                     return null;
                 });
     }
@@ -111,7 +111,7 @@ public class QuestCommand implements PaperCommand {
                 }))
                 .exceptionally(throwable -> {
                     log.error("Failed to load QuestsPlus completed count for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to load completed quest count right now."));
+                    Scheduler.entity(player).run(task -> configProvider.get().getMessages().getCompletedCountLoadFailed().send(player));
                     return null;
                 });
     }
@@ -173,7 +173,7 @@ public class QuestCommand implements PaperCommand {
                     }))
                     .exceptionally(throwable -> {
                         log.error("Failed to clear QuestsPlus indicator preference for {}.", player.getUniqueId(), throwable);
-                        Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to update quest indicator preference."));
+                        Scheduler.entity(player).run(task -> configProvider.get().getMessages().getIndicatorUpdateFailed().send(player));
                         return null;
                     });
             return;
@@ -196,7 +196,7 @@ public class QuestCommand implements PaperCommand {
                 }))
                 .exceptionally(throwable -> {
                     log.error("Failed to update QuestsPlus indicator preference for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to update quest indicator preference."));
+                    Scheduler.entity(player).run(task -> configProvider.get().getMessages().getIndicatorUpdateFailed().send(player));
                     return null;
                 });
     }
@@ -298,7 +298,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to reset QuestsPlus daily quests for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to reset that player's quests."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getResetPlayerFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -319,7 +319,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to complete QuestsPlus daily quests for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to complete that player's daily quests."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getCompleteDailyPlayerFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -419,7 +419,7 @@ public class QuestCommand implements PaperCommand {
                 .thenRun(() -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getGlobalQuestRefreshed().send(source.getSender())))
                 .exceptionally(throwable -> {
                     log.error("Failed to refresh QuestsPlus global quest.", throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to refresh the active global quest."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getGlobalQuestRefreshFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -439,7 +439,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to reset QuestsPlus rerolls for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to reset that player's rerolls."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getRerollsResetFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -480,7 +480,7 @@ public class QuestCommand implements PaperCommand {
             return;
         }
         if (!streakService.isEnabled()) {
-            source.getSender().sendRichMessage("<red>Quest streaks are disabled.");
+            configProvider.get().getMessages().getQuestStreaksDisabled().send(source.getSender());
             return;
         }
         Player target = Bukkit.getPlayerExact(playerName);
@@ -499,7 +499,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to adjust QuestsPlus streak currency for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to update streak currency."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getStreakCurrencyUpdateFailed().send(source.getSender()));
                     return null;
                 });
     }

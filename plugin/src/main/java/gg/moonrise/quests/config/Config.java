@@ -2231,6 +2231,46 @@ public class Config {
         private Message difficultySelectFailed = Message.of("<red>Failed to select that quest difficulty right now.");
         @Comment({
                 "",
+                "Message sent when /quests progress cannot load the player's quests."
+        })
+        private Message progressLoadFailed = Message.of("<red>Failed to load quest progress right now.");
+        @Comment({
+                "",
+                "Message sent when /quests completed cannot load the player's completed quest count."
+        })
+        private Message completedCountLoadFailed = Message.of("<red>Failed to load completed quest count right now.");
+        @Comment({
+                "",
+                "Message sent when a progress indicator preference cannot be saved."
+        })
+        private Message indicatorUpdateFailed = Message.of("<red>Failed to update quest indicator preference.");
+        @Comment({
+                "",
+                "Admin message sent when resetting a player's daily quests fails."
+        })
+        private Message resetPlayerFailed = Message.of("<red>Failed to reset that player's quests.");
+        @Comment({
+                "",
+                "Admin message sent when completing a player's daily quests fails."
+        })
+        private Message completeDailyPlayerFailed = Message.of("<red>Failed to complete that player's daily quests.");
+        @Comment({
+                "",
+                "Admin message sent when refreshing the active global quest fails."
+        })
+        private Message globalQuestRefreshFailed = Message.of("<red>Failed to refresh the active global quest.");
+        @Comment({
+                "",
+                "Admin message sent when resetting a player's daily reroll usage fails."
+        })
+        private Message rerollsResetFailed = Message.of("<red>Failed to reset that player's rerolls.");
+        @Comment({
+                "",
+                "Admin message sent when changing shield or recovery currency balances fails."
+        })
+        private Message streakCurrencyUpdateFailed = Message.of("<red>Failed to update streak currency.");
+        @Comment({
+                "",
                 "Configurable streak milestone locked text."
         })
         private String streakMilestoneLocked = "<dark_gray>Locked";
@@ -2404,6 +2444,46 @@ public class Config {
                 "Message sent when selecting or rerolling a quest difficulty fails."
         })
         private Message difficultySelectFailed = Message.of("<red>Failed to select that quest difficulty right now.");
+        @Comment({
+                "",
+                "Message sent when /quests progress cannot load the player's quests."
+        })
+        private Message progressLoadFailed = Message.of("<red>Failed to load quest progress right now.");
+        @Comment({
+                "",
+                "Message sent when /quests completed cannot load the player's completed quest count."
+        })
+        private Message completedCountLoadFailed = Message.of("<red>Failed to load completed quest count right now.");
+        @Comment({
+                "",
+                "Message sent when a progress indicator preference cannot be saved."
+        })
+        private Message indicatorUpdateFailed = Message.of("<red>Failed to update quest indicator preference.");
+        @Comment({
+                "",
+                "Admin message sent when resetting a player's daily quests fails."
+        })
+        private Message resetPlayerFailed = Message.of("<red>Failed to reset that player's quests.");
+        @Comment({
+                "",
+                "Admin message sent when completing a player's daily quests fails."
+        })
+        private Message completeDailyPlayerFailed = Message.of("<red>Failed to complete that player's daily quests.");
+        @Comment({
+                "",
+                "Admin message sent when refreshing the active global quest fails."
+        })
+        private Message globalQuestRefreshFailed = Message.of("<red>Failed to refresh the active global quest.");
+        @Comment({
+                "",
+                "Admin message sent when resetting a player's daily reroll usage fails."
+        })
+        private Message rerollsResetFailed = Message.of("<red>Failed to reset that player's rerolls.");
+        @Comment({
+                "",
+                "Admin message sent when changing shield or recovery currency balances fails."
+        })
+        private Message streakCurrencyUpdateFailed = Message.of("<red>Failed to update streak currency.");
         @Comment({
                 "",
                 "Configurable streak milestone locked text."
@@ -3391,6 +3471,14 @@ public class Config {
         messages.difficultyPickerOpenFailed = shared.difficultyPickerOpenFailed;
         messages.rerollPickerOpenFailed = shared.rerollPickerOpenFailed;
         messages.difficultySelectFailed = shared.difficultySelectFailed;
+        messages.progressLoadFailed = shared.progressLoadFailed;
+        messages.completedCountLoadFailed = shared.completedCountLoadFailed;
+        messages.indicatorUpdateFailed = shared.indicatorUpdateFailed;
+        messages.resetPlayerFailed = shared.resetPlayerFailed;
+        messages.completeDailyPlayerFailed = shared.completeDailyPlayerFailed;
+        messages.globalQuestRefreshFailed = shared.globalQuestRefreshFailed;
+        messages.rerollsResetFailed = shared.rerollsResetFailed;
+        messages.streakCurrencyUpdateFailed = shared.streakCurrencyUpdateFailed;
         messages.streakMilestoneLocked = shared.streakMilestoneLocked;
         messages.streakMilestoneCompleted = shared.streakMilestoneCompleted;
         messages.streakMilestoneProgress = shared.streakMilestoneProgress;
