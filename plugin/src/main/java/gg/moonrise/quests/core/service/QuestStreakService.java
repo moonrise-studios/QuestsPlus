@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -180,11 +181,13 @@ public class QuestStreakService {
         if (state.lostResetKey() == null || state.lostResetKey().isBlank()) {
             return 0;
         }
-        LocalDate lost = parseDate(state.lostResetKey());
-        LocalDate current = parseDate(currentResetKey);
-        if (lost == null || current == null || current.isBefore(lost)) {
+        Optional<LocalDate> lostDate = parseDate(state.lostResetKey());
+        Optional<LocalDate> currentDate = parseDate(currentResetKey);
+        if (lostDate.isEmpty() || currentDate.isEmpty() || currentDate.get().isBefore(lostDate.get())) {
             return 0;
         }
+        LocalDate lost = lostDate.get();
+        LocalDate current = currentDate.get();
         int window = configProvider.get().getStreaks().getRecoveryWindowDays();
         if (window <= 0) {
             return 0;
@@ -270,22 +273,24 @@ public class QuestStreakService {
     }
 
     private QuestStreakState evaluateMissedWindows(QuestStreakState state, String currentResetKey) {
-        LocalDate current = parseDate(currentResetKey);
-        if (current == null) {
+        Optional<LocalDate> currentDate = parseDate(currentResetKey);
+        if (currentDate.isEmpty()) {
             return state;
         }
+        LocalDate current = currentDate.get();
         if (state.lastEvaluatedResetKey() == null || state.lastEvaluatedResetKey().isBlank()) {
             return state.withLastEvaluatedResetKey(current.minusDays(resetStepDays()).toString());
         }
 
-        LocalDate cursor = parseDate(state.lastEvaluatedResetKey());
-        if (cursor == null || !cursor.isBefore(current)) {
+        Optional<LocalDate> lastEvaluated = parseDate(state.lastEvaluatedResetKey())
+                .filter(date -> date.isBefore(current));
+        if (lastEvaluated.isEmpty()) {
             return state;
         }
 
         QuestStreakState updated = state;
         int stepDays = resetStepDays();
-        cursor = cursor.plusDays(stepDays);
+        LocalDate cursor = lastEvaluated.get().plusDays(stepDays);
         while (cursor.isBefore(current)) {
             String window = cursor.toString();
             if (!window.equals(updated.lastCompletedResetKey())) {
@@ -460,11 +465,11 @@ public class QuestStreakService {
         return QuestTokens.apply(template, values);
     }
 
-    private LocalDate parseDate(String resetKey) {
+    private Optional<LocalDate> parseDate(String resetKey) {
         try {
-            return LocalDate.parse(resetKey);
+            return Optional.of(LocalDate.parse(resetKey));
         } catch (DateTimeParseException exception) {
-            return null;
+            return Optional.empty();
         }
     }
 

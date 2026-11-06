@@ -17,7 +17,6 @@ import java.util.function.Function;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * A player's quests and completion stats for one reset window, shared between the SQL thread and entity threads.
@@ -94,12 +93,12 @@ public final class PlayerQuestState {
         return false;
     }
 
-    public @Nullable GeneratedQuest questAtSlot(int slotIndex) {
+    public Optional<GeneratedQuest> questAtSlot(int slotIndex) {
         return findAtSlot(snapshot.quests(), slotIndex);
     }
 
     public boolean hasQuestAtSlot(int slotIndex) {
-        return questAtSlot(slotIndex) != null;
+        return questAtSlot(slotIndex).isPresent();
     }
 
     public void setDifficultyCompletions(@NotNull String difficultyId, int completed) {
@@ -249,9 +248,9 @@ public final class PlayerQuestState {
         }
     }
 
-    private static @Nullable GeneratedQuest findAtSlot(List<GeneratedQuest> quests, int slotIndex) {
+    private static Optional<GeneratedQuest> findAtSlot(List<GeneratedQuest> quests, int slotIndex) {
         int index = indexOfSlot(quests, slotIndex);
-        return index < 0 ? null : quests.get(index);
+        return index < 0 ? Optional.empty() : Optional.of(quests.get(index));
     }
 
     private static int indexOfSlot(List<GeneratedQuest> quests, int slotIndex) {

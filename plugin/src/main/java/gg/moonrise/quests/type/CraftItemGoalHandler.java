@@ -17,6 +17,7 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @SpringComponent
@@ -57,11 +58,12 @@ public class CraftItemGoalHandler implements GoalHandler {
             result = event.getRecipe().getResult();
         }
 
-        String itemTypeKey = QuestTypeSupport.itemTypeKey(result);
+        Optional<String> craftedItem = QuestTypeSupport.itemTypeKey(result);
         int amount = CraftProgress.amountCrafted(event, result, player);
-        if (itemTypeKey == null || amount <= 0) {
+        if (craftedItem.isEmpty() || amount <= 0) {
             return;
         }
+        String itemTypeKey = craftedItem.get();
 
         questService.progressMatching(player, type(), resetService.currentResetKey(), amount, quest ->
                 itemTypeKey.equals(quest.variables().get(QuestTypeSupport.ITEM_TYPE))

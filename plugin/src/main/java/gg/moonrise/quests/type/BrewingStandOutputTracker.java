@@ -20,7 +20,7 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.BrewerInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.ItemType;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -74,10 +74,11 @@ public class BrewingStandOutputTracker implements Listener {
         if (source.getType() != InventoryType.BREWING || pendingOutputs.estimatedSize() == 0) {
             return;
         }
-        StandKey standKey = StandKey.from(source);
-        if (standKey == null || pendingOutputs.getIfPresent(standKey) == null) {
+        Optional<StandKey> stand = StandKey.from(source);
+        if (stand.isEmpty() || pendingOutputs.getIfPresent(stand.get()) == null) {
             return;
         }
+        StandKey standKey = stand.get();
 
         // Hoppers take from the first output slot holding the moved item, so that slot loses one item.
         ItemStack moved = event.getItem();
@@ -103,10 +104,11 @@ public class BrewingStandOutputTracker implements Listener {
             return Optional.empty();
         }
 
-        StandKey standKey = StandKey.from(topInventory);
-        if (standKey == null) {
+        Optional<StandKey> stand = StandKey.from(topInventory);
+        if (stand.isEmpty()) {
             return Optional.empty();
         }
+        StandKey standKey = stand.get();
 
         // Drop credit the slot can no longer back, e.g. after a hopper emptied it and something else was put in.
         ItemStack current = event.getCurrentItem();
@@ -134,11 +136,11 @@ public class BrewingStandOutputTracker implements Listener {
         Map<Integer, PendingBrewOutput> outputs = new HashMap<>();
         for (int slot = FIRST_OUTPUT_SLOT; slot <= LAST_OUTPUT_SLOT && slot < results.size(); slot++) {
             ItemStack item = results.get(slot);
-            String itemKey = itemTypeKey(item);
-            if (itemKey == null || item.getAmount() <= 0) {
+            Optional<String> itemKey = itemTypeKey(item);
+            if (itemKey.isEmpty() || item.getAmount() <= 0) {
                 continue;
             }
-            outputs.put(slot, new PendingBrewOutput(itemKey, item.clone(), item.getAmount()));
+            outputs.put(slot, new PendingBrewOutput(itemKey.get(), item.clone(), item.getAmount()));
         }
 
         if (outputs.isEmpty()) {
@@ -230,16 +232,16 @@ public class BrewingStandOutputTracker implements Listener {
         return item.getAmount();
     }
 
-    private String itemTypeKey(ItemStack item) {
+    private Optional<String> itemTypeKey(@Nullable ItemStack item) {
         if (item == null) {
-            return null;
+            return Optional.empty();
         }
         Material material = item.getType();
         if (!material.isItem() || material.isAir()) {
-            return null;
+            return Optional.empty();
         }
-        ItemType itemType = material.asItemType();
-        return itemType == null ? null : itemType.getKey().toString();
+        return Optional.ofNullable(material.asItemType())
+                .map(itemType -> itemType.getKey().toString());
     }
 
     public record BrewClick(StandKey standKey, int slot, Inventory inventory) {
@@ -262,15 +264,15 @@ public class BrewingStandOutputTracker implements Listener {
             return new StandKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
         }
 
-        private static StandKey from(Inventory inventory) {
+        private static Optional<StandKey> from(Inventory inventory) {
             if (!(inventory instanceof BrewerInventory brewerInventory)) {
-                return null;
+                return Optional.empty();
             }
             BrewingStand holder = brewerInventory.getHolder();
             if (holder == null) {
-                return null;
+                return Optional.empty();
             }
-            return new StandKey(holder.getWorld().getUID(), holder.getX(), holder.getY(), holder.getZ());
+            return Optional.of(new StandKey(holder.getWorld().getUID(), holder.getX(), holder.getY(), holder.getZ()));
         }
     }
 

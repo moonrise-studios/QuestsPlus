@@ -14,6 +14,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.inventory.FurnaceExtractEvent;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @SpringComponent
@@ -53,10 +54,11 @@ public class SmeltItemGoalHandler implements GoalHandler {
             return;
         }
 
-        String extractedItemKey = QuestTypeSupport.itemTypeKey(event.getItemType());
-        if (extractedItemKey == null) {
+        Optional<String> extractedItem = QuestTypeSupport.itemTypeKey(event.getItemType());
+        if (extractedItem.isEmpty()) {
             return;
         }
+        String extractedItemKey = extractedItem.get();
 
         questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), amount, quest ->
                 extractedItemKey.equals(quest.variables().get(ITEM_TYPE))

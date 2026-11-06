@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @SpringComponent
@@ -45,10 +46,11 @@ public class ThrowItemGoalHandler implements GoalHandler {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerLaunchProjectile(PlayerLaunchProjectileEvent event) {
-        String itemTypeKey = QuestTypeSupport.itemTypeKey(event.getItemStack());
-        if (itemTypeKey == null) {
+        Optional<String> thrownItem = QuestTypeSupport.itemTypeKey(event.getItemStack());
+        if (thrownItem.isEmpty()) {
             return;
         }
+        String itemTypeKey = thrownItem.get();
 
         questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
                 itemTypeKey.equals(quest.variables().get(QuestTypeSupport.ITEM_TYPE))

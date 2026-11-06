@@ -49,11 +49,8 @@ public class HarvestItemGoalHandler implements GoalHandler {
     public void onBlockDropItem(BlockDropItemEvent event) {
         Map<String, Integer> droppedItems = new LinkedHashMap<>();
         for (Item item : event.getItems()) {
-            String itemTypeKey = QuestTypeSupport.itemTypeKey(item.getItemStack());
-            if (itemTypeKey == null) {
-                continue;
-            }
-            droppedItems.merge(itemTypeKey, item.getItemStack().getAmount(), Integer::sum);
+            QuestTypeSupport.itemTypeKey(item.getItemStack())
+                    .ifPresent(itemTypeKey -> droppedItems.merge(itemTypeKey, item.getItemStack().getAmount(), Integer::sum));
         }
 
         for (Map.Entry<String, Integer> entry : droppedItems.entrySet()) {

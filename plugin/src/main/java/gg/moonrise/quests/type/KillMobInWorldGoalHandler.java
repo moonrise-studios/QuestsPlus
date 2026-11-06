@@ -11,7 +11,6 @@ import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
-import org.bukkit.World;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -48,7 +47,7 @@ public class KillMobInWorldGoalHandler implements GoalHandler {
             if (value == null || value.isBlank()) {
                 throw new IllegalArgumentException(definition.id() + " has blank world value");
             }
-            if (parseWorld(value) == null) {
+            if (Bukkit.getWorld(value.trim()) == null) {
                 log.warn("QuestsPlus quest definition '{}' references world '{}' before it is loaded. Runtime matching will still use the configured world name.", definition.id(), value);
             }
         }
@@ -58,7 +57,7 @@ public class KillMobInWorldGoalHandler implements GoalHandler {
     @Override
     public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
         String mobType = variables.get(MOB_TYPE);
-        if (QuestTypeSupport.parseEntityType(mobType) == null) {
+        if (QuestTypeSupport.parseEntityType(mobType).isEmpty()) {
             throw new IllegalArgumentException(definition.id() + " generated invalid mob-type " + mobType);
         }
 
@@ -97,12 +96,5 @@ public class KillMobInWorldGoalHandler implements GoalHandler {
     public static Predicate<GeneratedQuest> killMatcher(EntityType killedType, String killedWorldName) {
         return quest -> killedType.name().equalsIgnoreCase(quest.variables().get(MOB_TYPE))
                 && killedWorldName.equals(quest.variables().get(WORLD));
-    }
-
-    private World parseWorld(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return Bukkit.getWorld(value.trim());
     }
 }

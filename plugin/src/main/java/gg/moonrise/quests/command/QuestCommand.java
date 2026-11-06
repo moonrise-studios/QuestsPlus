@@ -38,6 +38,7 @@ import org.incendo.cloud.context.CommandContext;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Slf4j(topic = "QuestsPlus")
@@ -336,11 +337,12 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        QuestType type = parseRegisteredQuestType(questType);
-        if (type == null) {
+        Optional<QuestType> parsedType = parseRegisteredQuestType(questType);
+        if (parsedType.isEmpty()) {
             configProvider.get().getMessages().getInvalidQuestType().send(source.getSender(), Placeholder.unparsed("quest_type", questType));
             return;
         }
+        QuestType type = parsedType.get();
 
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -381,11 +383,12 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        QuestType type = parseRegisteredQuestType(questType);
-        if (type == null) {
+        Optional<QuestType> parsedType = parseRegisteredQuestType(questType);
+        if (parsedType.isEmpty()) {
             configProvider.get().getGlobalQuests().getMessages().getInvalidQuestType().send(source.getSender(), Placeholder.unparsed("quest_type", questType));
             return;
         }
+        QuestType type = parsedType.get();
 
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -556,13 +559,14 @@ public class QuestCommand implements PaperCommand {
                 .toList();
     }
 
-    private QuestType parseRegisteredQuestType(String questType) {
+    private Optional<QuestType> parseRegisteredQuestType(String questType) {
+        QuestType type;
         try {
-            QuestType type = QuestType.of(questType);
-            return definitionService.handlerIfRegistered(type).isPresent() ? type : null;
+            type = QuestType.of(questType);
         } catch (IllegalArgumentException exception) {
-            return null;
+            return Optional.empty();
         }
+        return definitionService.handlerIfRegistered(type).map(handler -> type);
     }
 
     private Component typeListLine(String owner, List<QuestType> types) {

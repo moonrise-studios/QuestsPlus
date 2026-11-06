@@ -17,6 +17,7 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -54,8 +55,8 @@ class QuestResetPurchaseUITest {
         QuestResetEligibility eligibility = new QuestResetEligibility(3, 3);
         when(menuService.config()).thenReturn(config);
         when(menuService.questResetCurrencies()).thenReturn(List.of(stars, hidden));
-        when(menuService.questResetPaymentButton(stars)).thenReturn(starsButton);
-        when(menuService.questResetPaymentButton(hidden)).thenReturn(hiddenButton);
+        when(menuService.questResetPaymentButton(stars)).thenReturn(Optional.of(starsButton));
+        when(menuService.questResetPaymentButton(hidden)).thenReturn(Optional.of(hiddenButton));
         when(menuService.canShowQuestResetPayment(stars)).thenReturn(true);
         when(menuService.canShowQuestResetPayment(hidden)).thenReturn(false);
         when(menuService.buildQuestResetPurchaseItem(player, starsButton, stars, eligibility)).thenReturn(new ItemStack(Material.NETHER_STAR));

@@ -46,7 +46,6 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -101,24 +100,24 @@ class GlobalQuestServiceTest {
         GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         GlobalQuestState deletedState = activeGlobalState(player.getUniqueId());
         GlobalQuestState refreshedState = activeGlobalState(player.getUniqueId());
-        CompletableFuture<GlobalQuestState> staleLoad = new CompletableFuture<>();
+        CompletableFuture<Optional<GlobalQuestState>> staleLoad = new CompletableFuture<>();
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         when(repository.loadActive(any()))
                 .thenReturn(staleLoad)
-                .thenReturn(CompletableFuture.completedFuture(refreshedState));
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(refreshedState)));
         when(repository.deletePeriod(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(repository.updateProgressAndContribution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
 
-        CompletableFuture<GlobalQuestState> menuLoad = service.activeStateAsync();
-        assertSame(refreshedState, service.refreshActiveQuest().join());
-        staleLoad.complete(deletedState);
+        CompletableFuture<Optional<GlobalQuestState>> menuLoad = service.activeStateAsync();
+        assertSame(refreshedState, service.refreshActiveQuest().join().orElseThrow());
+        staleLoad.complete(Optional.of(deletedState));
 
-        assertSame(refreshedState, service.cachedActiveState());
-        assertSame(refreshedState, menuLoad.join());
+        assertSame(refreshedState, service.cachedActiveState().orElseThrow());
+        assertSame(refreshedState, menuLoad.join().orElseThrow());
         service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 3);
-        assertEquals(refreshedState.quest().instanceId(), service.cachedActiveState().quest().instanceId());
-        assertEquals(3, service.cachedActiveState().quest().progress());
+        assertEquals(refreshedState.quest().instanceId(), service.cachedActiveState().orElseThrow().quest().instanceId());
+        assertEquals(3, service.cachedActiveState().orElseThrow().quest().progress());
     }
 
     @Test
@@ -135,15 +134,15 @@ class GlobalQuestServiceTest {
         when(configProvider.get()).thenReturn(config);
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         when(repository.updateProgressAndContribution(any(), eq(player.getUniqueId()), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
-        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(activeState));
-        assertSame(activeState, service.activeStateAsync().join());
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(activeState)));
+        assertSame(activeState, service.activeStateAsync().join().orElseThrow());
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 5);
 
         assertEquals(1, results.size());
         assertEquals(5, results.getFirst().quest().progress());
         assertFalse(results.getFirst().completedNow());
-        GlobalQuestState updatedState = service.cachedActiveState();
+        GlobalQuestState updatedState = service.cachedActiveState().orElseThrow();
         assertEquals(5, updatedState.quest().progress());
         assertEquals(5, updatedState.contribution(player.getUniqueId()));
         verify(progressIndicatorService).showGlobal(eq(player), any(GlobalQuestState.class), eq(0));
@@ -164,11 +163,11 @@ class GlobalQuestServiceTest {
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         when(repository.updateProgressAndContribution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
         when(repository.loadActive(any()))
-                .thenReturn(CompletableFuture.completedFuture(initial))
-                .thenReturn(CompletableFuture.completedFuture(advancedByOtherThread));
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(initial)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(advancedByOtherThread)));
         CompletableFuture<Void> deletion = new CompletableFuture<>();
         when(repository.deletePeriod(any())).thenReturn(deletion);
-        assertSame(initial, service.activeStateAsync().join());
+        assertSame(initial, service.activeStateAsync().join().orElseThrow());
         AtomicBoolean otherThreadBlocked = new AtomicBoolean();
         registerProgressListener(event -> {
             // Another thread touching the global state while the listener runs must not block.
@@ -186,8 +185,8 @@ class GlobalQuestServiceTest {
         assertEquals(1, results.size());
         assertEquals(10, results.getFirst().quest().progress());
         assertTrue(results.getFirst().completedNow());
-        assertEquals(4, service.cachedActiveState().contribution(player.getUniqueId()));
-        assertEquals(6, service.cachedActiveState().contribution(otherPlayer));
+        assertEquals(4, service.cachedActiveState().orElseThrow().contribution(player.getUniqueId()));
+        assertEquals(6, service.cachedActiveState().orElseThrow().contribution(otherPlayer));
         verify(repository).updateProgressAndContribution(any(GlobalQuestState.class), eq(player.getUniqueId()), eq(4));
     }
 
@@ -203,16 +202,16 @@ class GlobalQuestServiceTest {
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         GlobalQuestState initial = activeGlobalState(player.getUniqueId());
         when(repository.loadActive(any()))
-                .thenReturn(CompletableFuture.completedFuture(initial))
-                .thenReturn(CompletableFuture.completedFuture(replacement));
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(initial)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(replacement)));
         when(repository.deletePeriod(any())).thenReturn(CompletableFuture.completedFuture(null));
-        assertSame(initial, service.activeStateAsync().join());
+        assertSame(initial, service.activeStateAsync().join().orElseThrow());
         registerProgressListener(event -> service.refreshActiveQuest().join());
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 5);
 
         assertTrue(results.isEmpty());
-        assertSame(replacement, service.cachedActiveState());
+        assertSame(replacement, service.cachedActiveState().orElseThrow());
         verify(repository, never()).updateProgressAndContribution(any(), any(), anyInt());
     }
 
@@ -225,13 +224,13 @@ class GlobalQuestServiceTest {
         GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinitions()).thenReturn(List.of());
-        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(repository.deletePeriod(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         for (int i = 0; i < 5; i++) {
             assertTrue(service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 1).isEmpty());
         }
-        assertNull(service.activeStateAsync().join());
+        assertTrue(service.activeStateAsync().join().isEmpty());
         verify(repository, times(1)).loadActive(any());
 
         when(definitionService.revision()).thenReturn(1L);
@@ -268,7 +267,7 @@ class GlobalQuestServiceTest {
                 .thenReturn(CompletableFuture.completedFuture(List.of(new GlobalQuestContribution(winnerId, 10, 1, 1))));
         when(repository.insertRewardExecution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(true));
         when(repository.markRewardsExecuted(any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         service.reload();
         assertTrue(dispatched.isEmpty());
@@ -334,7 +333,7 @@ class GlobalQuestServiceTest {
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinitions()).thenReturn(List.of());
         when(repository.loadExpiredUnrewarded(any())).thenReturn(CompletableFuture.completedFuture(List.of()));
-        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         service.reload();
 

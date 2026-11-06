@@ -22,7 +22,6 @@ import java.util.concurrent.CompletionException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,7 +55,7 @@ class GlobalQuestRepositoryDatabaseTest {
         GlobalQuestState initial = state("week-1", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(6), 0, false);
         repository.save(initial).join();
 
-        GlobalQuestState loaded = repository.loadActive("week-1").join();
+        GlobalQuestState loaded = repository.loadActive("week-1").join().orElseThrow();
 
         assertEquals(initial.quest().instanceId(), loaded.quest().instanceId());
         assertEquals(0, loaded.quest().progress());
@@ -66,7 +65,7 @@ class GlobalQuestRepositoryDatabaseTest {
         repository.updateProgressAndContribution(withProgress(initial, 12, false), playerA, 5).join();
         repository.updateProgressAndContribution(withProgress(initial, 15, false), playerA, 3).join();
 
-        loaded = repository.loadActive("week-1").join();
+        loaded = repository.loadActive("week-1").join().orElseThrow();
         assertEquals(15, loaded.quest().progress());
         // Completion is derived from the stored progress against the goal of 100.
         assertFalse(loaded.quest().completed());
@@ -105,7 +104,7 @@ class GlobalQuestRepositoryDatabaseTest {
 
         repository.deletePeriod("week-newer").join();
 
-        assertNull(repository.loadActive("week-newer").join());
+        assertTrue(repository.loadActive("week-newer").join().isEmpty());
         assertEquals(List.of(), repository.loadRankedContributions(newer.quest().instanceId()).join());
         assertEquals(List.of(), repository.loadExpiredUnrewarded(now).join().stream().map(GlobalQuestState::periodKey).toList());
     }
@@ -121,13 +120,13 @@ class GlobalQuestRepositoryDatabaseTest {
         repository.updateProgressAndContribution(withProgress(initial, 30, false), playerA, 30).join();
         repository.updateProgressAndContribution(withProgress(initial, 20, false), playerB, 20).join();
 
-        GlobalQuestState loaded = repository.loadActive("week-shared").join();
+        GlobalQuestState loaded = repository.loadActive("week-shared").join().orElseThrow();
         assertEquals(50, loaded.quest().progress());
         assertFalse(loaded.quest().completed());
 
         repository.updateProgressAndContribution(withProgress(initial, 0, false), playerA, 80).join();
 
-        loaded = repository.loadActive("week-shared").join();
+        loaded = repository.loadActive("week-shared").join().orElseThrow();
         assertEquals(100, loaded.quest().progress());
         assertTrue(loaded.quest().completed());
         assertEquals(110, loaded.contribution(playerA));
@@ -148,7 +147,7 @@ class GlobalQuestRepositoryDatabaseTest {
         CompletionException failure = assertThrows(CompletionException.class, () -> repository.deletePeriod("week-rollback").join());
 
         assertNotNull(failure.getCause());
-        GlobalQuestState loaded = repository.loadActive("week-rollback").join();
+        GlobalQuestState loaded = repository.loadActive("week-rollback").join().orElseThrow();
         assertNotNull(loaded);
         assertEquals(5, loaded.contribution(playerId));
     }

@@ -42,6 +42,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +52,7 @@ import java.util.function.Function;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -73,7 +75,7 @@ public class QuestMenuService {
         CompletableFuture<DailyMenuState> load = questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
                 .thenCompose(state -> questService.ensureQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
-                .thenCompose(state -> activeGlobalQuestAsync().thenApply(globalState -> new DailyMenuState(state, globalState)));
+                .thenCompose(state -> activeGlobalQuestAsync().thenApply(globalState -> new DailyMenuState(state, globalState.orElse(null))));
         openWhenLoaded(player, load, "open QuestsPlus menu", Config.Messages::getMenuOpenFailed,
                 menuState -> new QuestMenuUI(player, this, menuState.questState(), menuState.globalState()).open());
     }
@@ -94,11 +96,14 @@ public class QuestMenuService {
             return;
         }
         String normalizedDifficulty = QuestNames.normalize(difficultyId);
-        QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
-        if (difficulty == null || !difficulty.id().equals(normalizedDifficulty)) {
+        // difficulty() falls back to the default difficulty, so only an exact id match counts here.
+        Optional<QuestDifficulty> match = definitionService.difficulty(normalizedDifficulty)
+                .filter(candidate -> candidate.id().equals(normalizedDifficulty));
+        if (match.isEmpty()) {
             config().getMessages().getUnknownQuestDifficulty().send(player);
             return;
         }
+        QuestDifficulty difficulty = match.get();
 
         String resetKey = resetService.currentResetKey();
         openWhenLoaded(player, questService.ensurePlayerStateAsync(player, resetKey), "open QuestsPlus milestones", Config.Messages::getMilestonesOpenFailed,
@@ -135,17 +140,17 @@ public class QuestMenuService {
                         Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                         Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
                 );
-                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState().orElse(null)).open();
                 return;
             }
             if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
                 sendResetLimitReached(player, eligibility);
-                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState().orElse(null)).open();
                 return;
             }
             if (!hasAvailableQuestResetCurrency()) {
                 sendPurchaseUnavailable(player, null, eligibility);
-                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState().orElse(null)).open();
                 return;
             }
             new QuestResetPurchaseUI(player, this, eligibility).open();
@@ -163,11 +168,12 @@ public class QuestMenuService {
         CompletableFuture<PlayerQuestState> load = questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(used -> state));
         openWhenLoaded(player, load, "open QuestsPlus reroll difficulty picker", Config.Messages::getRerollPickerOpenFailed, state -> {
-            GeneratedQuest quest = state.questAtSlot(slotIndex);
-            if (quest == null) {
+            Optional<GeneratedQuest> slotQuest = state.questAtSlot(slotIndex);
+            if (slotQuest.isEmpty()) {
                 openDifficultyPicker(player, slotIndex);
                 return;
             }
+            GeneratedQuest quest = slotQuest.get();
             if (!questService.canAccessQuest(player, quest)) {
                 openDailyQuests(player);
                 return;
@@ -201,12 +207,14 @@ public class QuestMenuService {
                 );
             } else if (result.status() == QuestSelectionStatus.REQUIREMENTS_NOT_MET) {
                 String normalizedDifficulty = QuestNames.normalize(difficultyId);
-                QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
+                String requirements = definitionService.difficulty(normalizedDifficulty)
+                        .map(difficulty -> difficultyRequirementsText(difficulty, result.state()))
+                        .orElse("");
                 Component difficultyName = withoutItalics(parse(difficultyDisplayName(normalizedDifficulty)));
                 config().getMessages().getDifficultyRequirementsNotMet().send(
                         player,
                         Placeholder.unparsed("difficulty_id", normalizedDifficulty),
-                        Placeholder.unparsed("requirements", difficultyRequirementsText(difficulty, result.state())),
+                        Placeholder.unparsed("requirements", requirements),
                         Placeholder.component("difficulty", difficultyName),
                         Placeholder.component("quest_difficulty", difficultyName)
                 );
@@ -221,8 +229,7 @@ public class QuestMenuService {
                         Placeholder.unparsed("rerolls_remaining", QuestNumberFormatter.format(Math.max(0, result.rerollsLimit() - result.rerollsUsed())))
                 );
             }
-            GlobalQuestState globalState = globalQuestService.cachedActiveState();
-            new QuestMenuUI(player, this, result.state(), globalState).open();
+            new QuestMenuUI(player, this, result.state(), globalQuestService.cachedActiveState().orElse(null)).open();
         });
     }
 
@@ -279,7 +286,7 @@ public class QuestMenuService {
         return questService.canAccessSlot(player, slotIndex);
     }
 
-    public CompletableFuture<GlobalQuestState> activeGlobalQuestAsync() {
+    public CompletableFuture<Optional<GlobalQuestState>> activeGlobalQuestAsync() {
         return globalQuestService.activeStateAsync();
     }
 
@@ -313,15 +320,22 @@ public class QuestMenuService {
     }
 
     public boolean canShowQuestResetPayment(QuestCurrency currency) {
-        return currency != null && currencyEnabled(currency) && currencyAvailable(currency) && questResetPaymentButton(currency) != null;
+        return currency != null && currencyEnabled(currency) && currencyAvailable(currency) && questResetPaymentButton(currency).isPresent();
     }
 
-    public QuestCurrencyButton questResetPaymentButton(QuestCurrency currency) {
+    /**
+     * The currency's purchase button, or empty when there is no currency, it has no button, or rendering the button
+     * failed (the failure is logged).
+     */
+    public Optional<QuestCurrencyButton> questResetPaymentButton(@Nullable QuestCurrency currency) {
+        if (currency == null) {
+            return Optional.empty();
+        }
         try {
-            return currency == null ? null : currency.button();
+            return Optional.ofNullable(currency.button());
         } catch (RuntimeException exception) {
             log.warn("QuestsPlus currency {} failed to render its purchase button.", currencyKey(currency), exception);
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -346,9 +360,6 @@ public class QuestMenuService {
     }
 
     private String difficultyRequirementsText(QuestDifficulty difficulty, PlayerQuestState state) {
-        if (difficulty == null) {
-            return "";
-        }
         Map<String, Integer> unmet = difficulty.unmetRequirements(state);
         if (unmet.isEmpty()) {
             return "";
@@ -390,7 +401,9 @@ public class QuestMenuService {
         String displayName = premiumDisplayName(replaceMenuTokens(template.getName(), quest, viewer), quest);
         meta.displayName(withoutItalics(parse(displayName)));
         List<Component> lore = new ArrayList<>();
-        QuestDifficulty difficulty = definitionService.difficulty(quest.difficultyId());
+        List<String> difficultyLore = definitionService.difficulty(quest.difficultyId())
+                .map(QuestDifficulty::lore)
+                .orElse(List.of());
         for (String rawLine : template.getLore()) {
             String line = rawLine == null ? "" : rawLine;
             if (addDescriptionLore(lore, line, quest.description(), descriptionLine ->
@@ -398,7 +411,7 @@ public class QuestMenuService {
                 continue;
             }
             if ("<difficulty_lore>".equalsIgnoreCase(line.trim())) {
-                addDifficultyLore(lore, difficulty, difficultyLine -> replaceMenuTokens(difficultyLine, quest, viewer));
+                addDifficultyLore(lore, difficultyLore, difficultyLine -> replaceMenuTokens(difficultyLine, quest, viewer));
                 continue;
             }
             if ("<premium_lore>".equalsIgnoreCase(line.trim())) {
@@ -763,7 +776,8 @@ public class QuestMenuService {
                 }
                 return;
             }
-            QuestCurrency currency = resetPurchaseService.registeredCurrency(currencyKey);
+            // The purchase helpers below treat a missing currency as unavailable.
+            QuestCurrency currency = resetPurchaseService.registeredCurrency(currencyKey).orElse(null);
             if (!canShowQuestResetPayment(currency) || !chargeCurrency(player, currency)) {
                 try {
                     sendPurchaseUnavailable(player, currency, eligibility);
@@ -947,11 +961,8 @@ public class QuestMenuService {
         return built;
     }
 
-    private void addDifficultyLore(List<Component> lore, QuestDifficulty difficulty, java.util.function.Function<String, String> tokens) {
-        if (difficulty == null || difficulty.lore() == null || difficulty.lore().isEmpty()) {
-            return;
-        }
-        for (String line : difficulty.lore()) {
+    private void addDifficultyLore(List<Component> lore, List<String> difficultyLore, java.util.function.Function<String, String> tokens) {
+        for (String line : difficultyLore) {
             lore.add(withoutItalics(parse(tokens.apply(line))));
         }
     }
@@ -1033,8 +1044,9 @@ public class QuestMenuService {
     }
 
     private String difficultyDisplayName(String difficultyId) {
-        QuestDifficulty difficulty = definitionService.difficulty(difficultyId);
-        return difficulty == null ? difficultyId : difficulty.displayName();
+        return definitionService.difficulty(difficultyId)
+                .map(QuestDifficulty::displayName)
+                .orElse(difficultyId);
     }
 
     private Component parse(String input) {

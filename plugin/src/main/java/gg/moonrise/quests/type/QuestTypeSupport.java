@@ -13,10 +13,12 @@ import org.bukkit.block.BlockType;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ItemType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class QuestTypeSupport {
@@ -48,7 +50,7 @@ public final class QuestTypeSupport {
     public static void validateBlockTypeAndGoalAmount(QuestDefinition definition) {
         requireVariables(definition, BLOCK_TYPE, GOAL_AMOUNT);
         for (String value : definition.selectorValues().get(BLOCK_TYPE)) {
-            if (parseBlockType(value) == null) {
+            if (parseBlockType(value).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid block-type value " + value);
             }
         }
@@ -58,7 +60,7 @@ public final class QuestTypeSupport {
     public static void validateItemTypeAndGoalAmount(QuestDefinition definition) {
         requireVariables(definition, ITEM_TYPE, GOAL_AMOUNT);
         for (String value : definition.selectorValues().get(ITEM_TYPE)) {
-            if (parseItemType(value) == null) {
+            if (parseItemType(value).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid item-type value " + value);
             }
         }
@@ -81,8 +83,7 @@ public final class QuestTypeSupport {
 
     public static void validateMobTypes(QuestDefinition definition) {
         for (String value : definition.selectorValues().get(MOB_TYPE)) {
-            EntityType entityType = parseEntityType(value);
-            if (entityType == null || !entityType.isAlive()) {
+            if (parseEntityType(value).filter(EntityType::isAlive).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid mob-type value " + value);
             }
         }
@@ -103,10 +104,8 @@ public final class QuestTypeSupport {
     }
 
     public static GeneratedQuest createBlockTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        BlockType blockType = parseBlockType(variables.get(BLOCK_TYPE));
-        if (blockType == null) {
-            throw new IllegalArgumentException(definition.id() + " generated invalid block-type " + variables.get(BLOCK_TYPE));
-        }
+        BlockType blockType = parseBlockType(variables.get(BLOCK_TYPE))
+                .orElseThrow(() -> new IllegalArgumentException(definition.id() + " generated invalid block-type " + variables.get(BLOCK_TYPE)));
 
         Map<String, String> canonicalVariables = new LinkedHashMap<>(variables);
         canonicalVariables.put(BLOCK_TYPE, blockType.getKey().toString());
@@ -115,10 +114,8 @@ public final class QuestTypeSupport {
     }
 
     public static GeneratedQuest createItemTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        ItemType itemType = parseItemType(variables.get(ITEM_TYPE));
-        if (itemType == null) {
-            throw new IllegalArgumentException(definition.id() + " generated invalid item-type " + variables.get(ITEM_TYPE));
-        }
+        ItemType itemType = parseItemType(variables.get(ITEM_TYPE))
+                .orElseThrow(() -> new IllegalArgumentException(definition.id() + " generated invalid item-type " + variables.get(ITEM_TYPE)));
 
         Map<String, String> canonicalVariables = new LinkedHashMap<>(variables);
         canonicalVariables.put(ITEM_TYPE, itemType.getKey().toString());
@@ -173,64 +170,64 @@ public final class QuestTypeSupport {
         }
     }
 
-    public static BlockType parseBlockType(String value) {
+    public static Optional<BlockType> parseBlockType(@Nullable String value) {
         if (value == null || value.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return RegistryAccess.registryAccess()
+            return Optional.ofNullable(RegistryAccess.registryAccess()
                     .getRegistry(RegistryKey.BLOCK)
-                    .get(normalizeKey(value));
+                    .get(normalizeKey(value)));
         } catch (InvalidKeyException exception) {
-            return null;
+            return Optional.empty();
         }
     }
 
-    public static ItemType parseItemType(String value) {
+    public static Optional<ItemType> parseItemType(@Nullable String value) {
         if (value == null || value.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return RegistryAccess.registryAccess()
+            return Optional.ofNullable(RegistryAccess.registryAccess()
                     .getRegistry(RegistryKey.ITEM)
-                    .get(normalizeKey(value));
+                    .get(normalizeKey(value)));
         } catch (InvalidKeyException exception) {
-            return null;
+            return Optional.empty();
         }
     }
 
-    public static EntityType parseEntityType(String value) {
+    public static Optional<EntityType> parseEntityType(@Nullable String value) {
         if (value == null || value.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return EntityType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+            return Optional.of(EntityType.valueOf(value.trim().toUpperCase(Locale.ROOT)));
         } catch (IllegalArgumentException exception) {
-            return null;
+            return Optional.empty();
         }
     }
 
-    public static String blockTypeKey(Material material) {
+    public static Optional<String> blockTypeKey(@Nullable Material material) {
         if (material == null || !material.isBlock()) {
-            return null;
+            return Optional.empty();
         }
-        BlockType blockType = material.asBlockType();
-        return blockType == null ? null : blockType.getKey().toString();
+        return Optional.ofNullable(material.asBlockType())
+                .map(blockType -> blockType.getKey().toString());
     }
 
-    public static String itemTypeKey(ItemStack itemStack) {
+    public static Optional<String> itemTypeKey(@Nullable ItemStack itemStack) {
         if (itemStack == null || itemStack.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
         return itemTypeKey(itemStack.getType());
     }
 
-    public static String itemTypeKey(Material material) {
+    public static Optional<String> itemTypeKey(@Nullable Material material) {
         if (material == null || !material.isItem()) {
-            return null;
+            return Optional.empty();
         }
-        ItemType itemType = material.asItemType();
-        return itemType == null ? null : itemType.getKey().toString();
+        return Optional.ofNullable(material.asItemType())
+                .map(itemType -> itemType.getKey().toString());
     }
 
     private static Map<String, String> variablePlaceholders(GeneratedQuest quest) {

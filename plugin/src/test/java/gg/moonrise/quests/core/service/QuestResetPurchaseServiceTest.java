@@ -10,11 +10,11 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -33,7 +33,7 @@ class QuestResetPurchaseServiceTest {
         service.registerBuiltInCurrency(builtIn);
 
         assertEquals(List.of(QuestCurrencies.VAULT), service.registeredCurrencyKeys());
-        assertEquals(builtIn, service.registeredCurrency(QuestCurrencies.VAULT));
+        assertEquals(Optional.of(builtIn), service.registeredCurrency(QuestCurrencies.VAULT));
 
         service.unregisterCurrency(owner, QuestCurrencies.PLAYER_POINTS);
         service.unregisterCurrency(owner, QuestCurrencies.VAULT);
@@ -52,7 +52,7 @@ class QuestResetPurchaseServiceTest {
         TestCurrency currency = new TestCurrency(QuestCurrencyKey.of("stars"));
 
         service.registerCurrency(owner, currency);
-        QuestCurrency registered = service.registeredCurrency(currency.key());
+        QuestCurrency registered = service.registeredCurrency(currency.key()).orElseThrow();
 
         assertEquals(List.of(currency.key()), service.registeredCurrencyKeys());
         assertEquals(currency, registered);
@@ -65,7 +65,7 @@ class QuestResetPurchaseServiceTest {
 
         service.unregisterCurrency(owner, currency.key());
 
-        assertNull(service.registeredCurrency(currency.key()));
+        assertTrue(service.registeredCurrency(currency.key()).isEmpty());
         assertFalse(service.registeredCurrencies().contains(currency));
     }
 

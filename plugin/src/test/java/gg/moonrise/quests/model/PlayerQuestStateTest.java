@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,7 +53,7 @@ class PlayerQuestStateTest {
         assertFalse(state.putQuestIfSlotEmpty(competing));
         assertTrue(state.putQuestIfSlotEmpty(fresh));
         assertEquals(List.of(0, 1), state.quests().stream().map(GeneratedQuest::slotIndex).toList());
-        assertEquals(fresh, state.questAtSlot(0));
+        assertEquals(Optional.of(fresh), state.questAtSlot(0));
     }
 
     @Test
@@ -65,11 +64,11 @@ class PlayerQuestStateTest {
         state.replaceQuestAtSlot(0, rerolled);
 
         assertFalse(state.replaceQuestIfPresent(original.withProgress(3, false)));
-        assertEquals(rerolled, state.questAtSlot(0));
+        assertEquals(Optional.of(rerolled), state.questAtSlot(0));
         assertTrue(state.replaceQuestIfPresent(rerolled.withProgress(3, false)));
-        assertEquals(3, state.questAtSlot(0).progress());
+        assertEquals(3, state.questAtSlot(0).orElseThrow().progress());
         assertTrue(state.removeQuest(rerolled.instanceId()));
-        assertNull(state.questAtSlot(0));
+        assertTrue(state.questAtSlot(0).isEmpty());
     }
 
     @Test
@@ -85,7 +84,7 @@ class PlayerQuestStateTest {
         assertEquals(1, applied.get());
         assertEquals(quest, change.previous());
         assertEquals(4, change.updated().progress());
-        assertEquals(4, state.questAtSlot(0).progress());
+        assertEquals(4, state.questAtSlot(0).orElseThrow().progress());
     }
 
     @Test
@@ -94,11 +93,11 @@ class PlayerQuestStateTest {
         PlayerQuestState state = new PlayerQuestState(UUID.randomUUID(), "daily", List.of(quest));
 
         state.updateQuest(quest.instanceId(), current -> Optional.of(current.withProgress(GOAL, true)), change -> {
-            assertTrue(state.questAtSlot(0).completed());
+            assertTrue(state.questAtSlot(0).orElseThrow().completed());
             state.setDifficultyCompletions("easy", 1);
         });
 
-        assertTrue(state.questAtSlot(0).completed());
+        assertTrue(state.questAtSlot(0).orElseThrow().completed());
         assertEquals(1, state.difficultyCompletions("easy"));
     }
 

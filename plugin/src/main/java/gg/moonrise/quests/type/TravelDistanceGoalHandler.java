@@ -5,7 +5,6 @@ import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
-import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
@@ -65,8 +64,10 @@ public class TravelDistanceGoalHandler implements GoalHandler {
         }
 
         String resetKey = resetService.currentResetKey();
-        PlayerQuestState state = questService.cachedState(player.getUniqueId(), resetKey);
-        if ((state == null || !state.hasActiveQuest(type())) && !questService.hasCachedGlobalQuest(type())) {
+        boolean personalQuestActive = questService.cachedState(player.getUniqueId(), resetKey)
+                .filter(state -> state.hasActiveQuest(type()))
+                .isPresent();
+        if (!personalQuestActive && !questService.hasCachedGlobalQuest(type())) {
             return;
         }
 

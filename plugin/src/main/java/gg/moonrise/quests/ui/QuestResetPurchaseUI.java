@@ -10,6 +10,7 @@ import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.util.Optional;
 
 public class QuestResetPurchaseUI extends ChestMenu {
 
@@ -41,13 +42,11 @@ public class QuestResetPurchaseUI extends ChestMenu {
             QuestCurrency currency,
             QuestResetEligibility eligibility
     ) {
-        QuestCurrencyButton button = menuService.questResetPaymentButton(currency);
-        if (button == null) {
+        Optional<QuestCurrencyButton> paymentButton = menuService.questResetPaymentButton(currency);
+        if (paymentButton.isEmpty() || !menuService.canShowQuestResetPayment(currency)) {
             return;
         }
-        if (!menuService.canShowQuestResetPayment(currency)) {
-            return;
-        }
+        QuestCurrencyButton button = paymentButton.get();
         menuSlots.add(button.slot(), Button.builder()
                 .item(viewer -> menuService.buildQuestResetPurchaseItem(viewer, button, currency, eligibility))
                 .action((guiButton, clicker, event) -> menuService.applyQuestResetPurchase(clicker, currency.key()))

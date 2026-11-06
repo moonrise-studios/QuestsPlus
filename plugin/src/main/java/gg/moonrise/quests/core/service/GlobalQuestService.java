@@ -62,7 +62,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
      */
     private final Object stateLock = new Object();
     private volatile GlobalQuestState activeState;
-    private volatile CompletableFuture<GlobalQuestState> activeStateLoad;
+    private volatile CompletableFuture<Optional<GlobalQuestState>> activeStateLoad;
     private volatile UnavailablePeriod unavailablePeriod;
     private long stateGeneration;
     private volatile ScheduledTask rolloverTask;
@@ -98,22 +98,25 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         }
     }
 
-    public CompletableFuture<GlobalQuestState> activeStateAsync() {
-        GlobalQuestState cached = activeState;
-        Period period = currentPeriod();
-        if (cached != null && cached.periodKey().equals(period.key())) {
+    public CompletableFuture<Optional<GlobalQuestState>> activeStateAsync() {
+        Optional<GlobalQuestState> cached = cachedActiveState();
+        if (cached.isPresent()) {
             return CompletableFuture.completedFuture(cached);
         }
         return ensureActiveStateAsync();
     }
 
-    public GlobalQuestState cachedActiveState() {
-        GlobalQuestState cached = activeState;
-        Period period = currentPeriod();
-        return cached != null && cached.periodKey().equals(period.key()) ? cached : null;
+    /**
+     * The cached state of the current period's global quest, or empty when it is not loaded yet, belongs to an
+     * earlier period, or no global quest could be generated.
+     */
+    public Optional<GlobalQuestState> cachedActiveState() {
+        String periodKey = currentPeriod().key();
+        return Optional.ofNullable(activeState)
+                .filter(cached -> cached.periodKey().equals(periodKey));
     }
 
-    public CompletableFuture<GlobalQuestState> refreshActiveQuest() {
+    public CompletableFuture<Optional<GlobalQuestState>> refreshActiveQuest() {
         Period period = currentPeriod();
         synchronized (stateLock) {
             // Loads and progress writes that started before the refresh see a new generation and are dropped.
@@ -125,16 +128,15 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return repository.deletePeriod(period.key())
                 .thenCompose(unused -> ensureActiveStateAsync())
                 .thenApply(state -> {
-                    if (state != null) {
-                        broadcastStarted(state);
-                    }
+                    state.ifPresent(this::broadcastStarted);
                     return state;
                 });
     }
 
     public String timeRemainingPlaceholder() {
-        GlobalQuestState state = cachedActiveState();
-        LocalDateTime end = state == null ? currentPeriod().endsAt() : state.endsAt();
+        LocalDateTime end = cachedActiveState()
+                .map(GlobalQuestState::endsAt)
+                .orElseGet(() -> currentPeriod().endsAt());
         return QuestSchedules.formatRemaining("Ends in ", QuestSchedules.until(clock.now(), end), true);
     }
 
@@ -146,12 +148,12 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         if (amount <= 0) {
             return List.of();
         }
-        GlobalQuestState state = cachedActiveState();
-        if (state == null) {
+        Optional<GlobalQuestState> state = cachedActiveState();
+        if (state.isEmpty()) {
             ensureActiveStateAsync();
             return List.of();
         }
-        GeneratedQuest quest = state.quest();
+        GeneratedQuest quest = state.get().quest();
         if (quest.completed() || !quest.type().equals(type) || !matcher.test(quest)) {
             return List.of();
         }
@@ -169,12 +171,14 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         Map<UUID, Integer> contributions;
         GlobalQuestState updatedState;
         synchronized (stateLock) {
-            GlobalQuestState current = cachedActiveState();
             // The quest may have been refreshed, completed or advanced while listeners ran: only credit
             // the same quest instance, clamped against its current progress.
-            if (current == null || !current.quest().instanceId().equals(quest.instanceId()) || current.quest().completed()) {
+            Optional<GlobalQuestState> latest = cachedActiveState()
+                    .filter(candidate -> candidate.quest().instanceId().equals(quest.instanceId()) && !candidate.quest().completed());
+            if (latest.isEmpty()) {
                 return List.of();
             }
+            GlobalQuestState current = latest.get();
             int remaining = current.quest().goalAmount() - current.quest().progress();
             credited = Math.clamp(approvedAmount, 0, Math.max(0, remaining));
             if (credited <= 0) {
@@ -225,25 +229,25 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return QuestTokens.apply(template, values);
     }
 
-    private CompletableFuture<GlobalQuestState> ensureActiveStateAsync() {
+    private CompletableFuture<Optional<GlobalQuestState>> ensureActiveStateAsync() {
         Period period = currentPeriod();
         GlobalQuestState cached = activeState;
         if (cached != null && cached.periodKey().equals(period.key())) {
-            return CompletableFuture.completedFuture(cached);
+            return CompletableFuture.completedFuture(Optional.of(cached));
         }
         if (isUnavailable(period)) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(Optional.empty());
         }
-        CompletableFuture<GlobalQuestState> loading = activeStateLoad;
+        CompletableFuture<Optional<GlobalQuestState>> loading = activeStateLoad;
         if (loading != null) {
             return loading;
         }
-        CompletableFuture<GlobalQuestState> created = new CompletableFuture<>();
+        CompletableFuture<Optional<GlobalQuestState>> created = new CompletableFuture<>();
         long generation;
         synchronized (stateLock) {
             cached = activeState;
             if (cached != null && cached.periodKey().equals(period.key())) {
-                return CompletableFuture.completedFuture(cached);
+                return CompletableFuture.completedFuture(Optional.of(cached));
             }
             loading = activeStateLoad;
             if (loading != null) {
@@ -267,17 +271,17 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return created;
     }
 
-    private CompletableFuture<GlobalQuestState> loadOrCreateActiveState(Period period, long generation) {
+    private CompletableFuture<Optional<GlobalQuestState>> loadOrCreateActiveState(Period period, long generation) {
         return repository.loadActive(period.key())
                 .thenCompose(loaded -> {
-                    if (loaded != null) {
-                        return CompletableFuture.completedFuture(publishLoadedState(generation, loaded));
+                    if (loaded.isPresent()) {
+                        return CompletableFuture.completedFuture(publishLoadedState(generation, loaded.get()));
                     }
                     long definitionsRevision = definitionService.revision();
                     Optional<GlobalQuestState> generated = generate(period);
                     if (generated.isEmpty()) {
                         markUnavailable(generation, period, definitionsRevision);
-                        return CompletableFuture.completedFuture(null);
+                        return CompletableFuture.completedFuture(Optional.empty());
                     }
                     return repository.save(generated.get()).thenApply(saved -> publishLoadedState(generation, saved));
                 });
@@ -287,13 +291,13 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
      * Publishes a state loaded by a load that started at {@code generation}, unless the cache was
      * refreshed or replaced in the meantime; then the newer cached state wins and is returned instead.
      */
-    private GlobalQuestState publishLoadedState(long generation, GlobalQuestState loaded) {
+    private Optional<GlobalQuestState> publishLoadedState(long generation, GlobalQuestState loaded) {
         synchronized (stateLock) {
             if (generation != stateGeneration) {
                 return cachedActiveState();
             }
             activeState = loaded;
-            return loaded;
+            return Optional.of(loaded);
         }
     }
 
@@ -499,11 +503,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         repository.loadExpiredUnrewarded(clock.now().toLocalDateTime())
                 .thenCompose(this::finalizeExpiredStates)
                 .thenCompose(unused -> ensureActiveStateAsync())
-                .thenAccept(state -> {
-                    if (state != null) {
-                        broadcastStarted(state);
-                    }
-                });
+                .thenAccept(state -> state.ifPresent(this::broadcastStarted));
         scheduleNextRollover();
     }
 

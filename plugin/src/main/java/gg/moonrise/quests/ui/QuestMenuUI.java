@@ -9,12 +9,14 @@ import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.model.PlayerQuestState;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 public class QuestMenuUI extends ChestMenu {
 
-    public QuestMenuUI(Player player, QuestMenuService menuService, PlayerQuestState state, GlobalQuestState globalState) {
+    public QuestMenuUI(Player player, QuestMenuService menuService, PlayerQuestState state, @Nullable GlobalQuestState globalState) {
         this(player, menuService, menuService.menuLayout(), state, globalState);
     }
 
@@ -22,7 +24,7 @@ public class QuestMenuUI extends ChestMenu {
      * Places the quests using the same {@link QuestMenuLayout} that decides slot access, so the menu and the
      * service agree on which inventory slots hold quests.
      */
-    private QuestMenuUI(Player player, QuestMenuService menuService, QuestMenuLayout layout, PlayerQuestState state, GlobalQuestState globalState) {
+    private QuestMenuUI(Player player, QuestMenuService menuService, QuestMenuLayout layout, PlayerQuestState state, @Nullable GlobalQuestState globalState) {
         super(player, menuService.config().getMenu().getTitle(), layout.rows());
 
         Config.QuestMenu menu = menuService.config().getMenu();
@@ -36,7 +38,7 @@ public class QuestMenuUI extends ChestMenu {
 
         int questSlotCount = layout.totalVisibleQuestSlots();
         for (int slotIndex = 0; slotIndex < questSlotCount; slotIndex++) {
-            GeneratedQuest quest = state.questAtSlot(slotIndex);
+            Optional<GeneratedQuest> slotQuest = state.questAtSlot(slotIndex);
             int inventorySlot = contentSlots.get(slotIndex);
             int dailySlot = slotIndex;
             if (!menuService.canAccessSlot(player, dailySlot)) {
@@ -45,13 +47,14 @@ public class QuestMenuUI extends ChestMenu {
                         .build());
                 continue;
             }
-            if (quest == null) {
+            if (slotQuest.isEmpty()) {
                 menuSlots.add(inventorySlot, Button.builder()
                         .item(viewer -> menuService.buildEmptyQuestSlotItem(dailySlot))
                         .action((button, clicker, event) -> menuService.openDifficultyPicker(clicker, dailySlot))
                         .build());
                 continue;
             }
+            GeneratedQuest quest = slotQuest.get();
             menuSlots.add(inventorySlot, Button.builder()
                     .item(viewer -> menuService.buildQuestItem(viewer, quest))
                     .action((button, clicker, event) -> menuService.openRerollDifficultyPicker(clicker, dailySlot))

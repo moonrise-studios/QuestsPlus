@@ -15,6 +15,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Optional;
+
 @Slf4j(topic = "QuestsPlus")
 @RequiredArgsConstructor
 public class PlayerPointsCurrency implements QuestCurrency, Enableable {
@@ -81,7 +83,7 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
 
     @Override
     public boolean isAvailable() {
-        return points != null || resolvePoints() != null;
+        return points != null || resolvePoints().isPresent();
     }
 
     @Override
@@ -100,13 +102,13 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
         return (int) Math.min(Integer.MAX_VALUE, Math.round(amount));
     }
 
-    private PlayerPointsAPI resolvePoints() {
+    private Optional<PlayerPointsAPI> resolvePoints() {
         Plugin plugin = Bukkit.getPluginManager().getPlugin("PlayerPoints");
         if (!(plugin instanceof PlayerPoints playerPoints) || !plugin.isEnabled()) {
-            return null;
+            return Optional.empty();
         }
         points = playerPoints.getAPI();
-        return points;
+        return Optional.ofNullable(points);
     }
 
     private Config.PlayerPointsCurrency config() {

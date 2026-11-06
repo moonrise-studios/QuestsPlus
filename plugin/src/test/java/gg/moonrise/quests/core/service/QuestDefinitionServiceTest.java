@@ -68,8 +68,16 @@ class QuestDefinitionServiceTest {
         assertTrue(service.definition("alpha-quest").isEmpty());
         assertEquals("bravo-quest", service.definition("bravo-quest").map(QuestDefinition::id).orElseThrow());
         assertEquals(List.of("bravo-quest"), service.definitions().stream().map(QuestDefinition::id).toList());
-        assertEquals("hard", service.difficulty("hard").id());
-        assertEquals("easy", service.difficulty("unknown").id());
+        assertEquals("hard", service.difficulty("hard").orElseThrow().id());
+        assertEquals("easy", service.difficulty("unknown").orElseThrow().id());
+    }
+
+    @Test
+    public void difficultyIsEmptyBeforeDifficultiesAreLoaded() {
+        QuestDefinitionService service = new QuestDefinitionService(mock(ConfigProvider.class), List.of());
+
+        assertTrue(service.difficulty("easy").isEmpty());
+        assertTrue(service.difficulty("unknown").isEmpty());
     }
 
     @Test

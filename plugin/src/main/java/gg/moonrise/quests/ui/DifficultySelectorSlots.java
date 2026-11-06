@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
@@ -53,11 +54,10 @@ public final class DifficultySelectorSlots {
                 continue;
             }
 
-            Integer fallback = nextFallback(fallbacks, totalSlots, occupiedSlots);
-            if (fallback != null) {
+            nextFallback(fallbacks, totalSlots, occupiedSlots).ifPresent(fallback -> {
                 resolved.put(difficulty, fallback);
                 occupiedSlots.add(fallback);
-            }
+            });
         }
 
         return resolved;
@@ -67,12 +67,12 @@ public final class DifficultySelectorSlots {
         return slot >= 0 && slot < totalSlots && !occupiedSlots.contains(slot);
     }
 
-    private static Integer nextFallback(List<Integer> fallbackSlots, int totalSlots, Set<Integer> occupiedSlots) {
+    private static OptionalInt nextFallback(List<Integer> fallbackSlots, int totalSlots, Set<Integer> occupiedSlots) {
         for (Integer fallbackSlot : fallbackSlots) {
             if (fallbackSlot != null && isAvailable(fallbackSlot, totalSlots, occupiedSlots)) {
-                return fallbackSlot;
+                return OptionalInt.of(fallbackSlot);
             }
         }
-        return null;
+        return OptionalInt.empty();
     }
 }

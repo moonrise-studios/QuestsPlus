@@ -13,10 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,11 +40,11 @@ class QuestApiServiceCurrencyTest {
         api.registerCurrency(owner, currency);
 
         assertEquals(List.of(currency.key()), api.registeredCurrencies());
-        assertEquals(currency, resetPurchaseService.registeredCurrency(currency.key()));
+        assertEquals(Optional.of(currency), resetPurchaseService.registeredCurrency(currency.key()));
 
         api.unregisterCurrency(owner, currency.key());
 
-        assertNull(resetPurchaseService.registeredCurrency(currency.key()));
+        assertTrue(resetPurchaseService.registeredCurrency(currency.key()).isEmpty());
     }
 
     @Test
@@ -67,7 +68,7 @@ class QuestApiServiceCurrencyTest {
         api.onEnable();
 
         assertEquals(List.of(), api.registeredCurrencies());
-        assertNull(resetPurchaseService.registeredCurrency(QuestCurrencies.VAULT));
+        assertTrue(resetPurchaseService.registeredCurrency(QuestCurrencies.VAULT).isEmpty());
     }
 
     private static QuestApiService api(QuestResetPurchaseService resetPurchaseService) {

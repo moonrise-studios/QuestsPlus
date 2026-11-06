@@ -128,7 +128,7 @@ class QuestServiceTest {
         CompletableFuture<?> selection = service.selectQuestDifficulty(player, RESET_KEY, 0, "easy");
 
         assertThrows(CompletionException.class, selection::join);
-        PlayerQuestState state = service.cachedState(playerId, RESET_KEY);
+        PlayerQuestState state = service.cachedState(playerId, RESET_KEY).orElseThrow();
         assertFalse(state.hasQuestAtSlot(0));
     }
 
@@ -145,7 +145,7 @@ class QuestServiceTest {
 
         service.selectQuestDifficulty(player, RESET_KEY, 0, "easy").join();
 
-        assertEquals(generated.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+        assertEquals(generated.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
     }
 
     @Test
@@ -163,7 +163,7 @@ class QuestServiceTest {
 
         PlayerQuestState loaded = loading.join();
         assertTrue(loaded.quests().isEmpty());
-        assertTrue(service.cachedState(playerId, RESET_KEY).quests().isEmpty());
+        assertTrue(service.cachedState(playerId, RESET_KEY).orElseThrow().quests().isEmpty());
         verify(repository, times(2)).loadQuests(playerId, RESET_KEY);
     }
 
@@ -185,7 +185,7 @@ class QuestServiceTest {
         freshLoad.complete(List.of(fresh));
         staleLoad.complete(List.of(quest(0, 4, false)));
         assertEquals(List.of(fresh), afterReset.join().quests());
-        assertEquals(List.of(fresh), service.cachedState(playerId, RESET_KEY).quests());
+        assertEquals(List.of(fresh), service.cachedState(playerId, RESET_KEY).orElseThrow().quests());
     }
 
     @Test
@@ -201,7 +201,7 @@ class QuestServiceTest {
         pending.complete(List.of(quest));
 
         assertSame(first.join(), second.join());
-        assertSame(first.join(), service.cachedState(playerId, RESET_KEY));
+        assertSame(first.join(), service.cachedState(playerId, RESET_KEY).orElseThrow());
         verify(repository, times(1)).loadQuests(playerId, RESET_KEY);
     }
 
@@ -216,7 +216,7 @@ class QuestServiceTest {
         assertEquals(QuestSelectionStatus.NO_REROLLS, result.status());
         assertEquals(1, result.rerollsUsed());
         assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
-        assertEquals(existing.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+        assertEquals(existing.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
     }
 
     @Test
@@ -235,7 +235,7 @@ class QuestServiceTest {
         QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
 
         assertEquals(QuestSelectionStatus.INVALID, result.status());
-        assertEquals(firstReplacement.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+        assertEquals(firstReplacement.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
         verify(repository, times(1)).loadQuests(playerId, RESET_KEY);
     }
 
@@ -249,7 +249,7 @@ class QuestServiceTest {
 
         assertEquals(QuestSelectionStatus.REROLLED, result.status());
         assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
-        assertEquals(replacement.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+        assertEquals(replacement.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
     }
 
     @Test
@@ -268,7 +268,7 @@ class QuestServiceTest {
         verify(repository).incrementCompletionStats(eq(playerId), eq("easy"), any());
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
         verify(streakService, never()).evaluateQuestCompletion(any(), any(), any());
-        assertEquals(1, service.cachedState(playerId, RESET_KEY).difficultyCompletions("easy"));
+        assertEquals(1, service.cachedState(playerId, RESET_KEY).orElseThrow().difficultyCompletions("easy"));
     }
 
     @Test
@@ -362,7 +362,7 @@ class QuestServiceTest {
 
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 100"));
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "notify " + playerId + " 1"));
-        assertTrue(service.cachedState(playerId, RESET_KEY).hasExecutedMilestone("easy", 1));
+        assertTrue(service.cachedState(playerId, RESET_KEY).orElseThrow().hasExecutedMilestone("easy", 1));
     }
 
     @Test
@@ -398,7 +398,7 @@ class QuestServiceTest {
         assertTrue(otherThreadUpdated.get());
         assertTrue(state.hasExecutedMilestone("easy", 1));
         assertEquals(1, results.size());
-        assertEquals(5, state.questAtSlot(0).progress());
+        assertEquals(5, state.questAtSlot(0).orElseThrow().progress());
     }
 
     @Test
@@ -413,7 +413,7 @@ class QuestServiceTest {
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
 
-        assertEquals(10, state.questAtSlot(0).progress());
+        assertEquals(10, state.questAtSlot(0).orElseThrow().progress());
         assertTrue(results.getFirst().completedNow());
         verify(repository).updateProgress(quest.withProgress(10, true));
     }
@@ -431,7 +431,7 @@ class QuestServiceTest {
         List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
 
         assertTrue(results.isEmpty());
-        assertEquals(0, state.questAtSlot(0).progress());
+        assertEquals(0, state.questAtSlot(0).orElseThrow().progress());
         verify(repository, never()).updateProgress(any());
     }
 
@@ -449,7 +449,7 @@ class QuestServiceTest {
         stubLoad(List.of(quest));
         service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
         when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
-        when(definitionService.difficulty("easy")).thenReturn(new QuestDifficulty("easy", "Easy", 0, 0, Map.of(), List.of("give <player> diamond"), List.of(), List.of()));
+        when(definitionService.difficulty("easy")).thenReturn(Optional.of(new QuestDifficulty("easy", "Easy", 0, 0, Map.of(), List.of("give <player> diamond"), List.of(), List.of())));
         when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(true));
         when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
                 .thenReturn(CompletableFuture.completedFuture(new QuestCompletionStats(1, 1, List.of())));

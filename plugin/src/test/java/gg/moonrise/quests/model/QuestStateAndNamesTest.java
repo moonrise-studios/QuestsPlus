@@ -13,13 +13,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class QuestStateAndNamesTest {
@@ -113,13 +113,13 @@ class QuestStateAndNamesTest {
         assertEquals(3, state.questsCompleted());
         assertTrue(state.hasActiveQuest(QuestType.of("BREAK_BLOCK")));
         assertTrue(state.hasQuestAtSlot(1));
-        assertNull(state.questAtSlot(3));
+        assertTrue(state.questAtSlot(3).isEmpty());
         assertTrue(state.hasExecutedMilestone("easy", 1));
 
         GeneratedQuest replacement = quest(1, "TRAVEL", true);
         state.replaceQuestAtSlot(1, replacement);
 
-        assertEquals(replacement, state.questAtSlot(1));
+        assertEquals(Optional.of(replacement), state.questAtSlot(1));
         assertFalse(state.hasActiveQuest(QuestType.of("KILL_MOB")));
     }
 

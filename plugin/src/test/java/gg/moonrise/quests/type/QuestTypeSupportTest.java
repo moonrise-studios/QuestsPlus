@@ -11,11 +11,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 class QuestTypeSupportTest {
@@ -131,10 +132,10 @@ class QuestTypeSupportTest {
 
     @Test
     public void parseEntityTypeIsCaseInsensitiveAndNullSafe() {
-        assertEquals(EntityType.ZOMBIE, QuestTypeSupport.parseEntityType(" zombie "));
-        assertNull(QuestTypeSupport.parseEntityType("not-a-mob"));
-        assertNull(QuestTypeSupport.parseEntityType(" "));
-        assertNull(QuestTypeSupport.parseEntityType(null));
+        assertEquals(Optional.of(EntityType.ZOMBIE), QuestTypeSupport.parseEntityType(" zombie "));
+        assertTrue(QuestTypeSupport.parseEntityType("not-a-mob").isEmpty());
+        assertTrue(QuestTypeSupport.parseEntityType(" ").isEmpty());
+        assertTrue(QuestTypeSupport.parseEntityType(null).isEmpty());
     }
 
     private static void assertMessage(String expected, Runnable action) {

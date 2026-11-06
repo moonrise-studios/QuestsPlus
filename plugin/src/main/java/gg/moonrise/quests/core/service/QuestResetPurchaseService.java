@@ -6,11 +6,13 @@ import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -84,21 +86,25 @@ public class QuestResetPurchaseService {
         }
     }
 
-    public QuestCurrency registeredCurrency(QuestCurrencyKey key) {
-        CurrencyRegistration registration = currency(key);
-        return isEnabled(registration) ? registration.currency() : null;
+    /**
+     * The currency registered under {@code key}, or empty when none is registered or its owning plugin is disabled.
+     */
+    public Optional<QuestCurrency> registeredCurrency(@Nullable QuestCurrencyKey key) {
+        return currency(key)
+                .filter(this::isEnabled)
+                .map(CurrencyRegistration::currency);
     }
 
     private boolean isEnabled(CurrencyRegistration registration) {
-        return registration != null && (registration.builtIn() || registration.owner().isEnabled());
+        return registration.builtIn() || registration.owner().isEnabled();
     }
 
     private boolean isReserved(QuestCurrencyKey key) {
         return QuestCurrencies.PLAYER_POINTS.equals(key) || QuestCurrencies.VAULT.equals(key);
     }
 
-    private synchronized CurrencyRegistration currency(QuestCurrencyKey key) {
-        return key == null ? null : currencies.get(key);
+    private synchronized Optional<CurrencyRegistration> currency(@Nullable QuestCurrencyKey key) {
+        return key == null ? Optional.empty() : Optional.ofNullable(currencies.get(key));
     }
 
     private record CurrencyRegistration(Plugin owner, QuestCurrency currency, boolean builtIn) {

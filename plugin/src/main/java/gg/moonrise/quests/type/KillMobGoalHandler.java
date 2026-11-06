@@ -42,7 +42,7 @@ public class KillMobGoalHandler implements GoalHandler {
     @Override
     public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
         String mobType = variables.get(MOB_TYPE);
-        if (QuestTypeSupport.parseEntityType(mobType) == null) {
+        if (QuestTypeSupport.parseEntityType(mobType).isEmpty()) {
             throw new IllegalArgumentException(definition.id() + " generated invalid mob-type " + mobType);
         }
         return QuestTypeSupport.createGoalAmountQuest(definition, playerId, resetKey, variables);

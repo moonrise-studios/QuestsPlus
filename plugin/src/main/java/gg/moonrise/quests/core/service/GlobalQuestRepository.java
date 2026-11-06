@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,7 +33,7 @@ public class GlobalQuestRepository {
 
     private final SqlProvider sqlProvider;
 
-    public CompletableFuture<GlobalQuestState> loadActive(String periodKey) {
+    public CompletableFuture<Optional<GlobalQuestState>> loadActive(String periodKey) {
         return sqlProvider.supplyAsync(SQL_KEY, () -> {
             try (Connection connection = sqlProvider.getConnection()) {
                 return loadActive(connection, periodKey);
@@ -69,7 +70,9 @@ public class GlobalQuestRepository {
                 bindState(statement, state);
                 statement.executeUpdate();
             }
-            return loadActive(connection, state.periodKey());
+            // The row was just written in this transaction, so it can only be missing if the database lost it.
+            return loadActive(connection, state.periodKey())
+                    .orElseThrow(() -> new SQLException("Global quest for period " + state.periodKey() + " was not found after saving it"));
         });
     }
 
@@ -225,7 +228,7 @@ public class GlobalQuestRepository {
         );
     }
 
-    private GlobalQuestState loadActive(Connection connection, String periodKey) throws SQLException {
+    private Optional<GlobalQuestState> loadActive(Connection connection, String periodKey) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT instance_id, period_key, starts_at, ends_at, definition_id, type, difficulty_id, difficulty_display_name,
                        display_name, description, variables, goal_amount, progress, completed, rewards_executed
@@ -235,10 +238,10 @@ public class GlobalQuestRepository {
             statement.setString(1, periodKey);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
-                    return null;
+                    return Optional.empty();
                 }
                 UUID instanceId = UUID.fromString(resultSet.getString("instance_id"));
-                return readState(resultSet, loadContributions(connection, instanceId));
+                return Optional.of(readState(resultSet, loadContributions(connection, instanceId)));
             }
         }
     }

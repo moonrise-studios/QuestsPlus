@@ -16,6 +16,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 
+import java.util.Optional;
+
 @Slf4j(topic = "QuestsPlus")
 @RequiredArgsConstructor
 public class VaultCurrency implements QuestCurrency, Enableable {
@@ -83,7 +85,7 @@ public class VaultCurrency implements QuestCurrency, Enableable {
 
     @Override
     public boolean isAvailable() {
-        return economy != null || resolveEconomy() != null;
+        return economy != null || resolveEconomy().isPresent();
     }
 
     @Override
@@ -91,19 +93,19 @@ public class VaultCurrency implements QuestCurrency, Enableable {
         resolveEconomy();
     }
 
-    private Economy resolveEconomy() {
+    private Optional<Economy> resolveEconomy() {
         Plugin vault = Bukkit.getPluginManager().getPlugin("Vault");
         if (vault == null || !vault.isEnabled()) {
-            return null;
+            return Optional.empty();
         }
 
         RegisteredServiceProvider<Economy> provider = Bukkit.getServicesManager().getRegistration(Economy.class);
         if (provider == null) {
-            return null;
+            return Optional.empty();
         }
 
         economy = provider.getProvider();
-        return economy;
+        return Optional.ofNullable(economy);
     }
 
     private Config.VaultCurrency config() {

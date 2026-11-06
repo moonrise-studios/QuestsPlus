@@ -23,7 +23,6 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -122,12 +121,12 @@ class ExternalSqlRepositoryDatabaseTest {
             GlobalQuestState state = state(periodKey, now.minusDays(8), now.minusDays(6), 0, false);
 
             repository.save(state).join();
-            assertEquals(state.quest().instanceId(), repository.loadActive(periodKey).join().quest().instanceId());
+            assertEquals(state.quest().instanceId(), repository.loadActive(periodKey).join().orElseThrow().quest().instanceId());
 
             repository.updateProgressAndContribution(withProgress(state, 7, false), playerB, 7).join();
             repository.updateProgressAndContribution(withProgress(state, 15, false), playerA, 8).join();
 
-            GlobalQuestState loaded = repository.loadActive(periodKey).join();
+            GlobalQuestState loaded = repository.loadActive(periodKey).join().orElseThrow();
             assertEquals(15, loaded.quest().progress());
             assertFalse(loaded.quest().completed());
             assertEquals(8, loaded.contribution(playerA));
@@ -135,7 +134,7 @@ class ExternalSqlRepositoryDatabaseTest {
 
             // Crediting past the goal caps progress and derives completion from the stored progress.
             repository.updateProgressAndContribution(withProgress(state, 0, false), playerA, 90).join();
-            loaded = repository.loadActive(periodKey).join();
+            loaded = repository.loadActive(periodKey).join().orElseThrow();
             assertEquals(100, loaded.quest().progress());
             assertTrue(loaded.quest().completed());
             assertEquals(98, loaded.contribution(playerA));
@@ -154,7 +153,7 @@ class ExternalSqlRepositoryDatabaseTest {
 
             repository.deletePeriod(periodKey).join();
 
-            assertNull(repository.loadActive(periodKey).join());
+            assertTrue(repository.loadActive(periodKey).join().isEmpty());
             assertTrue(repository.loadRankedContributions(state.quest().instanceId()).join().isEmpty());
         } finally {
             provider.onDisable();

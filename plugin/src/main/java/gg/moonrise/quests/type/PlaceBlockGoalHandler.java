@@ -14,6 +14,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockPlaceEvent;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @SpringComponent
@@ -49,10 +50,11 @@ public class PlaceBlockGoalHandler implements GoalHandler {
             return;
         }
 
-        String placedBlockKey = QuestTypeSupport.blockTypeKey(event.getBlockPlaced().getType());
-        if (placedBlockKey == null) {
+        Optional<String> placedBlock = QuestTypeSupport.blockTypeKey(event.getBlockPlaced().getType());
+        if (placedBlock.isEmpty()) {
             return;
         }
+        String placedBlockKey = placedBlock.get();
 
         questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
                 placedBlockKey.equals(quest.variables().get(QuestTypeSupport.BLOCK_TYPE))

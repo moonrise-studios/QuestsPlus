@@ -6,6 +6,7 @@ import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import gg.moonrise.quests.sdk.model.QuestType;
+import java.util.Optional;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,7 +16,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -74,7 +75,7 @@ class QuestApiServicePluginDisableTest {
 
         verify(definitionService).unregisterGoalHandler(TYPE, handler);
         verify(definitionService).unregisterVariableSelector("EXTERNAL", selector);
-        assertNull(resetPurchaseService.registeredCurrency(CURRENCY));
+        assertTrue(resetPurchaseService.registeredCurrency(CURRENCY).isEmpty());
     }
 
     @Test
@@ -89,7 +90,7 @@ class QuestApiServicePluginDisableTest {
         assertDoesNotThrow(() -> api.registerGoalHandler(owner, handler));
         assertDoesNotThrow(() -> api.registerCurrency(owner, currency));
         verify(definitionService, times(2)).registerGoalHandler("ExternalQuests", handler);
-        assertEquals(currency, resetPurchaseService.registeredCurrency(CURRENCY));
+        assertEquals(Optional.of(currency), resetPurchaseService.registeredCurrency(CURRENCY));
     }
 
     @Test
@@ -101,6 +102,6 @@ class QuestApiServicePluginDisableTest {
         server.getPluginManager().disablePlugin(unrelated);
 
         verifyNoInteractions(definitionService);
-        assertEquals(currency, resetPurchaseService.registeredCurrency(CURRENCY));
+        assertEquals(Optional.of(currency), resetPurchaseService.registeredCurrency(CURRENCY));
     }
 }

@@ -134,14 +134,15 @@ public class QuestDefinitionService implements Reloadable {
         return Optional.ofNullable(snapshot.globalDefinitionsById().get(normalized));
     }
 
-    public QuestDifficulty difficulty(String id) {
-        String normalized = QuestNames.normalize(id);
+    /**
+     * Looks up a difficulty by id. An unknown id falls back to the default difficulty ({@code easy}), so callers
+     * that need an exact match compare the returned id. The result is only empty before the first successful load,
+     * when no difficulties are known at all.
+     */
+    public Optional<QuestDifficulty> difficulty(String id) {
         Map<String, QuestDifficulty> difficultiesById = snapshot.difficultiesById();
-        QuestDifficulty difficulty = difficultiesById.get(normalized);
-        if (difficulty == null) {
-            return difficultiesById.get(DEFAULT_DIFFICULTY);
-        }
-        return difficulty;
+        QuestDifficulty difficulty = difficultiesById.get(QuestNames.normalize(id));
+        return Optional.ofNullable(difficulty == null ? difficultiesById.get(DEFAULT_DIFFICULTY) : difficulty);
     }
 
     public List<QuestDifficulty> difficulties() {

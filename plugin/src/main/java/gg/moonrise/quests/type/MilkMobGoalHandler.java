@@ -20,7 +20,6 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -54,8 +53,7 @@ public class MilkMobGoalHandler implements GoalHandler {
         }
 
         for (String value : definition.selectorValues().get(MOB_TYPE)) {
-            EntityType entityType = parseEntityType(value);
-            if (!isMilkableType(entityType)) {
+            if (QuestTypeSupport.parseEntityType(value).filter(MilkMobGoalHandler::isMilkableType).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid milkable mob-type value " + value);
             }
         }
@@ -69,10 +67,9 @@ public class MilkMobGoalHandler implements GoalHandler {
 
     @Override
     public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        EntityType entityType = parseEntityType(variables.get(MOB_TYPE));
-        if (!isMilkableType(entityType)) {
-            throw new IllegalArgumentException(definition.id() + " generated invalid milkable mob-type " + variables.get(MOB_TYPE));
-        }
+        EntityType entityType = QuestTypeSupport.parseEntityType(variables.get(MOB_TYPE))
+                .filter(MilkMobGoalHandler::isMilkableType)
+                .orElseThrow(() -> new IllegalArgumentException(definition.id() + " generated invalid milkable mob-type " + variables.get(MOB_TYPE)));
 
         Map<String, String> canonicalVariables = new LinkedHashMap<>(variables);
         canonicalVariables.put(MOB_TYPE, entityType.name());
@@ -128,16 +125,5 @@ public class MilkMobGoalHandler implements GoalHandler {
 
     private static boolean isMilkableType(EntityType entityType) {
         return entityType == EntityType.COW || entityType == EntityType.GOAT || entityType == EntityType.MOOSHROOM;
-    }
-
-    private static EntityType parseEntityType(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return EntityType.valueOf(value.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
     }
 }
