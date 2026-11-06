@@ -11,11 +11,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The quest slot layout of the daily quest menu, derived from one {@link Config} instance. Computing it walks the
- * menu config, so it is built once per config (see {@link QuestService#menuLayout()}) instead of on every
- * progress event.
+ * The quest slot layout of the daily quest menu, derived from one {@link Config} instance. It is the single source
+ * of truth for which inventory slots hold quests, used both for slot access rules and to render the menu.
+ * Computing it walks the menu config, so it is built once per config (see {@link QuestService#menuLayout()})
+ * instead of on every progress event.
+ * <p>
+ * A utility button's slot is reserved whenever the button is enabled in the config, even if the menu ends up not
+ * showing it (the reset button is hidden while no reset currency is available). Currency availability is runtime
+ * state, so reserving by config keeps the quest slots stable and computable once per config.
  *
  * @param totalSlots          inventory size of the menu
+ * @param globalQuestSlot     inventory slot of the global quest item; may lie outside a small menu
  * @param reservedSlots       inventory slots taken by utility buttons, never used for quests
  * @param contentSlots        inventory slot of each quest slot index, in order
  * @param dailyQuestSlots     number of regular (non-premium) quest slots
@@ -23,6 +29,7 @@ import java.util.Set;
  */
 public record QuestMenuLayout(
         int totalSlots,
+        int globalQuestSlot,
         @NotNull Set<Integer> reservedSlots,
         @NotNull List<Integer> contentSlots,
         int dailyQuestSlots,
@@ -32,6 +39,8 @@ public record QuestMenuLayout(
     private static final int MIN_ROWS = 1;
     private static final int MAX_ROWS = 6;
     private static final int SLOTS_PER_ROW = 9;
+    private static final int DEFAULT_GLOBAL_QUEST_SLOT = 15;
+    private static final int MAX_INVENTORY_SLOT = MAX_ROWS * SLOTS_PER_ROW - 1;
 
     public QuestMenuLayout {
         reservedSlots = Collections.unmodifiableSet(new LinkedHashSet<>(reservedSlots));
@@ -41,12 +50,25 @@ public record QuestMenuLayout(
     public static QuestMenuLayout of(@NotNull Config config) {
         Config.QuestMenu menu = config.getMenu();
         int totalSlots = Math.clamp(menu.getRows(), MIN_ROWS, MAX_ROWS) * SLOTS_PER_ROW;
-        Set<Integer> reservedSlots = reservedSlots(config, menu, totalSlots);
+        int globalQuestSlot = globalQuestSlot(config);
+        Set<Integer> reservedSlots = reservedSlots(config, menu, totalSlots, globalQuestSlot);
         List<Integer> contentSlots = contentSlots(menu.getContentSlots(), totalSlots, reservedSlots);
         int capacity = contentSlots.size();
         int dailyQuestSlots = capacity <= 0 ? 0 : Math.clamp(config.getDaily().getQuestCount(), 1, capacity);
         int visiblePremiumSlots = Math.clamp(highestPremiumLimit(config.getPremiumQuests()), 0, Math.max(0, capacity - dailyQuestSlots));
-        return new QuestMenuLayout(totalSlots, reservedSlots, contentSlots, dailyQuestSlots, visiblePremiumSlots);
+        return new QuestMenuLayout(totalSlots, globalQuestSlot, reservedSlots, contentSlots, dailyQuestSlots, visiblePremiumSlots);
+    }
+
+    /**
+     * The configured global quest slot, clamped to the largest possible chest menu.
+     */
+    public static int globalQuestSlot(@NotNull Config config) {
+        Config.GlobalQuestMenu menu = config.getGlobalQuests().getMenu();
+        return menu == null ? DEFAULT_GLOBAL_QUEST_SLOT : Math.clamp(menu.getSlot(), 0, MAX_INVENTORY_SLOT);
+    }
+
+    public int rows() {
+        return totalSlots / SLOTS_PER_ROW;
     }
 
     /**
@@ -67,9 +89,9 @@ public record QuestMenuLayout(
         return slotIndex >= dailyQuestSlots;
     }
 
-    private static Set<Integer> reservedSlots(Config config, Config.QuestMenu menu, int totalSlots) {
+    private static Set<Integer> reservedSlots(Config config, Config.QuestMenu menu, int totalSlots, int globalQuestSlot) {
         Set<Integer> reserved = new LinkedHashSet<>();
-        addReservedSlot(reserved, config.getGlobalQuests().getMenu().getSlot(), totalSlots);
+        addReservedSlot(reserved, globalQuestSlot, totalSlots);
         Config.MilestoneButton milestoneButton = menu.getMilestoneButton();
         if (config.isQuestMilestonesEnabled() && milestoneButton != null && milestoneButton.isEnabled()) {
             addReservedSlot(reserved, milestoneButton.getSlot(), totalSlots);

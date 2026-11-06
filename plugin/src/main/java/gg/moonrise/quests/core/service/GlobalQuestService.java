@@ -140,11 +140,6 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                 });
     }
 
-    public int menuSlot() {
-        Config.GlobalQuestMenu menu = configProvider.get().getGlobalQuests().getMenu();
-        return menu == null ? 15 : Math.clamp(menu.getSlot(), 0, 53);
-    }
-
     public String timeRemainingPlaceholder() {
         GlobalQuestState state = cachedActiveState();
         LocalDateTime end = state == null ? currentPeriod().endsAt() : state.endsAt();

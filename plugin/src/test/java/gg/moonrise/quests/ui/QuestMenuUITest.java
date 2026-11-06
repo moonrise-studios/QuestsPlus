@@ -2,6 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.QuestMenuLayout;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -17,6 +18,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,8 +51,8 @@ class QuestMenuUITest {
         GeneratedQuest activeQuest = quest(player.getUniqueId(), 0);
         PlayerQuestState state = new PlayerQuestState(player.getUniqueId(), "daily", List.of(activeQuest));
         when(menuService.config()).thenReturn(config);
-        when(menuService.globalQuestSlot()).thenReturn(15);
-        when(menuService.totalVisibleQuestSlots()).thenReturn(4);
+        // Three daily slots and one premium slot visible.
+        when(menuService.menuLayout()).thenReturn(new QuestMenuLayout(27, 15, Set.of(15, 18, 22, 26), List.of(10, 11, 12, 13, 14, 16), 3, 1));
         when(menuService.canAccessSlot(player, 0)).thenReturn(true);
         when(menuService.canAccessSlot(player, 1)).thenReturn(true);
         when(menuService.canAccessSlot(player, 2)).thenReturn(false);

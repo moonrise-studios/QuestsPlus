@@ -273,16 +273,12 @@ public class QuestMenuService {
         return questService.totalQuestSlots(player);
     }
 
-    public int totalVisibleQuestSlots() {
-        return questService.totalVisibleQuestSlots();
+    public QuestMenuLayout menuLayout() {
+        return questService.menuLayout();
     }
 
     public boolean canAccessSlot(Player player, int slotIndex) {
         return questService.canAccessSlot(player, slotIndex);
-    }
-
-    public int globalQuestSlot() {
-        return globalQuestService.menuSlot();
     }
 
     public CompletableFuture<GlobalQuestState> activeGlobalQuestAsync() {

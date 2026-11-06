@@ -89,6 +89,43 @@ class QuestMenuLayoutTest {
     }
 
     @Test
+    public void resetButtonSlotIsReservedWheneverTheButtonIsEnabled() throws ReflectiveOperationException {
+        Config config = new Config();
+        // Content slots that cover the reset button: it stays reserved even if no currency ends up showing it.
+        setField(config.getMenu(), "contentSlots", List.of(17, 18, 19));
+
+        QuestMenuLayout layout = QuestMenuLayout.of(config);
+
+        assertTrue(layout.reservedSlots().contains(18));
+        assertEquals(List.of(17, 19), layout.contentSlots());
+    }
+
+    @Test
+    public void globalQuestSlotIsClampedToTheLargestMenuAndReservedOnlyIfItFits() throws ReflectiveOperationException {
+        Config config = new Config();
+        setField(config.getGlobalQuests().getMenu(), "slot", 60);
+
+        QuestMenuLayout small = QuestMenuLayout.of(config);
+        setField(config.getMenu(), "rows", 6);
+        QuestMenuLayout large = QuestMenuLayout.of(config);
+
+        assertEquals(53, QuestMenuLayout.globalQuestSlot(config));
+        assertEquals(53, small.globalQuestSlot());
+        assertFalse(small.reservedSlots().contains(53));
+        assertEquals(3, small.rows());
+        assertEquals(6, large.rows());
+        assertTrue(large.reservedSlots().contains(53));
+    }
+
+    @Test
+    public void missingGlobalQuestMenuUsesTheDefaultSlot() throws ReflectiveOperationException {
+        Config config = new Config();
+        setField(config.getGlobalQuests(), "menu", null);
+
+        assertEquals(15, QuestMenuLayout.of(config).globalQuestSlot());
+    }
+
+    @Test
     public void questServiceComputesTheLayoutOncePerConfigInstance() {
         Config first = new Config();
         Config reloaded = new Config();
