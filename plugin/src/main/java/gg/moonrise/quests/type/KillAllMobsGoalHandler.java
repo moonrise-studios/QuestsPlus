@@ -20,7 +20,7 @@ import java.util.UUID;
 @SpringComponent
 public class KillAllMobsGoalHandler implements GoalHandler {
 
-    public static final String GOAL_AMOUNT = "goal-amount";
+    public static final String GOAL_AMOUNT = QuestTypeSupport.GOAL_AMOUNT;
 
     private final QuestService questService;
     private final QuestResetService resetService;
@@ -37,33 +37,12 @@ public class KillAllMobsGoalHandler implements GoalHandler {
 
     @Override
     public void validateDefinition(QuestDefinition definition) {
-        validateOnlyGoalAmount(definition);
-        for (String value : definition.selectorValues().get(GOAL_AMOUNT)) {
-            int amount = parsePositiveInt(value, definition.id());
-            if (amount <= 0) {
-                throw new IllegalArgumentException(definition.id() + " has non-positive goal-amount value " + value);
-            }
-        }
+        QuestTypeSupport.validateOnlyGoalAmount(definition);
     }
 
     @Override
     public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        int goalAmount = parsePositiveInt(variables.get(GOAL_AMOUNT), definition.id());
-        return new GeneratedQuest(
-                UUID.randomUUID(),
-                playerId,
-                resetKey,
-                definition.id(),
-                definition.type(),
-                definition.difficultyId(),
-                definition.difficultyDisplayName(),
-                definition.displayName(),
-                definition.description(),
-                Map.copyOf(variables),
-                goalAmount,
-                0,
-                false
-        );
+        return QuestTypeSupport.createGoalAmountQuest(definition, playerId, resetKey, variables);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -74,27 +53,5 @@ public class KillAllMobsGoalHandler implements GoalHandler {
         }
 
         questService.progressMatching(killer, type(), resetService.currentResetKey(), quest -> true);
-    }
-
-    private void validateOnlyGoalAmount(QuestDefinition definition) {
-        if (!definition.selectorValues().containsKey(GOAL_AMOUNT)) {
-            throw new IllegalArgumentException(definition.id() + " is missing variable " + GOAL_AMOUNT);
-        }
-        if (definition.selectorValues().get(GOAL_AMOUNT).isEmpty()) {
-            throw new IllegalArgumentException(definition.id() + " has no goal-amount values");
-        }
-        for (String key : definition.selectorValues().keySet()) {
-            if (!GOAL_AMOUNT.equals(key)) {
-                throw new IllegalArgumentException(definition.id() + " does not support variable " + key);
-            }
-        }
-    }
-
-    private int parsePositiveInt(String value, String definitionId) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(definitionId + " has invalid goal-amount value " + value, exception);
-        }
     }
 }
