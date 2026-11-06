@@ -61,7 +61,7 @@ public class QuestService {
     private final Cache<StateLoadKey, PendingStateLoad> stateLoadCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<RerollUsageKey, Integer> rerollUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<ResetPurchaseUsageKey, Integer> resetPurchaseUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
-    private final AtomicReference<CachedMenuLayout> menuLayoutCache = new AtomicReference<>();
+    private final AtomicReference<ConfigDerived> configDerivedCache = new AtomicReference<>();
 
     public CompletableFuture<PlayerQuestState> ensurePlayerStateAsync(UUID playerId, String resetKey) {
         PlayerQuestState cached = stateCache.getIfPresent(playerId);
@@ -214,18 +214,25 @@ public class QuestService {
     }
 
     /**
-     * Returns the quest slot layout of the active config. It is computed once per config instance; a reload
-     * swaps the instance in {@link ConfigProvider}, which makes the next call compute the new layout.
+     * Returns the quest slot layout of the active config.
      */
     public QuestMenuLayout menuLayout() {
+        return configDerived().layout();
+    }
+
+    /**
+     * Returns the values derived from the active config. They are computed once per config instance; a reload
+     * swaps the instance in {@link ConfigProvider}, which makes the next call compute them again.
+     */
+    private ConfigDerived configDerived() {
         Config config = configProvider.get();
-        CachedMenuLayout cached = menuLayoutCache.get();
+        ConfigDerived cached = configDerivedCache.get();
         if (cached != null && cached.config() == config) {
-            return cached.layout();
+            return cached;
         }
-        QuestMenuLayout layout = QuestMenuLayout.of(config);
-        menuLayoutCache.set(new CachedMenuLayout(config, layout));
-        return layout;
+        ConfigDerived derived = new ConfigDerived(config, QuestMenuLayout.of(config), PermissionLimits.premiumSlots(config), PermissionLimits.rerolls(config));
+        configDerivedCache.set(derived);
+        return derived;
     }
 
     public int dailyQuestSlots() {
@@ -233,8 +240,9 @@ public class QuestService {
     }
 
     public int totalQuestSlots(Player player) {
-        QuestMenuLayout layout = menuLayout();
-        return Math.min(layout.capacity(), layout.dailyQuestSlots() + premiumSlotLimit(player, layout));
+        ConfigDerived derived = configDerived();
+        QuestMenuLayout layout = derived.layout();
+        return Math.min(layout.capacity(), layout.dailyQuestSlots() + premiumSlotLimit(player, derived));
     }
 
     public int totalVisibleQuestSlots() {
@@ -246,27 +254,12 @@ public class QuestService {
     }
 
     public int premiumSlotLimit(Player player) {
-        return premiumSlotLimit(player, menuLayout());
+        return premiumSlotLimit(player, configDerived());
     }
 
-    private int premiumSlotLimit(Player player, QuestMenuLayout layout) {
-        Config.PremiumQuestsFile premium = configProvider.get().getPremiumQuests();
-        if (premium == null || !premium.isEnabled()) {
-            return 0;
-        }
-        Map<String, Integer> limits = premium.getPermissionLimits() == null ? Map.of() : premium.getPermissionLimits();
-        int highest = 0;
-        for (Map.Entry<String, Integer> entry : limits.entrySet()) {
-            String key = QuestNames.normalize(entry.getKey());
-            int limit = entry.getValue() == null ? 0 : Math.max(0, entry.getValue());
-            if (key.isBlank() || limit <= highest) {
-                continue;
-            }
-            if (player.hasPermission("questsplus.premium." + key)) {
-                highest = limit;
-            }
-        }
-        return Math.clamp(highest, 0, Math.max(0, layout.capacity() - layout.dailyQuestSlots()));
+    private int premiumSlotLimit(Player player, ConfigDerived derived) {
+        QuestMenuLayout layout = derived.layout();
+        return Math.clamp(derived.premiumLimits().limitFor(player), 0, Math.max(0, layout.capacity() - layout.dailyQuestSlots()));
     }
 
     public boolean isPremiumSlot(int slotIndex) {
@@ -274,14 +267,15 @@ public class QuestService {
     }
 
     public boolean canAccessSlot(Player player, int slotIndex) {
-        QuestMenuLayout layout = menuLayout();
+        ConfigDerived derived = configDerived();
+        QuestMenuLayout layout = derived.layout();
         if (slotIndex < 0 || slotIndex >= layout.totalVisibleQuestSlots()) {
             return false;
         }
         if (!layout.isPremiumSlot(slotIndex)) {
             return true;
         }
-        return slotIndex < layout.dailyQuestSlots() + premiumSlotLimit(player, layout);
+        return slotIndex < layout.dailyQuestSlots() + premiumSlotLimit(player, derived);
     }
 
     public boolean canAccessQuest(Player player, GeneratedQuest quest) {
@@ -360,24 +354,7 @@ public class QuestService {
     }
 
     public int rerollLimit(Player player) {
-        Config.Rerolls rerolls = configProvider.get().getDaily().getRerolls();
-        Map<String, Integer> limits = rerolls == null ? Map.of() : rerolls.getPermissionLimits();
-        if (limits == null || limits.isEmpty()) {
-            return 0;
-        }
-
-        int highest = 0;
-        for (Map.Entry<String, Integer> entry : limits.entrySet()) {
-            String key = QuestNames.normalize(entry.getKey());
-            int limit = entry.getValue() == null ? 0 : Math.max(0, entry.getValue());
-            if (key.isBlank() || limit <= highest) {
-                continue;
-            }
-            if (player.hasPermission("questsplus.reroll." + key)) {
-                highest = limit;
-            }
-        }
-        return highest;
+        return configDerived().rerollLimits().limitFor(player);
     }
 
     public int rerollsRemaining(Player player, String resetKey) {
@@ -1111,8 +1088,8 @@ public class QuestService {
     }
 
     /**
-     * A layout and the config instance it was computed from; compared by identity, not equality.
+     * Values computed from one config instance, which is compared by identity, not equality.
      */
-    private record CachedMenuLayout(Config config, QuestMenuLayout layout) {
+    private record ConfigDerived(Config config, QuestMenuLayout layout, PermissionLimits premiumLimits, PermissionLimits rerollLimits) {
     }
 }

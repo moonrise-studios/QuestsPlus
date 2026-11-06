@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -55,7 +54,7 @@ public record QuestMenuLayout(
         List<Integer> contentSlots = contentSlots(menu.getContentSlots(), totalSlots, reservedSlots);
         int capacity = contentSlots.size();
         int dailyQuestSlots = capacity <= 0 ? 0 : Math.clamp(config.getDaily().getQuestCount(), 1, capacity);
-        int visiblePremiumSlots = Math.clamp(highestPremiumLimit(config.getPremiumQuests()), 0, Math.max(0, capacity - dailyQuestSlots));
+        int visiblePremiumSlots = Math.clamp(PermissionLimits.premiumSlots(config).highestConfigured(), 0, Math.max(0, capacity - dailyQuestSlots));
         return new QuestMenuLayout(totalSlots, globalQuestSlot, reservedSlots, contentSlots, dailyQuestSlots, visiblePremiumSlots);
     }
 
@@ -135,20 +134,5 @@ public record QuestMenuLayout(
             }
         }
         return free;
-    }
-
-    private static int highestPremiumLimit(Config.PremiumQuestsFile premium) {
-        if (premium == null || !premium.isEnabled()) {
-            return 0;
-        }
-        Map<String, Integer> limits = premium.getPermissionLimits() == null ? Map.of() : premium.getPermissionLimits();
-        int highest = 0;
-        for (Integer configuredLimit : limits.values()) {
-            int limit = configuredLimit == null ? 0 : Math.max(0, configuredLimit);
-            if (limit > highest) {
-                highest = limit;
-            }
-        }
-        return highest;
     }
 }
