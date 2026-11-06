@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -187,6 +189,41 @@ class SqlProviderLifecycleTest {
         assertInstanceOf(SqlProvider.ReloadResult.Failed.class, result);
         assertTrue(sqlProvider.isAvailable());
         insert(sqlProvider, 1).orTimeout(10, TimeUnit.SECONDS).join();
+        assertEquals(1, countWrites(sqlProvider));
+    }
+
+    @Test
+    public void disableMakesConnectionAndDatabaseUnavailable() {
+        sqlProvider.onDisable();
+
+        assertThrows(SQLException.class, sqlProvider::getConnection);
+        assertThrows(IllegalStateException.class, sqlProvider::currentDatabase);
+    }
+
+    @Test
+    public void reloadAfterDisableFailsWithoutReconnecting() {
+        sqlProvider.onDisable();
+
+        SqlProvider.ReloadResult result = reload(SqlTestHarness.sqliteStorage("storage/other.db"));
+
+        assertInstanceOf(SqlProvider.ReloadResult.Failed.class, result);
+        assertFalse(sqlProvider.isAvailable());
+        assertFalse(Files.exists(tempDir.resolve("storage/other.db")));
+    }
+
+    @Test
+    public void failedTransactionIsRolledBackAndLeavesTheConnectionUsable() {
+        CompletableFuture<Void> failed = sqlProvider.runInTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement("INSERT INTO lifecycle_writes (id) VALUES (?)")) {
+                statement.setInt(1, 1);
+                statement.executeUpdate();
+            }
+            throw new SQLException("constraint check failed");
+        });
+
+        assertThrows(CompletionException.class, () -> failed.orTimeout(10, TimeUnit.SECONDS).join());
+        assertEquals(0, countWrites(sqlProvider));
+        insert(sqlProvider, 2).orTimeout(10, TimeUnit.SECONDS).join();
         assertEquals(1, countWrites(sqlProvider));
     }
 

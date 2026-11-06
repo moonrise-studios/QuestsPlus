@@ -47,6 +47,8 @@ class QuestResetPurchaseFlowTest {
     private QuestCurrency currency;
     private QuestService questService;
     private QuestUsageService usageService;
+    private QuestSlotService slotService;
+    private PlayerQuestState state;
     private QuestResetPurchaseService resetPurchaseService;
     private QuestMenuService menus;
     private QuestResetPurchaseFlow purchaseFlow;
@@ -98,10 +100,10 @@ class QuestResetPurchaseFlowTest {
         resetPurchaseService = new QuestResetPurchaseService();
         resetPurchaseService.registerBuiltInCurrency(currency);
 
-        PlayerQuestState state = new PlayerQuestState(playerId, RESET_KEY, List.of());
+        state = new PlayerQuestState(playerId, RESET_KEY, List.of());
         questService = mock(QuestService.class);
         usageService = mock(QuestUsageService.class);
-        QuestSlotService slotService = mock(QuestSlotService.class);
+        slotService = mock(QuestSlotService.class);
         when(questService.ensurePlayerStateAsync(player, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(state));
         when(usageService.refreshQuestResetPurchaseUsageAsync(playerId, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(0));
         when(slotService.resetEligibility(player, state)).thenReturn(new QuestResetEligibility(3, 3));
@@ -205,6 +207,98 @@ class QuestResetPurchaseFlowTest {
         verify(currency, never()).refund(any(), anyDouble());
         assertFalse(resetPurchaseService.isProcessing(player));
         assertTrue(resetPurchaseService.begin(player));
+    }
+
+    @Test
+    public void appliedResetWhileOnlineReopensDailyQuestsWithoutRefund() {
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(currency).charge(player, COST);
+        verify(currency, never()).refund(any(), anyDouble());
+        verify(menus).openDailyQuests(player);
+        assertFalse(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void limitReachedWhileOnlineRefundsAndReopensDailyQuests() {
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(currency).charge(player, COST);
+        verify(currency, times(1)).refund(player, COST);
+        verify(menus).openDailyQuests(player);
+        assertFalse(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void playerWithUnfinishedQuestsIsNotCharged() {
+        when(slotService.resetEligibility(player, state)).thenReturn(new QuestResetEligibility(2, 3));
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(currency, never()).charge(any(), anyDouble());
+        verify(usageService, never()).recordQuestResetPurchaseAndReset(any(), any());
+        verify(menus).openDailyQuests(player);
+        assertFalse(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void exhaustedDailyPurchaseLimitIsNotCharged() {
+        when(usageService.questResetPurchasesRemaining(player.getUniqueId(), RESET_KEY)).thenReturn(0);
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(currency, never()).charge(any(), anyDouble());
+        verify(usageService, never()).recordQuestResetPurchaseAndReset(any(), any());
+        verify(menus).openDailyQuests(player);
+        assertFalse(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void declinedChargeDoesNotResetOrRefund() {
+        when(currency.charge(any(), anyDouble())).thenReturn(false);
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(usageService, never()).recordQuestResetPurchaseAndReset(any(), any());
+        verify(currency, never()).refund(any(), anyDouble());
+        verify(menus).openQuestResetPurchase(player);
+        assertFalse(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void unregisteredCurrencyIsNeverCharged() {
+        purchaseFlow.purchase(player, QuestCurrencies.PLAYER_POINTS, menus);
+
+        verify(currency, never()).charge(any(), anyDouble());
+        verify(usageService, never()).recordQuestResetPurchaseAndReset(any(), any());
+        verify(menus).openQuestResetPurchase(player);
+        assertFalse(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void purchaseAlreadyInProgressIsIgnored() {
+        assertTrue(resetPurchaseService.begin(player));
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(questService, never()).ensurePlayerStateAsync(any(Player.class), any());
+        verify(currency, never()).charge(any(), anyDouble());
+        assertTrue(resetPurchaseService.isProcessing(player));
+    }
+
+    @Test
+    public void stateLoadFailureReleasesLockWithoutCharging() {
+        when(questService.ensurePlayerStateAsync(player, RESET_KEY)).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
+
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
+
+        verify(currency, never()).charge(any(), anyDouble());
+        verify(currency, never()).refund(any(), anyDouble());
+        assertFalse(resetPurchaseService.isProcessing(player));
     }
 
     private enum SchedulerOutcome {
