@@ -34,6 +34,16 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
     }
 
     @Override
+    public boolean isEnabled(Config.ProgressIndicators config) {
+        return settings(config).isEnabled();
+    }
+
+    @Override
+    public String titleTemplate(Config.ProgressIndicators config) {
+        return settings(config).getLine();
+    }
+
+    @Override
     public void show(QuestProgressIndicatorContext context) {
         Config.ChatProgressIndicator config = config();
         if (!config.isEnabled()) {
@@ -117,9 +127,11 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
 
     private Config.ChatProgressIndicator config() {
         Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
-        return indicators == null || indicators.getChat() == null
-                ? new Config.ChatProgressIndicator()
-                : indicators.getChat();
+        return indicators == null ? new Config.ChatProgressIndicator() : settings(indicators);
+    }
+
+    private Config.ChatProgressIndicator settings(Config.ProgressIndicators config) {
+        return config.getChat() == null ? new Config.ChatProgressIndicator() : config.getChat();
     }
 
     private String applyTokens(String template, Map<String, String> values) {

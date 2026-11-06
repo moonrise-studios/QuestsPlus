@@ -33,6 +33,16 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
     }
 
     @Override
+    public boolean isEnabled(Config.ProgressIndicators config) {
+        return settings(config).isEnabled();
+    }
+
+    @Override
+    public String titleTemplate(Config.ProgressIndicators config) {
+        return settings(config).getTitle();
+    }
+
+    @Override
     public void show(QuestProgressIndicatorContext context) {
         Player player = context.player();
         Scheduler.entity(player).run(task -> {
@@ -118,9 +128,11 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
 
     private Config.BossBarProgressIndicator config() {
         Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
-        return indicators == null || indicators.getBossBar() == null
-                ? new Config.BossBarProgressIndicator()
-                : indicators.getBossBar();
+        return indicators == null ? new Config.BossBarProgressIndicator() : settings(indicators);
+    }
+
+    private Config.BossBarProgressIndicator settings(Config.ProgressIndicators config) {
+        return config.getBossBar() == null ? new Config.BossBarProgressIndicator() : config.getBossBar();
     }
 
     private BossBar.Color color(String raw) {

@@ -78,7 +78,7 @@ public class QuestProgressIndicatorService {
             if (!selectedTypes.contains(indicator.type())) {
                 continue;
             }
-            Component title = miniMessage.deserialize(applyTokens(titleTemplate(indicator.type(), config), values));
+            Component title = miniMessage.deserialize(applyTokens(indicator.titleTemplate(config), values));
             indicator.show(new QuestProgressIndicatorContext(player, scope, quest, globalState, previousProgress, progress, values, title));
         }
     }
@@ -122,24 +122,11 @@ public class QuestProgressIndicatorService {
     private List<String> availableIndicatorTypes(Config.ProgressIndicators config) {
         LinkedHashSet<String> available = new LinkedHashSet<>();
         for (QuestProgressIndicator indicator : indicators) {
-            if (indicatorEnabled(indicator.type(), config)) {
+            if (indicator.isEnabled(config)) {
                 available.add(indicator.type());
             }
         }
         return new ArrayList<>(available);
-    }
-
-    private boolean indicatorEnabled(String type, Config.ProgressIndicators config) {
-        if ("BOSS_BAR".equals(type)) {
-            return bossBar(config).isEnabled();
-        }
-        if ("ACTION_BAR".equals(type)) {
-            return actionBar(config).isEnabled();
-        }
-        if ("CHAT".equals(type)) {
-            return chat(config).isEnabled();
-        }
-        return true;
     }
 
     private boolean enabled(Config.ProgressIndicators config) {
@@ -149,28 +136,6 @@ public class QuestProgressIndicatorService {
     private Config.ProgressIndicators config() {
         Config.ProgressIndicators indicatorsConfig = configProvider.get().getProgressIndicators();
         return indicatorsConfig == null ? new Config.ProgressIndicators() : indicatorsConfig;
-    }
-
-    private Config.BossBarProgressIndicator bossBar(Config.ProgressIndicators config) {
-        return config.getBossBar() == null ? new Config.BossBarProgressIndicator() : config.getBossBar();
-    }
-
-    private Config.ActionBarProgressIndicator actionBar(Config.ProgressIndicators config) {
-        return config.getActionBar() == null ? new Config.ActionBarProgressIndicator() : config.getActionBar();
-    }
-
-    private Config.ChatProgressIndicator chat(Config.ProgressIndicators config) {
-        return config.getChat() == null ? new Config.ChatProgressIndicator() : config.getChat();
-    }
-
-    private String titleTemplate(String type, Config.ProgressIndicators config) {
-        if ("ACTION_BAR".equals(type)) {
-            return actionBar(config).getTitle();
-        }
-        if ("CHAT".equals(type)) {
-            return chat(config).getLine();
-        }
-        return bossBar(config).getTitle();
     }
 
     private Map<String, String> personalPlaceholders(Player player, GeneratedQuest quest) {
