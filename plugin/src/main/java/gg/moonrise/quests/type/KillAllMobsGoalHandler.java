@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Lazy;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 @SpringComponent
 public class KillAllMobsGoalHandler implements GoalHandler {
@@ -52,6 +53,10 @@ public class KillAllMobsGoalHandler implements GoalHandler {
             return;
         }
 
-        questService.progressMatching(killer, type(), resetService.currentResetKey(), quest -> true);
+        questService.progressMatching(killer, type(), resetService.currentResetKey(), killMatcher());
+    }
+
+    public static Predicate<GeneratedQuest> killMatcher() {
+        return quest -> true;
     }
 }

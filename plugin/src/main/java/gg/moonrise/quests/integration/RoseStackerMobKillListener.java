@@ -5,6 +5,7 @@ import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import gg.moonrise.quests.type.KillAllMobsGoalHandler;
 import gg.moonrise.quests.type.KillMobGoalHandler;
 import gg.moonrise.quests.type.KillMobInWorldGoalHandler;
 import org.bukkit.World;
@@ -54,13 +55,8 @@ public class RoseStackerMobKillListener implements Listener {
 
     public void progressStackedKills(Player killer, EntityType killedType, String killedWorldName, int amount) {
         String resetKey = resetService.currentResetKey();
-        questService.progressMatching(killer, QuestTypes.KILL_MOB, resetKey, amount, quest ->
-                killedType.name().equalsIgnoreCase(quest.variables().get(KillMobGoalHandler.MOB_TYPE))
-        );
-        questService.progressMatching(killer, QuestTypes.KILL_MOB_IN_WORLD, resetKey, amount, quest ->
-                killedType.name().equalsIgnoreCase(quest.variables().get(KillMobInWorldGoalHandler.MOB_TYPE))
-                        && killedWorldName.equals(quest.variables().get(KillMobInWorldGoalHandler.WORLD))
-        );
-        questService.progressMatching(killer, QuestTypes.KILL_ALL_MOBS, resetKey, amount, quest -> true);
+        questService.progressMatching(killer, QuestTypes.KILL_MOB, resetKey, amount, KillMobGoalHandler.killMatcher(killedType));
+        questService.progressMatching(killer, QuestTypes.KILL_MOB_IN_WORLD, resetKey, amount, KillMobInWorldGoalHandler.killMatcher(killedType, killedWorldName));
+        questService.progressMatching(killer, QuestTypes.KILL_ALL_MOBS, resetKey, amount, KillAllMobsGoalHandler.killMatcher());
     }
 }

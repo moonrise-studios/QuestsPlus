@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Lazy;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -93,12 +94,13 @@ public class KillMobInWorldGoalHandler implements GoalHandler {
             return;
         }
 
-        EntityType killedType = event.getEntityType();
         String killedWorldName = event.getEntity().getWorld().getName();
-        questService.progressMatching(killer, type(), resetService.currentResetKey(), quest ->
-                killedType.name().equalsIgnoreCase(quest.variables().get(MOB_TYPE))
-                        && killedWorldName.equals(quest.variables().get(WORLD))
-        );
+        questService.progressMatching(killer, type(), resetService.currentResetKey(), killMatcher(event.getEntityType(), killedWorldName));
+    }
+
+    public static Predicate<GeneratedQuest> killMatcher(EntityType killedType, String killedWorldName) {
+        return quest -> killedType.name().equalsIgnoreCase(quest.variables().get(MOB_TYPE))
+                && killedWorldName.equals(quest.variables().get(WORLD));
     }
 
     private World parseWorld(String value) {
