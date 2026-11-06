@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -54,7 +55,7 @@ public class QuestService {
     private final QuestProgressIndicatorService progressIndicatorService;
 
     private final Cache<UUID, PlayerQuestState> stateCache = Caffeine.newBuilder().maximumSize(10_000).build();
-    private final Cache<StateLoadKey, CompletableFuture<PlayerQuestState>> stateLoadCache = Caffeine.newBuilder().maximumSize(10_000).build();
+    private final Cache<StateLoadKey, PendingStateLoad> stateLoadCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<RerollUsageKey, Integer> rerollUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<ResetPurchaseUsageKey, Integer> resetPurchaseUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
 
@@ -65,15 +66,46 @@ public class QuestService {
         }
 
         StateLoadKey key = new StateLoadKey(playerId, resetKey);
-        CompletableFuture<PlayerQuestState> future = stateLoadCache.asMap().computeIfAbsent(key, ignored -> questRepository.loadQuests(playerId, resetKey)
+        PendingStateLoad load = stateLoadCache.asMap().computeIfAbsent(key, ignored -> startStateLoad(playerId, resetKey));
+        load.future().whenComplete((state, throwable) -> stateLoadCache.asMap().remove(key, load));
+        return load.future().thenCompose(state -> load.invalidated().get()
+                ? ensurePlayerStateAsync(playerId, resetKey)
+                : CompletableFuture.completedFuture(state));
+    }
+
+    /**
+     * Starts loading a player's state. The loaded state is only kept in {@link #stateCache} if the player's
+     * state was not invalidated while the load was in flight (see {@link #invalidateState(UUID)}).
+     */
+    private PendingStateLoad startStateLoad(UUID playerId, String resetKey) {
+        AtomicBoolean invalidated = new AtomicBoolean();
+        CompletableFuture<PlayerQuestState> future = questRepository.loadQuests(playerId, resetKey)
                 .thenCombine(questRepository.loadDifficultyCompletedCounts(playerId), LoadedState::new)
                 .thenCombine(questRepository.loadExecutedMilestones(playerId), (loaded, executedMilestones) -> {
                     PlayerQuestState state = new PlayerQuestState(playerId, resetKey, normalizeQuestSlots(loaded.quests()), loaded.difficultyCompletions(), executedMilestones);
+                    // Put first, then check: invalidateState marks the load before clearing the cache, so either the
+                    // invalidation clears this entry or this check sees the mark and takes it back out.
                     stateCache.put(playerId, state);
+                    if (invalidated.get()) {
+                        stateCache.asMap().remove(playerId, state);
+                    }
                     return state;
-                }));
-        future.whenComplete((state, throwable) -> stateLoadCache.asMap().remove(key, future));
-        return future;
+                });
+        return new PendingStateLoad(future, invalidated);
+    }
+
+    /**
+     * Drops the player's cached state and marks every load still in flight for them as stale, so a load that
+     * read the database before the invalidation can neither re-cache its result nor be handed to new callers.
+     */
+    private void invalidateState(UUID playerId) {
+        stateLoadCache.asMap().forEach((key, load) -> {
+            if (key.playerId().equals(playerId)) {
+                load.invalidated().set(true);
+                stateLoadCache.asMap().remove(key, load);
+            }
+        });
+        stateCache.invalidate(playerId);
     }
 
     public CompletableFuture<PlayerQuestState> ensurePlayerStateAsync(Player player, String resetKey) {
@@ -98,9 +130,11 @@ public class QuestService {
     }
 
     public CompletableFuture<Void> resetDaily(UUID playerId, String resetKey) {
-        stateCache.invalidate(playerId);
-        stateLoadCache.invalidate(new StateLoadKey(playerId, resetKey));
-        return questRepository.resetDailyQuests(playerId, resetKey);
+        invalidateState(playerId);
+        // Invalidate again once the rows are gone: a load started between the first invalidation and the delete
+        // may still have read the quests being reset.
+        return questRepository.resetDailyQuests(playerId, resetKey)
+                .thenRun(() -> invalidateState(playerId));
     }
 
     public CompletableFuture<Boolean> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey) {
@@ -114,8 +148,7 @@ public class QuestService {
                         return false;
                     }
                     resetPurchaseUsageCache.put(new ResetPurchaseUsageKey(playerId, resetKey), updatedUsed);
-                    stateCache.invalidate(playerId);
-                    stateLoadCache.invalidate(new StateLoadKey(playerId, resetKey));
+                    invalidateState(playerId);
                     return true;
                 });
     }
@@ -423,7 +456,7 @@ public class QuestService {
     }
 
     public void clearOnlineDailyStates() {
-        Bukkit.getOnlinePlayers().forEach(player -> stateCache.invalidate(player.getUniqueId()));
+        Bukkit.getOnlinePlayers().forEach(player -> invalidateState(player.getUniqueId()));
     }
 
     public void claimRetroactiveMilestonesForOnlinePlayers() {
@@ -1049,6 +1082,9 @@ public class QuestService {
     }
 
     private record StateLoadKey(UUID playerId, String resetKey) {
+    }
+
+    private record PendingStateLoad(CompletableFuture<PlayerQuestState> future, AtomicBoolean invalidated) {
     }
 
     private record RerollUsageKey(UUID playerId, String resetKey) {
