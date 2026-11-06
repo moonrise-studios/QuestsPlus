@@ -55,6 +55,11 @@ public class QuestCommand implements PaperCommand {
     private final QuestIndicatorPreferenceService indicatorPreferenceService;
     private final QuestApiService apiService;
 
+    private enum CurrencyAdjustment {
+        GIVE,
+        TAKE
+    }
+
     @Command("q|quests")
     public void quests(CommandSourceStack source) {
         if (!(source.getSender() instanceof Player player)) {
@@ -439,50 +444,40 @@ public class QuestCommand implements PaperCommand {
     @Command("qa|questsadmin shield give <amount> <player>")
     @Permission("questsplus.admin")
     public void shieldGive(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, amount, playerName);
+        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, CurrencyAdjustment.GIVE, amount, playerName);
     }
 
     @Command("qa|questsadmin shield take <amount> <player>")
     @Permission("questsplus.admin")
     public void shieldTake(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, -amount, playerName);
+        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, CurrencyAdjustment.TAKE, amount, playerName);
     }
 
     @Command("qa|questsadmin recovery give <amount> <player>")
     @Permission("questsplus.admin")
     public void recoveryGive(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, amount, playerName);
+        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, CurrencyAdjustment.GIVE, amount, playerName);
     }
 
     @Command("qa|questsadmin recovery take <amount> <player>")
     @Permission("questsplus.admin")
     public void recoveryTake(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
+        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, CurrencyAdjustment.TAKE, amount, playerName);
+    }
+
+    private void adjustCurrency(
+            CommandSourceStack source,
+            QuestStreakService.StreakCurrency currency,
+            CurrencyAdjustment adjustment,
+            int amount,
+            String playerName
+    ) {
         if (amount <= 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
             return;
         }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, -amount, playerName);
-    }
-
-    private void adjustCurrency(CommandSourceStack source, QuestStreakService.StreakCurrency currency, int delta, String playerName) {
         if (!streakService.isEnabled()) {
             source.getSender().sendRichMessage("<red>Quest streaks are disabled.");
-            return;
-        }
-        if (delta == 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
             return;
         }
         Player target = Bukkit.getPlayerExact(playerName);
@@ -490,15 +485,8 @@ public class QuestCommand implements PaperCommand {
             configProvider.get().getMessages().getPlayerNotFound().send(source.getSender(), Placeholder.unparsed("player", playerName));
             return;
         }
-        if (delta < 0 && delta == Integer.MIN_VALUE) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        int amount = Math.abs(delta);
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
+        // amount is positive, so negating it for a take can never overflow.
+        int delta = adjustment == CurrencyAdjustment.GIVE ? amount : -amount;
         streakService.adjustCurrency(target.getUniqueId(), currency, delta)
                 .thenAccept(balance -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getStreakCurrencyUpdated().send(
                         source.getSender(),
