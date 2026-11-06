@@ -93,6 +93,10 @@ public record PlayerQuestState(
         quests.add(quest);
     }
 
+    public boolean removeQuest(UUID instanceId) {
+        return quests.removeIf(quest -> quest.instanceId().equals(instanceId));
+    }
+
     public void replaceQuestAtSlot(int slotIndex, GeneratedQuest quest) {
         for (int index = 0; index < quests.size(); index++) {
             if (quests.get(index).slotIndex() == slotIndex) {

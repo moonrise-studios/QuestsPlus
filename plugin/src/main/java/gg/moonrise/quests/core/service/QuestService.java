@@ -363,6 +363,16 @@ public class QuestService {
                     }
 
                     return questRepository.saveGeneratedQuests(List.of(generated))
+                            .whenComplete((unused, throwable) -> {
+                                if (throwable == null) {
+                                    return;
+                                }
+                                // The quest was never stored, so take it back out of the cached state; otherwise the
+                                // slot would look filled and its progress updates would hit no row.
+                                synchronized (state) {
+                                    state.removeQuest(generated.instanceId());
+                                }
+                            })
                             .thenApply(unused -> new QuestSelectionResult(state, QuestSelectionStatus.SELECTED, cachedRerollsUsed(playerId, resetKey), rerollLimit));
                 });
     }
