@@ -42,14 +42,27 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
 
         Player player = context.player();
         UUID playerId = player.getUniqueId();
-        PendingBatch batch = batches.computeIfAbsent(playerId, ignored -> new PendingBatch(scheduleFlush(player)));
+        PendingBatch created = new PendingBatch();
+        PendingBatch existing = batches.putIfAbsent(playerId, created);
+        PendingBatch batch = existing == null ? created : existing;
         batch.record(context);
+        if (existing != null) {
+            return;
+        }
+
+        ScheduledTask flushTask = scheduleFlush(player, created);
+        if (flushTask == null) {
+            // The player's scheduler is already retired, so the flush can never run.
+            batches.remove(playerId, created);
+            return;
+        }
+        created.flushTask(flushTask);
     }
 
     @Override
     public void clearAll() {
         for (PendingBatch batch : batches.values()) {
-            batch.flushTask().cancel();
+            batch.cancel();
         }
         batches.clear();
     }
@@ -59,14 +72,18 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
         clearAll();
     }
 
-    private ScheduledTask scheduleFlush(Player player) {
+    private ScheduledTask scheduleFlush(Player player, PendingBatch batch) {
+        UUID playerId = player.getUniqueId();
         long intervalSeconds = Math.max(1, config().getIntervalSeconds());
-        return Scheduler.entity(player).runDelayed(task -> flush(player.getUniqueId()), Duration.ofSeconds(intervalSeconds));
+        return Scheduler.entity(player).runDelayed(
+                task -> flush(playerId, batch),
+                () -> batches.remove(playerId, batch),
+                Duration.ofSeconds(intervalSeconds)
+        );
     }
 
-    private void flush(UUID playerId) {
-        PendingBatch batch = batches.remove(playerId);
-        if (batch == null) {
+    private void flush(UUID playerId, PendingBatch batch) {
+        if (!batches.remove(playerId, batch)) {
             return;
         }
 
@@ -113,15 +130,23 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
 
     private static final class PendingBatch {
 
-        private final ScheduledTask flushTask;
         private final Map<BatchKey, BatchEntry> entries = new LinkedHashMap<>();
+        private ScheduledTask flushTask;
+        private boolean cancelled;
 
-        private PendingBatch(ScheduledTask flushTask) {
+        private synchronized void flushTask(ScheduledTask flushTask) {
+            if (cancelled) {
+                flushTask.cancel();
+                return;
+            }
             this.flushTask = flushTask;
         }
 
-        private ScheduledTask flushTask() {
-            return flushTask;
+        private synchronized void cancel() {
+            cancelled = true;
+            if (flushTask != null) {
+                flushTask.cancel();
+            }
         }
 
         private synchronized void record(QuestProgressIndicatorContext context) {
