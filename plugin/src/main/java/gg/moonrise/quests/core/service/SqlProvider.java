@@ -36,16 +36,26 @@ public class SqlProvider implements Disableable {
     private final ConfigProvider configProvider;
 
     private final AtomicReference<HikariDataSource> dataSource = new AtomicReference<>();
+    private final ExecutorService reloadExecutor = Executors.newSingleThreadExecutor(threadFactory("QuestsPlus-SQL-Reload"));
     private volatile ExecutorService executor;
     private volatile SQLDatabase database;
+    private volatile StorageSettings connectedSettings;
 
     @PostConstruct
     public synchronized void init() {
-        reconnect();
+        reconnect(configProvider.get().getStorage());
     }
 
-    public synchronized boolean reload() {
-        return reconnect();
+    /**
+     * Reconnects to the given storage on a dedicated reload thread, so building the pool and running
+     * the schema DDL never blocks the caller. Storage settings equal to the connected ones are kept.
+     */
+    public CompletableFuture<ReloadResult> reload(Config.Storage storage) {
+        try {
+            return CompletableFuture.supplyAsync(() -> reconnectIfChanged(storage), reloadExecutor);
+        } catch (RejectedExecutionException exception) {
+            return CompletableFuture.completedFuture(new ReloadResult.Failed(exception));
+        }
     }
 
     public boolean isAvailable() {
@@ -174,8 +184,14 @@ public class SqlProvider implements Disableable {
         return currentDatabase().upsertIndicatorPreferenceSql();
     }
 
-    private synchronized boolean reconnect() {
-        Config.Storage storage = configProvider.get().getStorage();
+    private synchronized ReloadResult reconnectIfChanged(Config.Storage storage) {
+        if (isAvailable() && StorageSettings.of(storage).equals(connectedSettings)) {
+            return new ReloadResult.Unchanged();
+        }
+        return reconnect(storage);
+    }
+
+    private synchronized ReloadResult reconnect(Config.Storage storage) {
         SQLDatabase newDatabase = database(storage);
         HikariDataSource newDataSource = null;
         try {
@@ -183,14 +199,15 @@ public class SqlProvider implements Disableable {
             newDataSource = new HikariDataSource(hikariConfig);
             newDatabase.createTables(newDataSource);
             activate(newDatabase, newDataSource);
+            connectedSettings = StorageSettings.of(storage);
             log.info("Connected to QuestsPlus {} database.", newDatabase.displayName());
-            return true;
+            return new ReloadResult.Reconnected();
         } catch (SQLException | RuntimeException exception) {
             log.error("Failed to initialize QuestsPlus {} database.", newDatabase.displayName(), exception);
             if (dataSource.get() != newDataSource) {
                 closeDataSource(newDataSource);
             }
-            return false;
+            return new ReloadResult.Failed(exception);
         }
     }
 
@@ -228,20 +245,26 @@ public class SqlProvider implements Disableable {
     }
 
     private ThreadFactory sqlThreadFactory() {
+        return threadFactory("QuestsPlus-SQL");
+    }
+
+    private static ThreadFactory threadFactory(String name) {
         return runnable -> {
-            Thread thread = new Thread(runnable, "QuestsPlus-SQL");
+            Thread thread = new Thread(runnable, name);
             thread.setDaemon(true);
             return thread;
         };
     }
 
     private synchronized void closeResources() {
+        reloadExecutor.shutdown();
         ExecutorService currentExecutor = executor;
         executor = null;
         drainExecutor(currentExecutor);
 
         closeDataSource(dataSource.getAndSet(null));
         database = null;
+        connectedSettings = null;
     }
 
     private void drainExecutor(ExecutorService executorService) {
@@ -289,6 +312,65 @@ public class SqlProvider implements Disableable {
     @Override
     public synchronized void onDisable() {
         closeResources();
+    }
+
+    /**
+     * Outcome of {@link #reload(Config.Storage)}.
+     */
+    public sealed interface ReloadResult {
+
+        /**
+         * Storage settings were unchanged, so the existing connection was kept.
+         */
+        public record Unchanged() implements ReloadResult {
+        }
+
+        /**
+         * A new connection pool was created and replaced the previous one.
+         */
+        public record Reconnected() implements ReloadResult {
+        }
+
+        /**
+         * The new connection could not be created; the previous connection is still in use.
+         */
+        public record Failed(Throwable cause) implements ReloadResult {
+        }
+    }
+
+    private record StorageSettings(
+            Config.Storage.StorageType type,
+            String databaseFile,
+            String connectionUrl,
+            String username,
+            String password,
+            int poolSize
+    ) {
+
+        private static StorageSettings of(Config.Storage storage) {
+            Config.Storage.StorageType type = storage.getType() == null ? Config.Storage.StorageType.SQLITE : storage.getType();
+            return switch (type) {
+                case SQLITE -> new StorageSettings(type, storage.getDatabaseFile(), null, null, null, 0);
+                case MARIADB -> {
+                    Config.Storage.MariaDb settings = storage.getMariaDb();
+                    yield settings == null
+                            ? new StorageSettings(type, null, null, null, null, 0)
+                            : new StorageSettings(type, null, settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
+                }
+                case MYSQL -> {
+                    Config.Storage.MySql settings = storage.getMysql();
+                    yield settings == null
+                            ? new StorageSettings(type, null, null, null, null, 0)
+                            : new StorageSettings(type, null, settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
+                }
+                case POSTGRESQL -> {
+                    Config.Storage.PostgreSql settings = storage.getPostgresql();
+                    yield settings == null
+                            ? new StorageSettings(type, null, null, null, null, 0)
+                            : new StorageSettings(type, null, settings.getConnectionUrl(), settings.getUsername(), settings.getPassword(), settings.getPoolSize());
+                }
+            };
+        }
     }
 
     @FunctionalInterface

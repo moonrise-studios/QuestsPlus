@@ -71,6 +71,13 @@ final class SqlTestHarness {
         return provider;
     }
 
+    public static Config.Storage sqliteStorage(String databaseFile) {
+        Config.Storage storage = new Config().getStorage();
+        setField(storage, "type", Config.Storage.StorageType.SQLITE);
+        setField(storage, "databaseFile", databaseFile);
+        return storage;
+    }
+
     public static String externalConfigurationHelp() {
         return "Set QUESTSPLUS_TEST_MARIADB_URL, QUESTSPLUS_TEST_MYSQL_URL, or QUESTSPLUS_TEST_POSTGRESQL_URL to run live network database tests.";
     }

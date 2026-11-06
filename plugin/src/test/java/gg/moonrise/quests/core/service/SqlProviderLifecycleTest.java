@@ -1,10 +1,12 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.quests.config.Config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,10 +18,14 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 class SqlProviderLifecycleTest {
 
@@ -89,7 +95,8 @@ class SqlProviderLifecycleTest {
             writes.add(tracked(running, maxRunning, () -> insertNow(sqlProvider, rowId)));
         }
 
-        assertTrue(sqlProvider.reload());
+        // A different spelling of the same file forces a real reconnect against the same database.
+        assertInstanceOf(SqlProvider.ReloadResult.Reconnected.class, reload(SqlTestHarness.sqliteStorage("storage/./quests.db")));
 
         for (CompletableFuture<Void> write : writes) {
             assertTrue(write.isDone(), "writes queued before reload should finish before the old pool closes");
@@ -104,6 +111,49 @@ class SqlProviderLifecycleTest {
         assertTrue(sqlProvider.isAvailable());
         assertEquals(1, maxRunning.get());
         assertEquals(QUEUED_WRITES * 2, countWrites(sqlProvider));
+    }
+
+    @Test
+    public void reloadWithUnchangedStorageKeepsConnection() {
+        SqlProvider.ReloadResult result = reload(SqlTestHarness.sqliteStorage("storage/quests.db"));
+
+        assertInstanceOf(SqlProvider.ReloadResult.Unchanged.class, result);
+        assertTrue(sqlProvider.isAvailable());
+        insert(sqlProvider, 1).join();
+        assertEquals(1, countWrites(sqlProvider));
+    }
+
+    @Test
+    public void reloadWithChangedStorageReconnectsOffTheCallingThread() {
+        AtomicReference<String> reconnectThread = new AtomicReference<>();
+        Config.Storage storage = spy(SqlTestHarness.sqliteStorage("storage/other.db"));
+        doAnswer(invocation -> {
+            reconnectThread.compareAndSet(null, Thread.currentThread().getName());
+            return invocation.callRealMethod();
+        }).when(storage).getType();
+
+        SqlProvider.ReloadResult result = reload(storage);
+
+        assertInstanceOf(SqlProvider.ReloadResult.Reconnected.class, result);
+        assertEquals("QuestsPlus-SQL-Reload", reconnectThread.get());
+        assertTrue(Files.exists(tempDir.resolve("storage/other.db")));
+        assertTrue(sqlProvider.isAvailable());
+    }
+
+    @Test
+    public void failedReloadKeepsPreviousConnection() throws Exception {
+        Files.writeString(tempDir.resolve("blocker"), "not a directory");
+
+        SqlProvider.ReloadResult result = reload(SqlTestHarness.sqliteStorage("blocker/quests.db"));
+
+        assertInstanceOf(SqlProvider.ReloadResult.Failed.class, result);
+        assertTrue(sqlProvider.isAvailable());
+        insert(sqlProvider, 1).orTimeout(10, TimeUnit.SECONDS).join();
+        assertEquals(1, countWrites(sqlProvider));
+    }
+
+    private SqlProvider.ReloadResult reload(Config.Storage storage) {
+        return sqlProvider.reload(storage).orTimeout(30, TimeUnit.SECONDS).join();
     }
 
     private CompletableFuture<Void> tracked(AtomicInteger running, AtomicInteger maxRunning, SqlProvider.SqlRunnable work) {

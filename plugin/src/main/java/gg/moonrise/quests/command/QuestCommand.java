@@ -247,20 +247,37 @@ public class QuestCommand implements PaperCommand {
     @Command("qa|questsadmin reload")
     @Permission("questsplus.admin")
     public void reload(CommandSourceStack source) {
+        CommandSender sender = source.getSender();
         try {
-            configProvider.reload();
-            definitionService.reload();
-            resetService.reload();
-            if (!sqlProvider.reload()) {
-                throw new IllegalStateException("SQL reload failed");
-            }
-            apiService.reload();
-            globalQuestService.reload();
-            questService.claimRetroactiveMilestonesForOnlinePlayers();
-            configProvider.get().getMessages().getReloadSuccess().send(source.getSender());
+            // Read the new config without applying it, reconnect storage off the command thread, and
+            // only apply the new config once storage is ready, so a failed reconnect changes nothing.
+            var candidate = configProvider.loadFromDisk();
+            sqlProvider.reload(candidate.getStorage()).whenComplete((result, error) -> Scheduler.sync().run(task -> {
+                Throwable failure = error;
+                if (result instanceof SqlProvider.ReloadResult.Failed failed) {
+                    failure = failed.cause();
+                }
+                if (failure != null) {
+                    log.error("Failed to reconnect QuestsPlus storage; the previous configuration is still active.", failure);
+                    runForSender(sender, () -> configProvider.get().getMessages().getReloadFailed().send(sender));
+                    return;
+                }
+                try {
+                    configProvider.apply(candidate);
+                    definitionService.reload();
+                    resetService.reload();
+                    apiService.reload();
+                    globalQuestService.reload();
+                    questService.claimRetroactiveMilestonesForOnlinePlayers();
+                    runForSender(sender, () -> configProvider.get().getMessages().getReloadSuccess().send(sender));
+                } catch (RuntimeException exception) {
+                    log.error("Failed to reload QuestsPlus.", exception);
+                    runForSender(sender, () -> configProvider.get().getMessages().getReloadFailed().send(sender));
+                }
+            }));
         } catch (RuntimeException exception) {
-            log.error("Failed to reload QuestsPlus.", exception);
-            configProvider.get().getMessages().getReloadFailed().send(source.getSender());
+            log.error("Failed to load QuestsPlus configuration.", exception);
+            configProvider.get().getMessages().getReloadFailed().send(sender);
         }
     }
 

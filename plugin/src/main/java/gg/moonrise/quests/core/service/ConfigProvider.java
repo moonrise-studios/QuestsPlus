@@ -38,7 +38,19 @@ public class ConfigProvider implements Reloadable {
 
     @Override
     public synchronized void reload() {
-        this.config = loadConfig();
+        apply(loadConfig());
+    }
+
+    /**
+     * Reads every config file from disk without making the result active, so callers can finish
+     * work that may fail (such as reconnecting storage) before {@link #apply(Config)}.
+     */
+    public Config loadFromDisk() {
+        return loadConfig();
+    }
+
+    public synchronized void apply(Config config) {
+        this.config = config;
     }
 
     private Config loadConfig() {
