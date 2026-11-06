@@ -18,12 +18,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-final class QuestTypeSupport {
+public final class QuestTypeSupport {
 
-    static final String BLOCK_TYPE = "block-type";
-    static final String COLOR = "color";
-    static final String GOAL_AMOUNT = "goal-amount";
-    static final String ITEM_TYPE = "item-type";
+    public static final String BLOCK_TYPE = "block-type";
+    public static final String COLOR = "color";
+    public static final String GOAL_AMOUNT = "goal-amount";
+    public static final String ITEM_TYPE = "item-type";
 
     private QuestTypeSupport() {
     }
