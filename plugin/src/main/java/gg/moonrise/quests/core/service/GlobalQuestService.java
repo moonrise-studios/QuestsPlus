@@ -516,19 +516,26 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return values;
     }
 
+    /**
+     * Ranks by contribution (highest first, ties broken by UUID string) in one pass by counting the
+     * participants ahead of the player instead of sorting every contribution.
+     */
     private Rank rank(GlobalQuestState state, UUID playerId) {
-        List<Map.Entry<UUID, Integer>> ranked = state.contributions().entrySet().stream()
-                .filter(entry -> entry.getValue() > 0)
-                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed().thenComparing(entry -> entry.getKey().toString()))
-                .toList();
-        int rank = 1;
-        for (Map.Entry<UUID, Integer> entry : ranked) {
-            if (entry.getKey().equals(playerId)) {
-                return new Rank(rank, ranked.size());
+        int own = state.contribution(playerId);
+        String ownKey = playerId.toString();
+        int participants = 0;
+        int ahead = 0;
+        for (Map.Entry<UUID, Integer> entry : state.contributions().entrySet()) {
+            int value = entry.getValue();
+            if (value <= 0) {
+                continue;
             }
-            rank++;
+            participants++;
+            if (own > 0 && (value > own || value == own && entry.getKey().toString().compareTo(ownKey) < 0)) {
+                ahead++;
+            }
         }
-        return new Rank(0, ranked.size());
+        return new Rank(own > 0 ? ahead + 1 : 0, participants);
     }
 
     private String percent(int value, int max, boolean formatted) {

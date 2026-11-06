@@ -31,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -248,10 +249,35 @@ class GlobalQuestServiceTest {
         assertTrue(dispatched.isEmpty());
         // The winner only becomes known to the server once the global task runs, so a name resolved on the
         // SQL completion thread would fall back to the UUID.
-        server.addPlayer(new PlayerMock(server, "Winner", winnerId));
+        viewer("Winner", winnerId);
         runSyncTasks();
 
         assertEquals(List.of("give Winner 100"), dispatched);
+    }
+
+    @Test
+    public void globalRankOrdersByContributionThenUuid() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        GlobalQuestService service = serviceWithConfig(configProvider);
+        when(configProvider.get()).thenReturn(new Config());
+        UUID top = new UUID(0L, 9L);
+        UUID tiedFirst = new UUID(0L, 2L);
+        UUID tiedSecond = new UUID(0L, 3L);
+        UUID idle = new UUID(0L, 1L);
+        Map<UUID, Integer> contributions = new LinkedHashMap<>();
+        contributions.put(tiedSecond, 5);
+        contributions.put(idle, 0);
+        contributions.put(top, 10);
+        contributions.put(tiedFirst, 5);
+        GlobalQuestState base = activeGlobalState(top);
+        GlobalQuestState state = base.withQuest(base.quest().withProgress(20, false), contributions);
+        String template = "<global_rank>/<global_participants>";
+
+        assertEquals("1/3", service.replaceGlobalTokens(template, state, viewer("Top", top)));
+        assertEquals("2/3", service.replaceGlobalTokens(template, state, viewer("TiedFirst", tiedFirst)));
+        assertEquals("3/3", service.replaceGlobalTokens(template, state, viewer("TiedSecond", tiedSecond)));
+        assertEquals("-/3", service.replaceGlobalTokens(template, state, viewer("Idle", idle)));
+        assertEquals("-/3", service.replaceGlobalTokens(template, state, server.addPlayer("Stranger")));
     }
 
     @Test
@@ -306,6 +332,12 @@ class GlobalQuestServiceTest {
         LocalDateTime startsAt = currentPeriodStart();
         GeneratedQuest quest = globalQuest(0, 10, false);
         return new GlobalQuestState(quest, startsAt.toLocalDate().toString(), startsAt, startsAt.plusDays(7), Map.of(playerId, 0), false);
+    }
+
+    private PlayerMock viewer(String name, UUID id) {
+        PlayerMock player = new PlayerMock(server, name, id);
+        server.addPlayer(player);
+        return player;
     }
 
     private void runSyncTasks() {
