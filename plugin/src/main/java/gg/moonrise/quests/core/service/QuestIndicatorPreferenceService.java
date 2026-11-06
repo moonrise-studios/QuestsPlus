@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,11 @@ public class QuestIndicatorPreferenceService {
 
     private final SqlProvider sqlProvider;
     private final ConcurrentMap<UUID, Preferences> cache = new ConcurrentHashMap<>();
+    /**
+     * Token of the newest in-flight load per player. Writes and evictions remove it (while holding the cache
+     * entry's lock) so a load that started earlier cannot overwrite what they put in the cache.
+     */
+    private final ConcurrentMap<UUID, Object> pendingLoads = new ConcurrentHashMap<>();
 
     public Optional<String> cachedPreference(UUID playerId, Scope scope) {
         Preferences preferences = cache.get(playerId);
@@ -33,35 +39,52 @@ public class QuestIndicatorPreferenceService {
     }
 
     public void evict(UUID playerId) {
-        cache.remove(playerId);
+        cache.compute(playerId, (id, current) -> {
+            pendingLoads.remove(id);
+            return null;
+        });
     }
 
     public CompletableFuture<Preferences> loadPreference(UUID playerId) {
-        return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         SELECT indicator_type, personal_indicator_type, global_indicator_type
-                         FROM player_quest_indicator_preferences
-                         WHERE player_uuid = ?
-                         """)) {
-                statement.setString(1, playerId.toString());
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    if (!resultSet.next()) {
-                        cache.remove(playerId);
-                        return Preferences.empty();
-                    }
-                    String legacy = normalize(resultSet.getString("indicator_type"));
-                    String personal = normalizeNullable(resultSet.getString("personal_indicator_type"));
-                    String global = normalizeNullable(resultSet.getString("global_indicator_type"));
-                    Preferences preferences = new Preferences(
-                            personal == null ? legacy : personal,
-                            global == null ? legacy : global
-                    );
-                    cache.put(playerId, preferences);
-                    return preferences;
+        Object loadToken = new Object();
+        pendingLoads.put(playerId, loadToken);
+        return sqlProvider.supplyAsync(() -> readPreference(playerId))
+                .thenApply(loaded -> applyLoaded(playerId, loadToken, loaded))
+                .whenComplete((ignored, throwable) -> pendingLoads.remove(playerId, loadToken));
+    }
+
+    private Optional<Preferences> readPreference(UUID playerId) throws SQLException {
+        try (Connection connection = sqlProvider.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     SELECT indicator_type, personal_indicator_type, global_indicator_type
+                     FROM player_quest_indicator_preferences
+                     WHERE player_uuid = ?
+                     """)) {
+            statement.setString(1, playerId.toString());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
                 }
+                String legacy = normalize(resultSet.getString("indicator_type"));
+                String personal = normalizeNullable(resultSet.getString("personal_indicator_type"));
+                String global = normalizeNullable(resultSet.getString("global_indicator_type"));
+                return Optional.of(new Preferences(
+                        personal == null ? legacy : personal,
+                        global == null ? legacy : global
+                ));
             }
+        }
+    }
+
+    private Preferences applyLoaded(UUID playerId, Object loadToken, Optional<Preferences> loaded) {
+        Preferences cached = cache.compute(playerId, (id, current) -> {
+            if (!pendingLoads.remove(id, loadToken)) {
+                // A newer load, write or eviction happened after this load started; keep its result.
+                return current;
+            }
+            return loaded.orElse(null);
         });
+        return cached == null ? Preferences.empty() : cached;
     }
 
     public CompletableFuture<Void> setPreference(UUID playerId, Scope scope, String indicatorType) {
@@ -69,7 +92,10 @@ public class QuestIndicatorPreferenceService {
         if (DEFAULT.equals(normalized)) {
             return clearPreference(playerId, scope);
         }
-        Preferences updated = cache.merge(playerId, Preferences.of(scope, normalized), (current, ignored) -> current.with(scope, normalized));
+        Preferences updated = cache.compute(playerId, (id, current) -> {
+            pendingLoads.remove(id);
+            return (current == null ? Preferences.empty() : current).with(scope, normalized);
+        });
         return sqlProvider.runAsync(() -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertIndicatorPreferenceSql())) {
@@ -83,7 +109,8 @@ public class QuestIndicatorPreferenceService {
     }
 
     public CompletableFuture<Void> clearPreference(UUID playerId, Scope scope) {
-        Preferences updated = cache.compute(playerId, (ignored, current) -> {
+        Preferences updated = cache.compute(playerId, (id, current) -> {
+            pendingLoads.remove(id);
             Preferences base = current == null ? Preferences.empty() : current;
             Preferences next = base.with(scope, null);
             return next.isEmpty() ? null : next;
@@ -147,10 +174,6 @@ public class QuestIndicatorPreferenceService {
 
         private static Preferences empty() {
             return new Preferences(null, null);
-        }
-
-        private static Preferences of(Scope scope, String value) {
-            return scope == Scope.GLOBAL ? new Preferences(null, value) : new Preferences(value, null);
         }
 
         private Preferences with(Scope scope, String value) {
