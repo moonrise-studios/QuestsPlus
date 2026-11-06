@@ -34,7 +34,7 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
 
     @Override
     public String displayAmount(Player player) {
-        return Integer.toString((int) questResetCost());
+        return Integer.toString(toPoints(questResetCost()));
     }
 
     @Override
@@ -57,7 +57,7 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
             log.warn("PlayerPoints currency charge rejected for {} because PlayerPoints is unavailable.", player.getUniqueId());
             return false;
         }
-        int roundedAmount = (int) Math.max(0, Math.round(amount));
+        int roundedAmount = toPoints(amount);
         if (roundedAmount <= 0) {
             return true;
         }
@@ -71,7 +71,7 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
             log.warn("PlayerPoints currency refund rejected for {} because PlayerPoints is unavailable.", player.getUniqueId());
             return false;
         }
-        int roundedAmount = (int) Math.max(0, Math.round(amount));
+        int roundedAmount = toPoints(amount);
         if (roundedAmount <= 0) {
             return true;
         }
@@ -87,6 +87,17 @@ public class PlayerPointsCurrency implements QuestCurrency, Enableable {
     @Override
     public void onEnable() {
         resolvePoints();
+    }
+
+    /**
+     * Converts a currency amount to whole PlayerPoints. Display, charge and refund all use this
+     * so the amount shown to a player is exactly the amount taken or given back.
+     */
+    public static int toPoints(double amount) {
+        if (!(amount > 0.0D)) {
+            return 0;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, Math.round(amount));
     }
 
     private PlayerPointsAPI resolvePoints() {
