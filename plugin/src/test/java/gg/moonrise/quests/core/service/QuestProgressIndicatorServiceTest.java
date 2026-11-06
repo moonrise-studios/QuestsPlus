@@ -3,6 +3,7 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.indicator.QuestProgressIndicator;
 import gg.moonrise.quests.indicator.QuestProgressIndicatorContext;
+import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -13,10 +14,13 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,6 +75,85 @@ class QuestProgressIndicatorServiceTest {
         assertTrue(actionBar.shown.isEmpty());
         assertEquals(1, bossBar.shown.size());
         assertEquals("Stone Breaker 5/10", PlainTextComponentSerializer.plainText().serialize(bossBar.shown.getFirst().title()));
+    }
+
+    @Test
+    public void globalRankMatchesSortedContributionOrder() {
+        PlayerMock player = server.addPlayer("Contributor");
+        RecordingIndicator bossBar = new RecordingIndicator("BOSS_BAR", true, "");
+        QuestProgressIndicatorService service = service(bossBar);
+        Random random = new Random(34L);
+
+        for (int round = 0; round < 50; round++) {
+            Map<UUID, Integer> contributions = new HashMap<>();
+            for (int index = 0; index < 40; index++) {
+                contributions.put(UUID.randomUUID(), random.nextInt(6));
+            }
+            contributions.put(player.getUniqueId(), random.nextInt(6));
+
+            service.showGlobal(player, globalState(contributions), 0);
+
+            Map<String, String> placeholders = bossBar.shown.getLast().placeholders();
+            assertEquals(expectedRank(contributions, player.getUniqueId()), placeholders.get("global_rank"));
+            assertEquals(Long.toString(contributions.values().stream().filter(value -> value > 0).count()), placeholders.get("global_participants"));
+        }
+    }
+
+    @Test
+    public void tiedContributorsAreOrderedByUuid() {
+        PlayerMock player = server.addPlayer("Tied");
+        RecordingIndicator bossBar = new RecordingIndicator("BOSS_BAR", true, "");
+        QuestProgressIndicatorService service = service(bossBar);
+        UUID before = new UUID(0L, 0L);
+        UUID after = new UUID(-1L, -1L);
+
+        service.showGlobal(player, globalState(Map.of(before, 7, player.getUniqueId(), 7, after, 7, UUID.randomUUID(), 0)), 0);
+
+        Map<String, String> placeholders = bossBar.shown.getLast().placeholders();
+        assertEquals("2", placeholders.get("global_rank"));
+        assertEquals("3", placeholders.get("global_participants"));
+    }
+
+    @Test
+    public void playerWithoutContributionHasNoRank() {
+        PlayerMock player = server.addPlayer("Idle");
+        RecordingIndicator bossBar = new RecordingIndicator("BOSS_BAR", true, "");
+        QuestProgressIndicatorService service = service(bossBar);
+
+        service.showGlobal(player, globalState(Map.of(UUID.randomUUID(), 3)), 0);
+
+        assertEquals("-", bossBar.shown.getLast().placeholders().get("global_rank"));
+    }
+
+    private static String expectedRank(Map<UUID, Integer> contributions, UUID playerId) {
+        List<UUID> ranked = contributions.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0)
+                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed().thenComparing(entry -> entry.getKey().toString()))
+                .map(Map.Entry::getKey)
+                .toList();
+        int index = ranked.indexOf(playerId);
+        return index < 0 ? "-" : Integer.toString(index + 1);
+    }
+
+    private static GlobalQuestState globalState(Map<UUID, Integer> contributions) {
+        LocalDateTime startsAt = LocalDateTime.now().minusDays(1);
+        int progress = contributions.values().stream().mapToInt(Integer::intValue).sum();
+        GeneratedQuest quest = new GeneratedQuest(
+                UUID.randomUUID(),
+                new UUID(0L, 0L),
+                "period",
+                "global-kill-all-mobs",
+                QuestTypes.KILL_ALL_MOBS,
+                "easy",
+                "Easy",
+                "Global Slayer",
+                List.of(),
+                Map.of(),
+                10_000,
+                progress,
+                false
+        );
+        return new GlobalQuestState(quest, "period", startsAt, startsAt.plusDays(7), Map.copyOf(contributions), false);
     }
 
     private QuestProgressIndicatorService service(QuestProgressIndicator... indicators) {

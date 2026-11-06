@@ -228,19 +228,27 @@ public class QuestProgressIndicatorService {
         return "Ends in " + QuestNumberFormatter.format(ceilDays) + "d";
     }
 
+    /**
+     * Ranks the player among positive contributors, highest first with ties broken by UUID string, in one pass
+     * by counting the contributors ranked ahead instead of sorting everyone.
+     */
     private Rank rank(GlobalQuestState state, UUID playerId) {
-        List<Map.Entry<UUID, Integer>> ranked = state.contributions().entrySet().stream()
-                .filter(entry -> entry.getValue() > 0)
-                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed().thenComparing(entry -> entry.getKey().toString()))
-                .toList();
-        int rank = 1;
-        for (Map.Entry<UUID, Integer> entry : ranked) {
-            if (entry.getKey().equals(playerId)) {
-                return new Rank(rank, ranked.size());
+        int playerContribution = state.contribution(playerId);
+        String playerKey = playerId.toString();
+        int participants = 0;
+        int ahead = 0;
+        for (Map.Entry<UUID, Integer> entry : state.contributions().entrySet()) {
+            int contribution = entry.getValue();
+            if (contribution <= 0) {
+                continue;
             }
-            rank++;
+            participants++;
+            if (contribution > playerContribution
+                    || (contribution == playerContribution && entry.getKey().toString().compareTo(playerKey) < 0)) {
+                ahead++;
+            }
         }
-        return new Rank(0, ranked.size());
+        return new Rank(playerContribution > 0 ? ahead + 1 : 0, participants);
     }
 
     private String stripMiniMessageFallback(String input) {
