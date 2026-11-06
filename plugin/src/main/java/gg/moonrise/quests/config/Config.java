@@ -2176,6 +2176,61 @@ public class Config {
         private Message rerollsReset = Message.of("<green>Reset daily rerolls for <white><player></white>.");
         @Comment({
                 "",
+                "Message sent when the daily quest menu cannot be opened."
+        })
+        private Message menuOpenFailed = Message.of("<red>Failed to open quests right now.");
+        @Comment({
+                "",
+                "Message sent when a player opens quest milestones while they are disabled."
+        })
+        private Message questMilestonesDisabled = Message.of("<red>Quest milestones are disabled.");
+        @Comment({
+                "",
+                "Message sent when the quest milestone selector or milestone page cannot be opened."
+        })
+        private Message milestonesOpenFailed = Message.of("<red>Failed to open quest milestones right now.");
+        @Comment({
+                "",
+                "Message sent when a requested quest difficulty does not exist."
+        })
+        private Message unknownQuestDifficulty = Message.of("<red>Unknown quest difficulty.");
+        @Comment({
+                "",
+                "Message sent when a player uses quest streaks while they are disabled."
+        })
+        private Message questStreaksDisabled = Message.of("<red>Quest streaks are disabled.");
+        @Comment({
+                "",
+                "Message sent when the quest streak menu cannot be opened."
+        })
+        private Message streaksOpenFailed = Message.of("<red>Failed to open quest streaks right now.");
+        @Comment({
+                "",
+                "Message sent when the quest streak confirmation menu cannot be opened."
+        })
+        private Message streakConfirmationOpenFailed = Message.of("<red>Failed to open quest streak confirmation right now.");
+        @Comment({
+                "",
+                "Message sent when the quest reset purchase menu cannot be opened."
+        })
+        private Message questResetPurchaseOpenFailed = Message.of("<red>Failed to open quest reset purchases right now.");
+        @Comment({
+                "",
+                "Message sent when the quest difficulty picker cannot be opened."
+        })
+        private Message difficultyPickerOpenFailed = Message.of("<red>Failed to open quest difficulty picker right now.");
+        @Comment({
+                "",
+                "Message sent when the quest reroll difficulty picker cannot be opened."
+        })
+        private Message rerollPickerOpenFailed = Message.of("<red>Failed to open quest reroll picker right now.");
+        @Comment({
+                "",
+                "Message sent when selecting or rerolling a quest difficulty fails."
+        })
+        private Message difficultySelectFailed = Message.of("<red>Failed to select that quest difficulty right now.");
+        @Comment({
+                "",
                 "Configurable streak milestone locked text."
         })
         private String streakMilestoneLocked = "<dark_gray>Locked";
@@ -2294,6 +2349,61 @@ public class Config {
                 "Admin confirmation after resetting a player's daily reroll usage."
         })
         private Message rerollsReset = Message.of("<green>Reset daily rerolls for <white><player></white>.");
+        @Comment({
+                "",
+                "Message sent when the daily quest menu cannot be opened."
+        })
+        private Message menuOpenFailed = Message.of("<red>Failed to open quests right now.");
+        @Comment({
+                "",
+                "Message sent when a player opens quest milestones while they are disabled."
+        })
+        private Message questMilestonesDisabled = Message.of("<red>Quest milestones are disabled.");
+        @Comment({
+                "",
+                "Message sent when the quest milestone selector or milestone page cannot be opened."
+        })
+        private Message milestonesOpenFailed = Message.of("<red>Failed to open quest milestones right now.");
+        @Comment({
+                "",
+                "Message sent when a requested quest difficulty does not exist."
+        })
+        private Message unknownQuestDifficulty = Message.of("<red>Unknown quest difficulty.");
+        @Comment({
+                "",
+                "Message sent when a player uses quest streaks while they are disabled."
+        })
+        private Message questStreaksDisabled = Message.of("<red>Quest streaks are disabled.");
+        @Comment({
+                "",
+                "Message sent when the quest streak menu cannot be opened."
+        })
+        private Message streaksOpenFailed = Message.of("<red>Failed to open quest streaks right now.");
+        @Comment({
+                "",
+                "Message sent when the quest streak confirmation menu cannot be opened."
+        })
+        private Message streakConfirmationOpenFailed = Message.of("<red>Failed to open quest streak confirmation right now.");
+        @Comment({
+                "",
+                "Message sent when the quest reset purchase menu cannot be opened."
+        })
+        private Message questResetPurchaseOpenFailed = Message.of("<red>Failed to open quest reset purchases right now.");
+        @Comment({
+                "",
+                "Message sent when the quest difficulty picker cannot be opened."
+        })
+        private Message difficultyPickerOpenFailed = Message.of("<red>Failed to open quest difficulty picker right now.");
+        @Comment({
+                "",
+                "Message sent when the quest reroll difficulty picker cannot be opened."
+        })
+        private Message rerollPickerOpenFailed = Message.of("<red>Failed to open quest reroll picker right now.");
+        @Comment({
+                "",
+                "Message sent when selecting or rerolling a quest difficulty fails."
+        })
+        private Message difficultySelectFailed = Message.of("<red>Failed to select that quest difficulty right now.");
         @Comment({
                 "",
                 "Configurable streak milestone locked text."
@@ -3270,6 +3380,17 @@ public class Config {
         messages.playerNotFound = shared.playerNotFound;
         messages.globalQuestRefreshed = shared.globalQuestRefreshed;
         messages.rerollsReset = shared.rerollsReset;
+        messages.menuOpenFailed = shared.menuOpenFailed;
+        messages.questMilestonesDisabled = shared.questMilestonesDisabled;
+        messages.milestonesOpenFailed = shared.milestonesOpenFailed;
+        messages.unknownQuestDifficulty = shared.unknownQuestDifficulty;
+        messages.questStreaksDisabled = shared.questStreaksDisabled;
+        messages.streaksOpenFailed = shared.streaksOpenFailed;
+        messages.streakConfirmationOpenFailed = shared.streakConfirmationOpenFailed;
+        messages.questResetPurchaseOpenFailed = shared.questResetPurchaseOpenFailed;
+        messages.difficultyPickerOpenFailed = shared.difficultyPickerOpenFailed;
+        messages.rerollPickerOpenFailed = shared.rerollPickerOpenFailed;
+        messages.difficultySelectFailed = shared.difficultySelectFailed;
         messages.streakMilestoneLocked = shared.streakMilestoneLocked;
         messages.streakMilestoneCompleted = shared.streakMilestoneCompleted;
         messages.streakMilestoneProgress = shared.streakMilestoneProgress;

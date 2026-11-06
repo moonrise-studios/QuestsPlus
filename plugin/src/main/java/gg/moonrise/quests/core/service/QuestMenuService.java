@@ -1,5 +1,6 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.engine.message.Message;
 import gg.moonrise.engine.paper.item.ItemBuilder;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.List;
 import java.util.Map;
 
@@ -66,223 +68,118 @@ public class QuestMenuService {
 
     public void openDailyQuests(Player player) {
         String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
+        CompletableFuture<DailyMenuState> load = questService.ensurePlayerStateAsync(player, resetKey)
                 .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
                 .thenCompose(state -> questService.ensureQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
-                .thenCompose(state -> activeGlobalQuestAsync().thenApply(globalState -> new DailyMenuState(state, globalState)))
-                .thenAccept(menuState -> Scheduler.entity(player).run(task -> {
-                    if (player.isOnline()) {
-                        new QuestMenuUI(player, this, menuState.questState(), menuState.globalState()).open();
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus menu for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quests right now.");
-                        }
-                    });
-                    return null;
-                });
+                .thenCompose(state -> activeGlobalQuestAsync().thenApply(globalState -> new DailyMenuState(state, globalState)));
+        openWhenLoaded(player, load, "open QuestsPlus menu", Config.Messages::getMenuOpenFailed,
+                menuState -> new QuestMenuUI(player, this, menuState.questState(), menuState.globalState()).open());
     }
 
     public void openMilestoneSelector(Player player) {
         if (!questService.questMilestonesEnabled()) {
-            player.sendRichMessage("<red>Quest milestones are disabled.");
+            config().getMessages().getQuestMilestonesDisabled().send(player);
             return;
         }
         String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenAccept(state -> Scheduler.entity(player).run(task -> {
-                    if (player.isOnline()) {
-                        new QuestMilestoneSelectorUI(player, this, state).open();
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus milestone selector for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest milestones right now.");
-                        }
-                    });
-                    return null;
-                });
+        openWhenLoaded(player, questService.ensurePlayerStateAsync(player, resetKey), "open QuestsPlus milestone selector", Config.Messages::getMilestonesOpenFailed,
+                state -> new QuestMilestoneSelectorUI(player, this, state).open());
     }
 
     public void openMilestones(Player player, String difficultyId) {
         if (!questService.questMilestonesEnabled()) {
-            player.sendRichMessage("<red>Quest milestones are disabled.");
+            config().getMessages().getQuestMilestonesDisabled().send(player);
             return;
         }
         String normalizedDifficulty = QuestNames.normalize(difficultyId);
         QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
         if (difficulty == null || !difficulty.id().equals(normalizedDifficulty)) {
-            player.sendRichMessage("<red>Unknown quest difficulty.");
+            config().getMessages().getUnknownQuestDifficulty().send(player);
             return;
         }
 
         String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenAccept(state -> Scheduler.entity(player).run(task -> {
-                    if (player.isOnline()) {
-                        new QuestMilestoneMenuUI(player, this, state, difficulty).open();
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus milestones for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest milestones right now.");
-                        }
-                    });
-                    return null;
-                });
+        openWhenLoaded(player, questService.ensurePlayerStateAsync(player, resetKey), "open QuestsPlus milestones", Config.Messages::getMilestonesOpenFailed,
+                state -> new QuestMilestoneMenuUI(player, this, state, difficulty).open());
     }
 
     public void openStreaks(Player player) {
         if (!streakService.isEnabled()) {
-            player.sendRichMessage("<red>Quest streaks are disabled.");
+            config().getMessages().getQuestStreaksDisabled().send(player);
             return;
         }
-        String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(questState -> streakService.stateForMenu(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)))
-                .thenAccept(menuState -> Scheduler.entity(player).run(task -> {
-                    if (player.isOnline()) {
-                        new QuestStreakMenuUI(player, this, menuState.questState(), menuState.streakState()).open();
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus streak menu for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest streaks right now.");
-                        }
-                    });
-                    return null;
-                });
+        openWhenLoaded(player, streakMenuState(player), "open QuestsPlus streak menu", Config.Messages::getStreaksOpenFailed,
+                menuState -> new QuestStreakMenuUI(player, this, menuState.questState(), menuState.streakState()).open());
     }
 
     public void openStreakConfirmation(Player player) {
         if (!streakService.isEnabled()) {
-            player.sendRichMessage("<red>Quest streaks are disabled.");
+            config().getMessages().getQuestStreaksDisabled().send(player);
             return;
         }
-        String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(questState -> streakService.stateForMenu(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)))
-                .thenAccept(menuState -> Scheduler.entity(player).run(task -> {
-                    if (player.isOnline()) {
-                        new QuestStreakConfirmUI(player, this, menuState.questState(), menuState.streakState()).open();
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus streak confirmation for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest streak confirmation right now.");
-                        }
-                    });
-                    return null;
-                });
+        openWhenLoaded(player, streakMenuState(player), "open QuestsPlus streak confirmation", Config.Messages::getStreakConfirmationOpenFailed,
+                menuState -> new QuestStreakConfirmUI(player, this, menuState.questState(), menuState.streakState()).open());
     }
 
     public void openQuestResetPurchase(Player player) {
         String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> questService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
-                .thenAccept(state -> Scheduler.entity(player).run(task -> {
-                    if (!player.isOnline()) {
-                        return;
-                    }
-                    QuestResetEligibility eligibility = questService.resetEligibility(player, state);
-                    if (!eligibility.eligible()) {
-                        config().getMessages().getQuestResetNotReady().send(
-                                player,
-                                Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
-                                Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
-                        );
-                        new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
-                        return;
-                    }
-                    if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
-                        sendResetLimitReached(player, eligibility);
-                        new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
-                        return;
-                    }
-                    if (!hasAvailableQuestResetCurrency()) {
-                        sendPurchaseUnavailable(player, null, eligibility);
-                        new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
-                        return;
-                    }
-                    new QuestResetPurchaseUI(player, this, eligibility).open();
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus reset purchase menu for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest reset purchases right now.");
-                        }
-                    });
-                    return null;
-                });
+        CompletableFuture<PlayerQuestState> load = questService.ensurePlayerStateAsync(player, resetKey)
+                .thenCompose(state -> questService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state));
+        openWhenLoaded(player, load, "open QuestsPlus reset purchase menu", Config.Messages::getQuestResetPurchaseOpenFailed, state -> {
+            QuestResetEligibility eligibility = questService.resetEligibility(player, state);
+            if (!eligibility.eligible()) {
+                config().getMessages().getQuestResetNotReady().send(
+                        player,
+                        Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
+                        Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required()))
+                );
+                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                return;
+            }
+            if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
+                sendResetLimitReached(player, eligibility);
+                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                return;
+            }
+            if (!hasAvailableQuestResetCurrency()) {
+                sendPurchaseUnavailable(player, null, eligibility);
+                new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState()).open();
+                return;
+            }
+            new QuestResetPurchaseUI(player, this, eligibility).open();
+        });
     }
 
     public void openDifficultyPicker(Player player, int slotIndex) {
         String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenAccept(state -> Scheduler.entity(player).run(task -> {
-                    if (player.isOnline()) {
-                        new QuestDifficultyPickerUI(player, this, slotIndex, false).open();
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus difficulty picker for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest difficulty picker right now.");
-                        }
-                    });
-                    return null;
-                });
+        openWhenLoaded(player, questService.ensurePlayerStateAsync(player, resetKey), "open QuestsPlus difficulty picker", Config.Messages::getDifficultyPickerOpenFailed,
+                state -> new QuestDifficultyPickerUI(player, this, slotIndex, false).open());
     }
 
     public void openRerollDifficultyPicker(Player player, int slotIndex) {
         String resetKey = resetService.currentResetKey();
-        questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(used -> state))
-                .thenAccept(state -> Scheduler.entity(player).run(task -> {
-                    if (!player.isOnline()) {
-                        return;
-                    }
-                    GeneratedQuest quest = state.questAtSlot(slotIndex);
-                    if (quest == null) {
-                        openDifficultyPicker(player, slotIndex);
-                        return;
-                    }
-                    if (!questService.canAccessQuest(player, quest)) {
-                        openDailyQuests(player);
-                        return;
-                    }
-                    if (quest.completed()) {
-                        config().getMessages().getCompletedQuestCannotReroll().send(player);
-                        return;
-                    }
-                    if (questService.rerollsRemaining(player, resetKey) <= 0) {
-                        config().getMessages().getNoRerollsRemaining().send(player);
-                        return;
-                    }
-                    new QuestDifficultyPickerUI(player, this, slotIndex, true).open();
-                }))
-                .exceptionally(throwable -> {
-                    log.error("Failed to open QuestsPlus reroll difficulty picker for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> {
-                        if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to open quest reroll picker right now.");
-                        }
-                    });
-                    return null;
-                });
+        CompletableFuture<PlayerQuestState> load = questService.ensurePlayerStateAsync(player, resetKey)
+                .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(used -> state));
+        openWhenLoaded(player, load, "open QuestsPlus reroll difficulty picker", Config.Messages::getRerollPickerOpenFailed, state -> {
+            GeneratedQuest quest = state.questAtSlot(slotIndex);
+            if (quest == null) {
+                openDifficultyPicker(player, slotIndex);
+                return;
+            }
+            if (!questService.canAccessQuest(player, quest)) {
+                openDailyQuests(player);
+                return;
+            }
+            if (quest.completed()) {
+                config().getMessages().getCompletedQuestCannotReroll().send(player);
+                return;
+            }
+            if (questService.rerollsRemaining(player, resetKey) <= 0) {
+                config().getMessages().getNoRerollsRemaining().send(player);
+                return;
+            }
+            new QuestDifficultyPickerUI(player, this, slotIndex, true).open();
+        });
     }
 
     public void selectDifficultyForSlot(Player player, int slotIndex, String difficultyId) {
@@ -294,50 +191,70 @@ public class QuestMenuService {
         CompletableFuture<QuestSelectionResult> selection = reroll
                 ? questService.rerollQuestDifficulty(player, resetKey, slotIndex, difficultyId)
                 : questService.selectQuestDifficulty(player, resetKey, slotIndex, difficultyId);
-        selection
-                .thenAccept(result -> Scheduler.entity(player).run(task -> {
-                    if (!player.isOnline()) {
-                        return;
+        openWhenLoaded(player, selection, "select QuestsPlus difficulty " + difficultyId, Config.Messages::getDifficultySelectFailed, result -> {
+            if (result.status() == QuestSelectionStatus.NO_AVAILABLE_QUEST) {
+                String normalizedDifficulty = QuestNames.normalize(difficultyId);
+                Component difficultyName = withoutItalics(parse(difficultyDisplayName(normalizedDifficulty)));
+                config().getMessages().getNoAvailableQuestForDifficulty().send(
+                        player,
+                        Placeholder.unparsed("difficulty_id", normalizedDifficulty),
+                        Placeholder.component("difficulty", difficultyName),
+                        Placeholder.component("quest_difficulty", difficultyName)
+                );
+            } else if (result.status() == QuestSelectionStatus.REQUIREMENTS_NOT_MET) {
+                String normalizedDifficulty = QuestNames.normalize(difficultyId);
+                QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
+                Component difficultyName = withoutItalics(parse(difficultyDisplayName(normalizedDifficulty)));
+                config().getMessages().getDifficultyRequirementsNotMet().send(
+                        player,
+                        Placeholder.unparsed("difficulty_id", normalizedDifficulty),
+                        Placeholder.unparsed("requirements", difficultyRequirementsText(difficulty, result.state())),
+                        Placeholder.component("difficulty", difficultyName),
+                        Placeholder.component("quest_difficulty", difficultyName)
+                );
+            } else if (result.status() == QuestSelectionStatus.NO_REROLLS) {
+                config().getMessages().getNoRerollsRemaining().send(player);
+            } else if (result.status() == QuestSelectionStatus.COMPLETED) {
+                config().getMessages().getCompletedQuestCannotReroll().send(player);
+            } else if (result.status() == QuestSelectionStatus.REROLLED) {
+                config().getMessages().getQuestRerolled().send(
+                        player,
+                        Placeholder.unparsed("slot", QuestNumberFormatter.format(slotIndex + 1)),
+                        Placeholder.unparsed("rerolls_remaining", QuestNumberFormatter.format(Math.max(0, result.rerollsLimit() - result.rerollsUsed())))
+                );
+            }
+            GlobalQuestState globalState = globalQuestService.cachedActiveState();
+            new QuestMenuUI(player, this, result.state(), globalState).open();
+        });
+    }
+
+    private CompletableFuture<StreakMenuState> streakMenuState(Player player) {
+        String resetKey = resetService.currentResetKey();
+        return questService.ensurePlayerStateAsync(player, resetKey)
+                .thenCompose(questState -> streakService.stateForMenu(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)));
+    }
+
+    /**
+     * Waits for {@code load}, then runs {@code open} on the player's entity thread if they are
+     * still online. If loading fails, logs the failure and sends the configured failure message.
+     */
+    private <T> void openWhenLoaded(
+            Player player,
+            CompletableFuture<T> load,
+            String action,
+            Function<Config.Messages, Message> failureMessage,
+            Consumer<T> open
+    ) {
+        load.thenAccept(value -> Scheduler.entity(player).run(task -> {
+                    if (player.isOnline()) {
+                        open.accept(value);
                     }
-                    if (result.status() == QuestSelectionStatus.NO_AVAILABLE_QUEST) {
-                        String normalizedDifficulty = QuestNames.normalize(difficultyId);
-                        Component difficultyName = withoutItalics(parse(difficultyDisplayName(normalizedDifficulty)));
-                        config().getMessages().getNoAvailableQuestForDifficulty().send(
-                                player,
-                                Placeholder.unparsed("difficulty_id", normalizedDifficulty),
-                                Placeholder.component("difficulty", difficultyName),
-                                Placeholder.component("quest_difficulty", difficultyName)
-                        );
-                    } else if (result.status() == QuestSelectionStatus.REQUIREMENTS_NOT_MET) {
-                        String normalizedDifficulty = QuestNames.normalize(difficultyId);
-                        QuestDifficulty difficulty = definitionService.difficulty(normalizedDifficulty);
-                        Component difficultyName = withoutItalics(parse(difficultyDisplayName(normalizedDifficulty)));
-                        config().getMessages().getDifficultyRequirementsNotMet().send(
-                                player,
-                                Placeholder.unparsed("difficulty_id", normalizedDifficulty),
-                                Placeholder.unparsed("requirements", difficultyRequirementsText(difficulty, result.state())),
-                                Placeholder.component("difficulty", difficultyName),
-                                Placeholder.component("quest_difficulty", difficultyName)
-                        );
-                    } else if (result.status() == QuestSelectionStatus.NO_REROLLS) {
-                        config().getMessages().getNoRerollsRemaining().send(player);
-                    } else if (result.status() == QuestSelectionStatus.COMPLETED) {
-                        config().getMessages().getCompletedQuestCannotReroll().send(player);
-                    } else if (result.status() == QuestSelectionStatus.REROLLED) {
-                        config().getMessages().getQuestRerolled().send(
-                                player,
-                                Placeholder.unparsed("slot", QuestNumberFormatter.format(slotIndex + 1)),
-                                Placeholder.unparsed("rerolls_remaining", QuestNumberFormatter.format(Math.max(0, result.rerollsLimit() - result.rerollsUsed())))
-                        );
-                    }
-                    GlobalQuestState globalState = globalQuestService.cachedActiveState();
-                    new QuestMenuUI(player, this, result.state(), globalState).open();
                 }))
                 .exceptionally(throwable -> {
-                    log.error("Failed to select QuestsPlus difficulty {} for {}.", difficultyId, player.getUniqueId(), throwable);
+                    log.error("Failed to {} for {}.", action, player.getUniqueId(), throwable);
                     Scheduler.entity(player).run(task -> {
                         if (player.isOnline()) {
-                            player.sendRichMessage("<red>Failed to select that quest difficulty right now.");
+                            failureMessage.apply(config().getMessages()).send(player);
                         }
                     });
                     return null;
@@ -783,7 +700,7 @@ public class QuestMenuService {
 
     public void applyStreakRecovery(Player player) {
         if (!streakService.isEnabled()) {
-            player.sendRichMessage("<red>Quest streaks are disabled.");
+            config().getMessages().getQuestStreaksDisabled().send(player);
             return;
         }
         streakService.recoverStreak(player, resetService.currentResetKey())
