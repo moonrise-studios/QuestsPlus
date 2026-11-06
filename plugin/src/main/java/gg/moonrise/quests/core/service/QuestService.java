@@ -775,16 +775,10 @@ public class QuestService {
     private void handleCompletion(Player player, GeneratedQuest quest) {
         configProvider.get().getMessages().getQuestCompleted().send(player, Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(quest.displayName())));
 
-        List<String> commands = rewardCommands(player, quest);
-        if (commands.isEmpty()) {
-            return;
+        // Already on the player's entity thread (see persistProgress), so the commands run directly.
+        for (String command : rewardCommands(player, quest)) {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceQuestRewardTokens(command, quest, player));
         }
-
-        Scheduler.entity(player).run(task -> {
-            for (String command : commands) {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceQuestRewardTokens(command, quest, player));
-            }
-        });
     }
 
     private void completeQuest(Player player, PlayerQuestState state, GeneratedQuest quest) {
