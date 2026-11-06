@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -69,6 +70,23 @@ class QuestStreakServiceTest {
         int updatedBalance = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 3).join();
 
         assertEquals(5, updatedBalance);
+    }
+
+    @Test
+    public void failedOperationDoesNotBlockLaterOperationsForThePlayer() {
+        SqlProvider sqlProvider = mock(SqlProvider.class);
+        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), sqlProvider);
+        QuestStreakState state = state(3, 2);
+        when(sqlProvider.supplyAsync(any()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")))
+                .thenReturn(CompletableFuture.completedFuture(state));
+        when(sqlProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        CompletableFuture<Integer> failed = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 1);
+        CompletableFuture<Integer> next = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 1);
+
+        assertTrue(failed.isCompletedExceptionally());
+        assertEquals(3, next.join());
     }
 
     private static QuestStreakService service() {

@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -46,6 +48,10 @@ public class QuestStreakService {
     private final ConfigProvider configProvider;
     private final SqlProvider sqlProvider;
     private final Cache<UUID, QuestStreakState> cache = Caffeine.newBuilder().maximumSize(10_000).build();
+    /**
+     * Tail of each player's queue of streak read-modify-write operations; entries are removed once the queue drains.
+     */
+    private final Map<UUID, CompletableFuture<Void>> playerQueues = new ConcurrentHashMap<>();
 
     public boolean isEnabled() {
         Config config = configProvider.get();
@@ -60,12 +66,8 @@ public class QuestStreakService {
         if (!isEnabled()) {
             return CompletableFuture.completedFuture(cachedOrEmpty(player.getUniqueId()));
         }
-        return loadState(player.getUniqueId())
-                .thenCompose(state -> evaluateMissedWindows(state, currentResetKey))
-                .thenApply(state -> {
-                    cache.put(player.getUniqueId(), state);
-                    return state;
-                });
+        UUID playerId = player.getUniqueId();
+        return serialized(playerId, () -> refreshState(playerId, currentResetKey));
     }
 
     public CompletableFuture<QuestStreakState> stateForMenu(Player player, String currentResetKey) {
@@ -86,15 +88,20 @@ public class QuestStreakService {
             return CompletableFuture.completedFuture(new QuestStreakEvaluation(cachedOrEmpty(player.getUniqueId()), List.of()));
         }
 
-        return ensureState(player, questState.resetKey())
+        UUID playerId = player.getUniqueId();
+        String resetKey = questState.resetKey();
+        return serialized(playerId, () -> refreshState(playerId, resetKey)
                 .thenCompose(state -> {
-                    if (questState.resetKey().equals(state.lastCompletedResetKey())) {
+                    if (resetKey.equals(state.lastCompletedResetKey())) {
                         return CompletableFuture.completedFuture(new QuestStreakEvaluation(state, List.of()));
                     }
-                    return awardStreak(player.getUniqueId(), state, questState.resetKey());
+                    return awardStreak(playerId, state, resetKey);
                 })
                 .thenApply(evaluation -> {
-                    cache.put(player.getUniqueId(), evaluation.state());
+                    cache.put(playerId, evaluation.state());
+                    return evaluation;
+                }))
+                .thenApply(evaluation -> {
                     handleStreakMilestoneRewards(player, evaluation);
                     return evaluation;
                 });
@@ -104,7 +111,8 @@ public class QuestStreakService {
         if (!isEnabled()) {
             return CompletableFuture.completedFuture(new StreakRecoveryResult(false, new QuestStreakEvaluation(cachedOrEmpty(player.getUniqueId()), List.of())));
         }
-        return ensureState(player, currentResetKey)
+        UUID playerId = player.getUniqueId();
+        return serialized(playerId, () -> refreshState(playerId, currentResetKey)
                 .thenCompose(state -> {
                     if (!canRecover(state, currentResetKey) || state.recoveryBalance() <= 0) {
                         return CompletableFuture.completedFuture(new StreakRecoveryResult(false, new QuestStreakEvaluation(state, List.of())));
@@ -118,7 +126,10 @@ public class QuestStreakService {
                             .thenApply(evaluation -> new StreakRecoveryResult(true, evaluation));
                 })
                 .thenApply(result -> {
-                    cache.put(player.getUniqueId(), result.evaluation().state());
+                    cache.put(playerId, result.evaluation().state());
+                    return result;
+                }))
+                .thenApply(result -> {
                     handleStreakMilestoneRewards(player, result.evaluation());
                     return result;
                 });
@@ -128,7 +139,7 @@ public class QuestStreakService {
         if (!isEnabled()) {
             return CompletableFuture.completedFuture(0);
         }
-        return loadState(playerId)
+        return serialized(playerId, () -> loadState(playerId)
                 .thenCompose(state -> {
                     QuestStreakState updated = currency == StreakCurrency.SHIELD
                             ? state.withShieldBalance(Math.max(0, state.shieldBalance() + delta))
@@ -137,7 +148,7 @@ public class QuestStreakService {
                         cache.put(playerId, updated);
                         return currency == StreakCurrency.SHIELD ? updated.shieldBalance() : updated.recoveryBalance();
                     });
-                });
+                }));
     }
 
     public int dailyRequiredCompletions(PlayerQuestState state) {
@@ -210,6 +221,42 @@ public class QuestStreakService {
             ));
         }
         return List.copyOf(milestones);
+    }
+
+    /**
+     * Loads the stored state, applies missed reset windows, and caches the result. Callers must hold the player's queue.
+     */
+    private CompletableFuture<QuestStreakState> refreshState(UUID playerId, String currentResetKey) {
+        return loadState(playerId)
+                .thenCompose(state -> evaluateMissedWindows(state, currentResetKey))
+                .thenApply(state -> {
+                    cache.put(playerId, state);
+                    return state;
+                });
+    }
+
+    /**
+     * Runs {@code operation} after every earlier operation queued for the same player has finished, so two
+     * load-modify-save sequences for one player never interleave and overwrite each other.
+     */
+    private <T> CompletableFuture<T> serialized(UUID playerId, Supplier<CompletableFuture<T>> operation) {
+        CompletableFuture<Void> finished = new CompletableFuture<>();
+        CompletableFuture<Void> previous = playerQueues.put(playerId, finished);
+        CompletableFuture<Void> ready = previous == null ? CompletableFuture.completedFuture(null) : previous;
+        CompletableFuture<T> result = ready.thenCompose(unused -> start(operation));
+        result.whenComplete((value, throwable) -> {
+            playerQueues.remove(playerId, finished);
+            finished.complete(null);
+        });
+        return result;
+    }
+
+    private static <T> CompletableFuture<T> start(Supplier<CompletableFuture<T>> operation) {
+        try {
+            return operation.get();
+        } catch (RuntimeException exception) {
+            return CompletableFuture.failedFuture(exception);
+        }
     }
 
     private CompletableFuture<QuestStreakState> evaluateMissedWindows(QuestStreakState state, String currentResetKey) {
