@@ -28,7 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class QuestMenuServiceNullSafetyTest {
+class QuestMenuItemsNullSafetyTest {
 
     private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
 
@@ -36,7 +36,7 @@ class QuestMenuServiceNullSafetyTest {
     private Config config;
     private QuestService questService;
     private QuestStreakService streakService;
-    private QuestMenuService menuService;
+    private QuestMenuItems menuItems;
 
     @BeforeEach
     public void setUp() {
@@ -53,14 +53,14 @@ class QuestMenuServiceNullSafetyTest {
         when(questService.replaceQuestTokens(any(), any(), any())).thenAnswer(invocation -> Objects.requireNonNullElse(invocation.getArgument(0), ""));
         when(questService.replaceRawVariableDisplayValues(any(), any())).thenAnswer(invocation -> Objects.requireNonNullElse(invocation.getArgument(0), ""));
 
-        menuService = new QuestMenuService(
+        menuItems = new QuestMenuItems(
                 configProvider,
                 mock(QuestDefinitionService.class),
                 questService,
                 resetService,
                 streakService,
                 mock(GlobalQuestService.class),
-                mock(QuestResetPurchaseService.class)
+                new QuestResetCurrencies(configProvider, mock(QuestResetPurchaseService.class))
         );
     }
 
@@ -73,22 +73,22 @@ class QuestMenuServiceNullSafetyTest {
     public void nullMilestoneAndStreakButtonsAreTreatedAsDisabled() throws ReflectiveOperationException {
         when(questService.questMilestonesEnabled()).thenReturn(true);
         when(streakService.isEnabled()).thenReturn(true);
-        assertTrue(menuService.canShowMilestoneButton());
-        assertTrue(menuService.canShowStreakButton());
+        assertTrue(menuItems.canShowMilestoneButton());
+        assertTrue(menuItems.canShowStreakButton());
 
         setField(config.getMenu(), "milestoneButton", null);
         setField(config.getMenu(), "streakButton", null);
 
-        assertFalse(menuService.canShowMilestoneButton());
-        assertFalse(menuService.canShowStreakButton());
+        assertFalse(menuItems.canShowMilestoneButton());
+        assertFalse(menuItems.canShowStreakButton());
     }
 
     @Test
     public void tokenAndMenuItemsWithNullLoreRenderWithoutLore() {
         Config.MenuItem item = new Config.MenuItem("PAPER", "<gold>Paper", null);
 
-        ItemStack tokenItem = menuService.buildTokenItem(item, new QuestMenuService.MapTokens(), Material.STONE);
-        ItemStack menuItem = menuService.buildMenuItem(item);
+        ItemStack tokenItem = menuItems.buildTokenItem(item, new MenuTokens(), Material.STONE);
+        ItemStack menuItem = menuItems.buildMenuItem(item);
 
         assertEquals(Material.PAPER, tokenItem.getType());
         assertEquals("Paper", PLAIN_TEXT.serialize(meta(tokenItem).displayName()));
@@ -99,8 +99,8 @@ class QuestMenuServiceNullSafetyTest {
 
     @Test
     public void missingItemTemplatesFallBackInsteadOfThrowing() {
-        assertEquals(Material.ARROW, menuService.buildTokenItem(null, new QuestMenuService.MapTokens(), Material.ARROW).getType());
-        assertEquals(Material.STONE, menuService.buildMenuItem(null).getType());
+        assertEquals(Material.ARROW, menuItems.buildTokenItem(null, new MenuTokens(), Material.ARROW).getType());
+        assertEquals(Material.STONE, menuItems.buildMenuItem(null).getType());
     }
 
     @Test
@@ -108,14 +108,14 @@ class QuestMenuServiceNullSafetyTest {
         GeneratedQuest quest = quest(player.getUniqueId());
         setField(config.getMenu().getActiveQuest(), "lore", null);
 
-        ItemStack withNullLore = menuService.buildQuestItem(player, quest);
+        ItemStack withNullLore = menuItems.buildQuestItem(player, quest);
 
         assertEquals(Material.BOOK, withNullLore.getType());
         assertEquals(List.of(), plainLore(meta(withNullLore)));
 
         setField(config.getMenu(), "activeQuest", null);
 
-        ItemStack withNullTemplate = menuService.buildQuestItem(player, quest);
+        ItemStack withNullTemplate = menuItems.buildQuestItem(player, quest);
 
         assertEquals(Material.BOOK, withNullTemplate.getType());
         assertEquals(List.of(), plainLore(meta(withNullTemplate)));

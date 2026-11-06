@@ -61,7 +61,7 @@ public final class MenuSlots {
 
     private static Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {
         return Button.builder()
-                .item(player -> ItemBuilder.of(menuService.buildMenuItem(item)).hideToolTip(true).build())
+                .item(player -> ItemBuilder.of(menuService.items().buildMenuItem(item)).hideToolTip(true).build())
                 .build();
     }
 }

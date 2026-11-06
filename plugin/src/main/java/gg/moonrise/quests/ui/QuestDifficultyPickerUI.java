@@ -3,6 +3,7 @@ package gg.moonrise.quests.ui;
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.QuestDifficulty;
 import org.bukkit.entity.Player;
@@ -24,7 +25,7 @@ public class QuestDifficultyPickerUI extends ChestMenu {
         Set<Integer> reservedSlots = backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots
                 ? Set.of(backButton.getSlot())
                 : Set.of();
-        List<QuestDifficulty> difficulties = menuService.difficulties();
+        List<QuestDifficulty> difficulties = menuService.items().difficulties();
         Map<QuestDifficulty, Integer> difficultySlots = DifficultySelectorSlots.resolve(
                 difficulties,
                 QuestDifficulty::pickerSlot,
@@ -35,14 +36,14 @@ public class QuestDifficultyPickerUI extends ChestMenu {
         for (Map.Entry<QuestDifficulty, Integer> entry : difficultySlots.entrySet()) {
             QuestDifficulty difficulty = entry.getKey();
             menuSlots.add(entry.getValue(), Button.builder()
-                    .item(viewer -> menuService.buildDifficultyPickerItem(difficulty, slotIndex))
+                    .item(viewer -> menuService.items().buildDifficultyPickerItem(difficulty, slotIndex))
                     .action((button, clicker, event) -> menuService.selectDifficultyForSlot(clicker, slotIndex, difficulty.id(), reroll))
                     .build());
         }
 
         if (backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots) {
             menuSlots.add(backButton.getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(backButton.getItem(), new QuestMenuService.MapTokens(), org.bukkit.Material.ARROW))
+                    .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), org.bukkit.Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }

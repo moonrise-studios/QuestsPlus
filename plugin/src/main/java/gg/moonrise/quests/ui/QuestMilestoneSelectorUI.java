@@ -3,6 +3,7 @@ package gg.moonrise.quests.ui;
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -25,7 +26,7 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
         Config.BackButton backButton = menu.getSelectorBackButton();
         boolean showBackButton = backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots;
         Set<Integer> reservedSlots = showBackButton ? Set.of(backButton.getSlot()) : Set.of();
-        List<QuestDifficulty> difficulties = menuService.difficulties();
+        List<QuestDifficulty> difficulties = menuService.items().difficulties();
         Map<QuestDifficulty, Integer> selectorSlots = DifficultySelectorSlots.resolve(
                 difficulties,
                 QuestDifficulty::milestonesSlot,
@@ -36,14 +37,14 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
         for (Map.Entry<QuestDifficulty, Integer> entry : selectorSlots.entrySet()) {
             QuestDifficulty difficulty = entry.getKey();
             menuSlots.add(entry.getValue(), Button.builder()
-                    .item(viewer -> menuService.buildDifficultyItem(state, difficulty))
+                    .item(viewer -> menuService.items().buildDifficultyItem(state, difficulty))
                     .action((button, clicker, event) -> menuService.openMilestones(clicker, difficulty.id()))
                     .build());
         }
 
         if (showBackButton) {
             menuSlots.add(backButton.getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(backButton.getItem(), new QuestMenuService.MapTokens(), Material.ARROW))
+                    .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }

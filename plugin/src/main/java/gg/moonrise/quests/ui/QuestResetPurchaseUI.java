@@ -3,6 +3,7 @@ package gg.moonrise.quests.ui;
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.QuestResetEligibility;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
@@ -21,14 +22,14 @@ public class QuestResetPurchaseUI extends ChestMenu {
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
-        for (QuestCurrency currency : menuService.questResetCurrencies()) {
+        for (QuestCurrency currency : menuService.currencies().questResetCurrencies()) {
             addPurchaseButton(menuService, menuSlots, currency, eligibility);
         }
 
         Config.BackButton backButton = menu.getBackButton();
         if (backButton != null && backButton.isEnabled()) {
             menuSlots.add(backButton.getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(backButton.getItem(), new QuestMenuService.MapTokens(), Material.ARROW))
+                    .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }
@@ -42,13 +43,13 @@ public class QuestResetPurchaseUI extends ChestMenu {
             QuestCurrency currency,
             QuestResetEligibility eligibility
     ) {
-        Optional<QuestCurrencyButton> paymentButton = menuService.questResetPaymentButton(currency);
-        if (paymentButton.isEmpty() || !menuService.canShowQuestResetPayment(currency)) {
+        Optional<QuestCurrencyButton> paymentButton = menuService.currencies().questResetPaymentButton(currency);
+        if (paymentButton.isEmpty() || !menuService.currencies().canShowQuestResetPayment(currency)) {
             return;
         }
         QuestCurrencyButton button = paymentButton.get();
         menuSlots.add(button.slot(), Button.builder()
-                .item(viewer -> menuService.buildQuestResetPurchaseItem(viewer, button, currency, eligibility))
+                .item(viewer -> menuService.items().buildQuestResetPurchaseItem(viewer, button, currency, eligibility))
                 .action((guiButton, clicker, event) -> menuService.applyQuestResetPurchase(clicker, currency.key()))
                 .build());
     }

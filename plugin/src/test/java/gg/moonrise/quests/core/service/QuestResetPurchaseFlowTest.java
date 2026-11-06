@@ -35,7 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class QuestMenuServiceResetPurchaseTest {
+class QuestResetPurchaseFlowTest {
 
     private static final String RESET_KEY = "daily";
     private static final double COST = 25.0D;
@@ -47,7 +47,8 @@ class QuestMenuServiceResetPurchaseTest {
     private QuestCurrency currency;
     private QuestService questService;
     private QuestResetPurchaseService resetPurchaseService;
-    private QuestMenuService menuService;
+    private QuestMenuService menus;
+    private QuestResetPurchaseFlow purchaseFlow;
 
     @BeforeEach
     public void setUp() {
@@ -108,14 +109,13 @@ class QuestMenuServiceResetPurchaseTest {
         when(resetService.currentResetKey()).thenReturn(RESET_KEY);
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(new Config());
-        menuService = new QuestMenuService(
+        menus = mock(QuestMenuService.class);
+        purchaseFlow = new QuestResetPurchaseFlow(
                 configProvider,
-                mock(QuestDefinitionService.class),
                 questService,
                 resetService,
-                mock(QuestStreakService.class),
-                mock(GlobalQuestService.class),
-                resetPurchaseService
+                resetPurchaseService,
+                new QuestResetCurrencies(configProvider, resetPurchaseService)
         );
     }
 
@@ -131,7 +131,7 @@ class QuestMenuServiceResetPurchaseTest {
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
-        menuService.applyQuestResetPurchase(player, QuestCurrencies.VAULT);
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
         verify(currency).charge(player, COST);
         verify(currency, times(1)).refund(player, COST);
@@ -146,7 +146,7 @@ class QuestMenuServiceResetPurchaseTest {
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.RETIRED_BEFORE_RUN);
 
-        menuService.applyQuestResetPurchase(player, QuestCurrencies.VAULT);
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
         verify(currency).charge(player, COST);
         verify(currency, times(1)).refund(player, COST);
@@ -158,7 +158,7 @@ class QuestMenuServiceResetPurchaseTest {
         when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
 
-        menuService.applyQuestResetPurchase(player, QuestCurrencies.VAULT);
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
         verify(currency).charge(player, COST);
         verify(currency, times(1)).refund(player, COST);
@@ -171,7 +171,7 @@ class QuestMenuServiceResetPurchaseTest {
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
-        menuService.applyQuestResetPurchase(player, QuestCurrencies.VAULT);
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
         verify(currency, times(1)).refund(player, COST);
         assertFalse(resetPurchaseService.isProcessing(player));
@@ -183,7 +183,7 @@ class QuestMenuServiceResetPurchaseTest {
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
-        menuService.applyQuestResetPurchase(player, QuestCurrencies.VAULT);
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
         verify(currency).charge(player, COST);
         verify(currency, never()).refund(any(), anyDouble());
@@ -194,7 +194,7 @@ class QuestMenuServiceResetPurchaseTest {
     public void playerLoggingOutBeforeChargeReleasesLockWithoutCharging() {
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
-        menuService.applyQuestResetPurchase(player, QuestCurrencies.VAULT);
+        purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
         verify(currency, never()).charge(any(), anyDouble());
         verify(currency, never()).refund(any(), anyDouble());

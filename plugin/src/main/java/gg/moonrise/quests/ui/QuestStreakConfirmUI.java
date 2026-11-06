@@ -21,14 +21,14 @@ public class QuestStreakConfirmUI extends ChestMenu {
 
         if (menu.getConfirmSlot() >= 0 && menu.getConfirmSlot() < totalSlots) {
             menuSlots.add(menu.getConfirmSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(menu.getConfirmButton(), menuService.streakTokens(viewer, questState, streakState), Material.LIME_CONCRETE))
+                    .item(viewer -> menuService.items().buildTokenItem(menu.getConfirmButton(), menuService.items().streakTokens(viewer, questState, streakState), Material.LIME_CONCRETE))
                     .action((button, clicker, event) -> menuService.applyStreakRecovery(clicker))
                     .build());
         }
 
         if (menu.getCancelSlot() >= 0 && menu.getCancelSlot() < totalSlots) {
             menuSlots.add(menu.getCancelSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(menu.getCancelButton(), menuService.streakTokens(viewer, questState, streakState), Material.RED_CONCRETE))
+                    .item(viewer -> menuService.items().buildTokenItem(menu.getCancelButton(), menuService.items().streakTokens(viewer, questState, streakState), Material.RED_CONCRETE))
                     .action((button, clicker, event) -> menuService.openStreaks(clicker))
                     .build());
         }

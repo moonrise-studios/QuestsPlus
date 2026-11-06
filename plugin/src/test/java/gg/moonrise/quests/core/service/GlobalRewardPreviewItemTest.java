@@ -21,7 +21,7 @@ class GlobalRewardPreviewItemTest {
 
     private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
 
-    private QuestMenuService menuService;
+    private QuestMenuItems menuItems;
 
     @BeforeEach
     public void setUp() {
@@ -31,14 +31,14 @@ class GlobalRewardPreviewItemTest {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);
 
-        menuService = new QuestMenuService(
+        menuItems = new QuestMenuItems(
                 configProvider,
                 mock(QuestDefinitionService.class),
                 mock(QuestService.class),
                 mock(QuestResetService.class),
                 mock(QuestStreakService.class),
                 mock(GlobalQuestService.class),
-                mock(QuestResetPurchaseService.class)
+                new QuestResetCurrencies(configProvider, mock(QuestResetPurchaseService.class))
         );
     }
 
@@ -64,7 +64,7 @@ class GlobalRewardPreviewItemTest {
                 List.of("eco give <player> 100")
         );
 
-        ItemStack stack = menuService.buildGlobalRewardPreviewItem(tier, false);
+        ItemStack stack = menuItems.buildGlobalRewardPreviewItem(tier, false);
 
         assertEquals(Material.DIAMOND, stack.getType());
         ItemMeta meta = assertMeta(stack);
@@ -80,7 +80,7 @@ class GlobalRewardPreviewItemTest {
                 List.of("eco give <player> 50")
         );
 
-        ItemStack stack = menuService.buildGlobalRewardPreviewItem(tier, true);
+        ItemStack stack = menuItems.buildGlobalRewardPreviewItem(tier, true);
 
         assertEquals(Material.GOLD_INGOT, stack.getType());
         ItemMeta meta = assertMeta(stack);

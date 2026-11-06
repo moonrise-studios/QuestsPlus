@@ -23,32 +23,32 @@ public class QuestStreakMenuUI extends ChestMenu {
 
         if (menu.getStatusSlot() >= 0 && menu.getStatusSlot() < totalSlots) {
             menuSlots.add(menu.getStatusSlot(), Button.builder()
-                    .item(viewer -> menuService.buildStreakStatusItem(viewer, questState, streakState))
+                    .item(viewer -> menuService.items().buildStreakStatusItem(viewer, questState, streakState))
                     .build());
         }
 
         if (menu.getShieldSlot() >= 0 && menu.getShieldSlot() < totalSlots) {
             menuSlots.add(menu.getShieldSlot(), Button.builder()
-                    .item(viewer -> menuService.buildStreakShieldButton(viewer, questState, streakState))
+                    .item(viewer -> menuService.items().buildStreakShieldButton(viewer, questState, streakState))
                     .build());
         }
 
         if (menu.getRecoverySlot() >= 0 && menu.getRecoverySlot() < totalSlots) {
             menuSlots.add(menu.getRecoverySlot(), Button.builder()
-                    .item(viewer -> menuService.buildStreakRecoveryButton(viewer, questState, streakState))
+                    .item(viewer -> menuService.items().buildStreakRecoveryButton(viewer, questState, streakState))
                     .action((button, clicker, event) -> menuService.openStreakConfirmation(clicker))
                     .build());
         }
 
         if (menu.getBackButton().isEnabled() && menu.getBackButton().getSlot() >= 0 && menu.getBackButton().getSlot() < totalSlots) {
             menuSlots.add(menu.getBackButton().getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(menu.getBackButton().getItem(), menuService.streakTokens(viewer, questState, streakState), Material.ARROW))
+                    .item(viewer -> menuService.items().buildTokenItem(menu.getBackButton().getItem(), menuService.items().streakTokens(viewer, questState, streakState), Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }
 
         List<Integer> slots = menu.getMilestoneSlots();
-        List<QuestStreakMilestone> milestones = menuService.streakMilestones();
+        List<QuestStreakMilestone> milestones = menuService.items().streakMilestones();
         int count = Math.min(slots.size(), milestones.size());
         for (int index = 0; index < count; index++) {
             int slot = slots.get(index);
@@ -57,7 +57,7 @@ public class QuestStreakMenuUI extends ChestMenu {
             }
             QuestStreakMilestone milestone = milestones.get(index);
             menuSlots.add(slot, Button.builder()
-                    .item(viewer -> menuService.buildStreakMilestoneItem(viewer, questState, streakState, milestone))
+                    .item(viewer -> menuService.items().buildStreakMilestoneItem(viewer, questState, streakState, milestone))
                     .build());
         }
 

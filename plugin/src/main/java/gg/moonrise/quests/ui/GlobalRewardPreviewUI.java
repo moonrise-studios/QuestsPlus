@@ -3,6 +3,7 @@ package gg.moonrise.quests.ui;
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -18,13 +19,13 @@ public class GlobalRewardPreviewUI extends ChestMenu {
         int totalSlots = MenuSlots.totalSlots(rows(menu));
         MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
-        addRewardTierItems(menuService, menuSlots, menu.getFullRewardSlots(), menuService.fullGlobalRewardTiers(), false);
-        addRewardTierItems(menuService, menuSlots, menu.getReducedRewardSlots(), menuService.reducedGlobalRewardTiers(), true);
+        addRewardTierItems(menuService, menuSlots, menu.getFullRewardSlots(), menuService.items().fullGlobalRewardTiers(), false);
+        addRewardTierItems(menuService, menuSlots, menu.getReducedRewardSlots(), menuService.items().reducedGlobalRewardTiers(), true);
 
         Config.BackButton backButton = menu.getBackButton();
         if (backButton != null && backButton.isEnabled()) {
             menuSlots.add(backButton.getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(backButton.getItem(), new QuestMenuService.MapTokens(), Material.ARROW))
+                    .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }
@@ -44,7 +45,7 @@ public class GlobalRewardPreviewUI extends ChestMenu {
             int slot = slots.get(index);
             Config.GlobalRewardTierConfig tier = tiers.get(index);
             menuSlots.add(slot, Button.builder()
-                    .item(viewer -> menuService.buildGlobalRewardPreviewItem(tier, reduced))
+                    .item(viewer -> menuService.items().buildGlobalRewardPreviewItem(tier, reduced))
                     .build());
         }
     }

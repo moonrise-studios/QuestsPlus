@@ -106,10 +106,10 @@ class QuestPremiumSlotAccessTest {
                         "5", "<aqua>VIP+"
                 )
         );
-        QuestMenuService menuService = questMenuService(config);
+        QuestMenuItems menuItems = questMenuItems(config);
 
-        assertEquals("<green>VIP", menuService.lockedPremiumRank(3));
-        assertEquals("<aqua>VIP+", menuService.lockedPremiumRank(4));
+        assertEquals("<green>VIP", menuItems.lockedPremiumRank(3));
+        assertEquals("<aqua>VIP+", menuItems.lockedPremiumRank(4));
     }
 
     @Test
@@ -380,17 +380,17 @@ class QuestPremiumSlotAccessTest {
         return configProvider;
     }
 
-    private static QuestMenuService questMenuService(Config config) {
+    private static QuestMenuItems questMenuItems(Config config) {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);
-        return new QuestMenuService(
+        return new QuestMenuItems(
                 configProvider,
                 mock(QuestDefinitionService.class),
                 questService(config),
                 mock(QuestResetService.class),
                 mock(QuestStreakService.class),
                 mock(GlobalQuestService.class),
-                mock(QuestResetPurchaseService.class)
+                new QuestResetCurrencies(configProvider, mock(QuestResetPurchaseService.class))
         );
     }
 

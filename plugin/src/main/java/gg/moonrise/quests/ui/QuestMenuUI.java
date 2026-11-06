@@ -17,7 +17,7 @@ import java.util.Optional;
 public class QuestMenuUI extends ChestMenu {
 
     public QuestMenuUI(Player player, QuestMenuService menuService, PlayerQuestState state, @Nullable GlobalQuestState globalState) {
-        this(player, menuService, menuService.menuLayout(), state, globalState);
+        this(player, menuService, menuService.items().menuLayout(), state, globalState);
     }
 
     /**
@@ -32,7 +32,7 @@ public class QuestMenuUI extends ChestMenu {
         MenuSlots menuSlots = new MenuSlots(this::addButton, layout.totalSlots());
 
         menuSlots.add(layout.globalQuestSlot(), Button.builder()
-                .item(viewer -> menuService.buildGlobalQuestItem(viewer, globalState))
+                .item(viewer -> menuService.items().buildGlobalQuestItem(viewer, globalState))
                 .action((button, clicker, event) -> menuService.openGlobalRewardPreview(clicker))
                 .build());
 
@@ -41,44 +41,44 @@ public class QuestMenuUI extends ChestMenu {
             Optional<GeneratedQuest> slotQuest = state.questAtSlot(slotIndex);
             int inventorySlot = contentSlots.get(slotIndex);
             int dailySlot = slotIndex;
-            if (!menuService.canAccessSlot(player, dailySlot)) {
+            if (!menuService.items().canAccessSlot(player, dailySlot)) {
                 menuSlots.add(inventorySlot, Button.builder()
-                        .item(viewer -> menuService.buildLockedPremiumQuestSlotItem(dailySlot))
+                        .item(viewer -> menuService.items().buildLockedPremiumQuestSlotItem(dailySlot))
                         .build());
                 continue;
             }
             if (slotQuest.isEmpty()) {
                 menuSlots.add(inventorySlot, Button.builder()
-                        .item(viewer -> menuService.buildEmptyQuestSlotItem(dailySlot))
+                        .item(viewer -> menuService.items().buildEmptyQuestSlotItem(dailySlot))
                         .action((button, clicker, event) -> menuService.openDifficultyPicker(clicker, dailySlot))
                         .build());
                 continue;
             }
             GeneratedQuest quest = slotQuest.get();
             menuSlots.add(inventorySlot, Button.builder()
-                    .item(viewer -> menuService.buildQuestItem(viewer, quest))
+                    .item(viewer -> menuService.items().buildQuestItem(viewer, quest))
                     .action((button, clicker, event) -> menuService.openRerollDifficultyPicker(clicker, dailySlot))
                     .build());
         }
 
-        if (menuService.canShowMilestoneButton()) {
+        if (menuService.items().canShowMilestoneButton()) {
             menuSlots.add(menu.getMilestoneButton().getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildMenuItem(menu.getMilestoneButton().getItem()))
+                    .item(viewer -> menuService.items().buildMenuItem(menu.getMilestoneButton().getItem()))
                     .action((button, clicker, event) -> menuService.openMilestoneSelector(clicker))
                     .build());
         }
 
-        if (menuService.canShowStreakButton()) {
+        if (menuService.items().canShowStreakButton()) {
             menuSlots.add(menu.getStreakButton().getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildMenuItem(menu.getStreakButton().getItem()))
+                    .item(viewer -> menuService.items().buildMenuItem(menu.getStreakButton().getItem()))
                     .action((button, clicker, event) -> menuService.openStreaks(clicker))
                     .build());
         }
 
         // The reset button's slot stays reserved by the layout even while no currency is available to show it.
-        if (menuService.canShowQuestResetButton()) {
+        if (menuService.items().canShowQuestResetButton()) {
             menuSlots.add(menu.getResetButton().getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildQuestResetButtonItem(viewer, state))
+                    .item(viewer -> menuService.items().buildQuestResetButtonItem(viewer, state))
                     .action((button, clicker, event) -> menuService.openQuestResetPurchase(clicker))
                     .build());
         }

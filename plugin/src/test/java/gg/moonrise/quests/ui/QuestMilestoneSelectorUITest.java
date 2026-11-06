@@ -1,6 +1,7 @@
 package gg.moonrise.quests.ui;
 
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.QuestMenuItems;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import org.bukkit.Material;
@@ -44,9 +45,11 @@ class QuestMilestoneSelectorUITest {
         int backSlot = menu.getSelectorBackButton().getSlot();
         setField(menu, "selectorBackButton", null);
         QuestMenuService menuService = mock(QuestMenuService.class);
+        QuestMenuItems items = mock(QuestMenuItems.class);
+        when(menuService.items()).thenReturn(items);
         when(menuService.config()).thenReturn(config);
-        when(menuService.difficulties()).thenReturn(List.of());
-        when(menuService.buildMenuItem(menu.getFiller())).thenReturn(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
+        when(items.difficulties()).thenReturn(List.of());
+        when(items.buildMenuItem(menu.getFiller())).thenReturn(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
         PlayerQuestState state = new PlayerQuestState(player.getUniqueId(), "daily", List.of());
 
         QuestMilestoneSelectorUI ui = new QuestMilestoneSelectorUI(player, menuService, state);

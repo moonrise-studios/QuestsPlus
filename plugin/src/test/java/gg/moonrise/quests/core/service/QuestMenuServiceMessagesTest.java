@@ -63,7 +63,9 @@ class QuestMenuServiceMessagesTest {
                 resetService,
                 streakService,
                 mock(GlobalQuestService.class),
-                mock(QuestResetPurchaseService.class)
+                mock(QuestMenuItems.class),
+                mock(QuestResetCurrencies.class),
+                mock(QuestResetPurchaseFlow.class)
         );
     }
 

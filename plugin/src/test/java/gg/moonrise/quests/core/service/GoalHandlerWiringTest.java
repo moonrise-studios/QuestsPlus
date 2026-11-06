@@ -51,6 +51,11 @@ public class GoalHandlerWiringTest {
                     GlobalQuestService.class,
                     QuestService.class,
                     QuestResetService.class,
+                    QuestResetPurchaseService.class,
+                    QuestResetCurrencies.class,
+                    QuestResetPurchaseFlow.class,
+                    QuestMenuItems.class,
+                    QuestMenuService.class,
                     BuiltInGoalHandlerRegistrar.class
             );
             context.scan("gg.moonrise.quests.type", "gg.moonrise.quests.indicator");

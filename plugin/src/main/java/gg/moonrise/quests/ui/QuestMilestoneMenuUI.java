@@ -3,6 +3,7 @@ package gg.moonrise.quests.ui;
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -37,16 +38,16 @@ public class QuestMilestoneMenuUI extends ChestMenu {
                 continue;
             }
             menuSlots.add(slot, Button.builder()
-                    .item(viewer -> menuService.buildMilestoneItem(state, difficulty, milestone))
+                    .item(viewer -> menuService.items().buildMilestoneItem(state, difficulty, milestone))
                     .build());
         }
 
         if (safePage > 0 && menu.getPreviousPageSlot() < totalSlots) {
             int previousPage = safePage - 1;
             menuSlots.add(menu.getPreviousPageSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(
+                    .item(viewer -> menuService.items().buildTokenItem(
                             menu.getPreviousPageButton(),
-                            new QuestMenuService.MapTokens()
+                            new MenuTokens()
                                     .putNumber("page", safePage + 1)
                                     .putNumber("previous_page", previousPage + 1)
                                     .putNumber("next_page", safePage + 2),
@@ -58,9 +59,9 @@ public class QuestMilestoneMenuUI extends ChestMenu {
 
         if (menu.getBackButton().isEnabled() && menu.getBackButton().getSlot() < totalSlots) {
             menuSlots.add(menu.getBackButton().getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(
+                    .item(viewer -> menuService.items().buildTokenItem(
                             menu.getBackButton().getItem(),
-                            new QuestMenuService.MapTokens().putNumber("page", safePage + 1),
+                            new MenuTokens().putNumber("page", safePage + 1),
                             org.bukkit.Material.ARROW
                     ))
                     .action((button, clicker, event) -> menuService.openMilestoneSelector(clicker))
@@ -70,9 +71,9 @@ public class QuestMilestoneMenuUI extends ChestMenu {
         if (endIndex < milestones.size() && menu.getNextPageSlot() < totalSlots) {
             int nextPage = safePage + 1;
             menuSlots.add(menu.getNextPageSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(
+                    .item(viewer -> menuService.items().buildTokenItem(
                             menu.getNextPageButton(),
-                            new QuestMenuService.MapTokens()
+                            new MenuTokens()
                                     .putNumber("page", safePage + 1)
                                     .putNumber("previous_page", safePage)
                                     .putNumber("next_page", nextPage + 1),
