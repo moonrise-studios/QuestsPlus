@@ -28,14 +28,12 @@ import gg.moonrise.quests.util.QuestNumberFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.context.CommandContext;
-import org.incendo.cloud.suggestion.SuggestionProvider;
 
 import java.util.List;
 import java.util.Map;
@@ -56,18 +54,6 @@ public class QuestCommand implements PaperCommand {
     private final QuestProgressIndicatorService progressIndicatorService;
     private final QuestIndicatorPreferenceService indicatorPreferenceService;
     private final QuestApiService apiService;
-
-    @Override
-    public void onRegister(CommandManager<CommandSourceStack> commandManager) {
-        commandManager.parserRegistry().registerSuggestionProvider(
-                "online-players",
-                SuggestionProvider.blockingStrings((context, input) -> Bukkit.getOnlinePlayers().stream().map(Player::getName).toList())
-        );
-        commandManager.parserRegistry().registerSuggestionProvider(
-                "quest-difficulties",
-                SuggestionProvider.blockingStrings((context, input) -> definitionService.difficulties().stream().map(QuestDifficulty::id).toList())
-        );
-    }
 
     @Command("q|quests")
     public void quests(CommandSourceStack source) {
