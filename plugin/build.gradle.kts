@@ -21,6 +21,17 @@ repositories {
     maven("https://repo.rosewooddev.io/repository/public/")
 }
 
+// Libraries Paper downloads at runtime through QuestsPlusPluginLoader instead of shading them.
+val runtimeLibraries = listOf(
+    libs.hikari,
+    libs.sqlite,
+    libs.mariadb,
+    libs.mysql,
+    libs.postgresql,
+    libs.cache,
+    libs.gson
+)
+
 dependencies {
     implementation(project(":sdk"))
     implementation(libs.engine)
@@ -44,13 +55,7 @@ dependencies {
     compileOnly(libs.configLib)
 
     // Persistence and cache
-    compileOnly(libs.hikari)
-    compileOnly(libs.sqlite)
-    compileOnly(libs.mariadb)
-    compileOnly(libs.mysql)
-    compileOnly(libs.postgresql)
-    compileOnly(libs.cache)
-    compileOnly(libs.gson)
+    runtimeLibraries.forEach { library -> compileOnly(library) }
     compileOnly(libs.roseStacker)
     compileOnly(libs.playerPoints)
     compileOnly(libs.vault) {
@@ -66,13 +71,7 @@ dependencies {
     testRuntimeOnly(libs.mossCommon)
     testRuntimeOnly(libs.mossPaper)
     testRuntimeOnly(libs.configLib)
-    testRuntimeOnly(libs.hikari)
-    testRuntimeOnly(libs.sqlite)
-    testRuntimeOnly(libs.mariadb)
-    testRuntimeOnly(libs.mysql)
-    testRuntimeOnly(libs.postgresql)
-    testRuntimeOnly(libs.cache)
-    testRuntimeOnly(libs.gson)
+    runtimeLibraries.forEach { library -> testRuntimeOnly(library) }
     testRuntimeOnly(libs.roseStacker)
 
     // Lombok
@@ -84,6 +83,26 @@ tasks {
     build {
         dependsOn(shadowJar)
     }
+}
+
+val generateRuntimeLibraries by tasks.registering {
+    description = "Writes the runtime library coordinates from the version catalog for QuestsPlusPluginLoader."
+    val coordinates = runtimeLibraries.map { library ->
+        val dependency = library.get()
+        "${dependency.module.group}:${dependency.module.name}:${dependency.versionConstraint.requiredVersion}"
+    }
+    val outputDirectory = layout.buildDirectory.dir("generated/resources/runtime-libraries")
+    inputs.property("coordinates", coordinates)
+    outputs.dir(outputDirectory)
+    doLast {
+        val file = outputDirectory.get().file("gg/moonrise/quests/loader/runtime-libraries.txt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(coordinates.joinToString(separator = "\n", postfix = "\n"))
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(generateRuntimeLibraries)
 }
 
 val targetJavaVersion = 21
