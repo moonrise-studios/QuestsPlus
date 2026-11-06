@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.GlobalQuestState;
@@ -832,21 +831,11 @@ public class QuestService {
             }
         }
         QuestDefinition definition = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
-        Map<String, String> variables = resolveVariables(definition);
+        Map<String, String> variables = definitionService.resolveVariables(definition);
         return definitionService.handler(definition.type())
                 .createGeneratedQuest(definition, playerId, resetKey, variables)
                 .withSlotIndex(slotIndex)
                 .withPremium(isPremiumSlot(slotIndex));
-    }
-
-    private Map<String, String> resolveVariables(QuestDefinition definition) {
-        Map<String, String> resolved = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : definition.selectorTypes().entrySet()) {
-            String key = entry.getKey();
-            QuestVariableSelector selector = definitionService.selector(entry.getValue());
-            resolved.put(key, selector.select(definition.selectorValues().get(key), ThreadLocalRandom.current()));
-        }
-        return Map.copyOf(resolved);
     }
 
     /**
