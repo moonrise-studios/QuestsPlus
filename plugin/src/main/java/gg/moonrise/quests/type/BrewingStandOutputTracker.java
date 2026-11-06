@@ -3,7 +3,11 @@ package gg.moonrise.quests.type;
 import gg.moonrise.moss.spring.SpringComponent;
 import org.bukkit.Material;
 import org.bukkit.block.BrewingStand;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockEvent;
+import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
@@ -18,14 +22,23 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Remembers what each brewing stand just brewed so brew quests only count potions taken out
+ * of a stand after a completed brew, not potions placed into it by hand.
+ */
 @SpringComponent
-public class BrewingStandOutputTracker {
+public class BrewingStandOutputTracker implements Listener {
 
     private static final int FIRST_OUTPUT_SLOT = 0;
     private static final int LAST_OUTPUT_SLOT = 2;
 
     private final Map<StandKey, Map<Integer, PendingBrewOutput>> pendingOutputs = new HashMap<>();
     private final Map<InventoryClickEvent, BrewedTake> consumedClickEvents = Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBrewComplete(BrewEvent event) {
+        recordBrew(event, event.getResults());
+    }
 
     public void recordBrew(BlockEvent event, java.util.List<ItemStack> results) {
         StandKey standKey = StandKey.from(event);

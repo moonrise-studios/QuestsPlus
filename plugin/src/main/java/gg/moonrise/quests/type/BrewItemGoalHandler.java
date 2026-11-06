@@ -12,7 +12,6 @@ import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.springframework.context.annotation.Lazy;
 
@@ -53,11 +52,6 @@ public class BrewItemGoalHandler implements GoalHandler {
     @Override
     public Map<String, String> variablePlaceholders(GeneratedQuest quest) {
         return QuestTypeSupport.itemTypePlaceholders(quest);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBrewComplete(BrewEvent event) {
-        outputTracker.recordBrew(event, event.getResults());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
