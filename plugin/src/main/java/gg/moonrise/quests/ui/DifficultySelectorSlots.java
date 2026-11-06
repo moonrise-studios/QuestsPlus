@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
-final class DifficultySelectorSlots {
+public final class DifficultySelectorSlots {
 
     private DifficultySelectorSlots() {
     }
