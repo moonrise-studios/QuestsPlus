@@ -23,6 +23,9 @@ abstract class AbstractSQLDatabase implements SQLDatabase {
             for (String index : indexStatements()) {
                 statement.execute(index);
             }
+            for (IndexReference index : redundantIndexes()) {
+                dropIndexIfExists(connection, index);
+            }
         }
     }
 
@@ -40,6 +43,24 @@ abstract class AbstractSQLDatabase implements SQLDatabase {
     }
 
     protected abstract List<String> indexStatements();
+
+    /**
+     * Indexes older versions created that duplicate a primary key, a UNIQUE constraint or a longer
+     * index with the same leading columns. They are dropped on startup so existing installs stop
+     * paying their write cost; new installs never create them.
+     */
+    protected List<IndexReference> redundantIndexes() {
+        return List.of(
+                new IndexReference("player_quests", "idx_player_quests_player_reset"),
+                new IndexReference("global_quests", "idx_global_quests_period")
+        );
+    }
+
+    protected void dropIndexIfExists(Connection connection, IndexReference index) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("DROP INDEX IF EXISTS " + index.indexName());
+        }
+    }
 
     private void addColumnIfMissing(Connection connection, String tableName, String columnName, String columnDefinition) throws SQLException {
         if (hasColumn(connection, tableName, columnName)) {
@@ -59,6 +80,9 @@ abstract class AbstractSQLDatabase implements SQLDatabase {
         try (ResultSet columns = connection.getMetaData().getColumns(null, null, tableName.toUpperCase(java.util.Locale.ROOT), columnName.toUpperCase(java.util.Locale.ROOT))) {
             return columns.next();
         }
+    }
+
+    protected record IndexReference(String tableName, String indexName) {
     }
 
     protected record ColumnMigration(String tableName, String columnName, String columnDefinition) {

@@ -4,6 +4,11 @@ import com.zaxxer.hikari.HikariConfig;
 import gg.moonrise.quests.QuestsPlusPlugin;
 import gg.moonrise.quests.config.Config;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 
 public class MySQLDatabase extends SQLiteDatabase {
@@ -221,7 +226,6 @@ public class MySQLDatabase extends SQLiteDatabase {
                     goal_amount             INT          NOT NULL,
                     progress                INT          NOT NULL,
                     completed               INT          NOT NULL,
-                    KEY idx_player_quests_player_reset (player_uuid, reset_key),
                     KEY idx_player_quests_player_reset_slot (player_uuid, reset_key, slot_index),
                     KEY idx_player_quests_completed (player_uuid, reset_key, completed)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -303,7 +307,6 @@ public class MySQLDatabase extends SQLiteDatabase {
                     progress                INT          NOT NULL,
                     completed               INT          NOT NULL,
                     rewards_executed        INT          NOT NULL DEFAULT 0,
-                    KEY idx_global_quests_period (period_key),
                     KEY idx_global_quests_end_rewards (ends_at, rewards_executed)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """,
@@ -330,5 +333,26 @@ public class MySQLDatabase extends SQLiteDatabase {
     @Override
     protected List<String> indexStatements() {
         return List.of();
+    }
+
+    @Override
+    protected void dropIndexIfExists(Connection connection, IndexReference index) throws SQLException {
+        // MySQL has no DROP INDEX IF EXISTS, so look the index up in the current schema first.
+        try (PreparedStatement lookup = connection.prepareStatement("""
+                SELECT 1
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?
+                """)) {
+            lookup.setString(1, index.tableName());
+            lookup.setString(2, index.indexName());
+            try (ResultSet resultSet = lookup.executeQuery()) {
+                if (!resultSet.next()) {
+                    return;
+                }
+            }
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE " + index.tableName() + " DROP INDEX " + index.indexName());
+        }
     }
 }

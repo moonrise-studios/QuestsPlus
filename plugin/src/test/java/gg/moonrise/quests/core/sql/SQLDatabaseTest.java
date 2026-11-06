@@ -56,6 +56,16 @@ class SQLDatabaseTest {
     }
 
     @Test
+    public void mysqlSchemaDoesNotDeclareRedundantIndexes() {
+        String schema = String.join("\n", new MySQLDatabase().tableStatements());
+
+        assertFalse(schema.contains("idx_player_quests_player_reset ("));
+        assertFalse(schema.contains("idx_global_quests_period"));
+        assertTrue(schema.contains("idx_player_quests_player_reset_slot"));
+        assertTrue(schema.contains("period_key              VARCHAR(64)  NOT NULL UNIQUE"));
+    }
+
+    @Test
     public void networkBackendsUseConfiguredConnectionUrl() {
         Config.Storage storage = new Config.Storage();
         setField(storage.getMariaDb(), "connectionUrl", "jdbc:mariadb://db.example:3307/quests?connectTimeout=1000");

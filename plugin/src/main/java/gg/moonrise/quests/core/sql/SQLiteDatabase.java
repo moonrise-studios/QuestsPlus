@@ -287,10 +287,8 @@ public class SQLiteDatabase extends AbstractSQLDatabase {
     @Override
     protected List<String> indexStatements() {
         return List.of(
-                "CREATE INDEX IF NOT EXISTS idx_player_quests_player_reset ON player_quests(player_uuid, reset_key)",
                 "CREATE INDEX IF NOT EXISTS idx_player_quests_player_reset_slot ON player_quests(player_uuid, reset_key, slot_index)",
                 "CREATE INDEX IF NOT EXISTS idx_player_quests_completed ON player_quests(player_uuid, reset_key, completed)",
-                "CREATE INDEX IF NOT EXISTS idx_global_quests_period ON global_quests(period_key)",
                 "CREATE INDEX IF NOT EXISTS idx_global_quests_end_rewards ON global_quests(ends_at, rewards_executed)",
                 "CREATE INDEX IF NOT EXISTS idx_global_quest_contributions_instance ON global_quest_contributions(instance_id, contribution)"
         );
