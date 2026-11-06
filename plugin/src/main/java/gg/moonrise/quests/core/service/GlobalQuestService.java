@@ -17,8 +17,8 @@ import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
-import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestSchedules;
+import gg.moonrise.quests.util.QuestTokens;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -218,15 +218,11 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     }
 
     public String replaceGlobalTokens(String template, GlobalQuestState state, Player viewer) {
-        String output = template == null ? "" : template;
         GeneratedQuest quest = state.quest();
         Map<String, String> values = commonGlobalPlaceholders(state, viewer);
         values.putAll(definitionService.variablePlaceholders(quest));
-        putQuestNumbers(values, quest, true);
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        QuestTokens.putQuestNumbers(values, quest, true);
+        return QuestTokens.apply(template, values);
     }
 
     private CompletableFuture<GlobalQuestState> ensureActiveStateAsync() {
@@ -442,21 +438,17 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     }
 
     private String replaceRewardTokens(String template, GlobalQuestState state, GlobalQuestContribution contribution, String playerName) {
-        String output = template == null ? "" : template;
         Map<String, String> values = new LinkedHashMap<>(globalPlaceholders(state, contribution.playerId(), contribution.contribution(), contribution.rank(), contribution.participants(), false));
         values.put("player", playerName);
         values.put("uuid", contribution.playerId().toString());
         values.putAll(definitionService.variablePlaceholders(state.quest()));
-        putQuestNumbers(values, state.quest(), false);
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        QuestTokens.putQuestNumbers(values, state.quest(), false);
+        return QuestTokens.apply(template, values);
     }
 
     private Map<String, String> commonGlobalPlaceholders(GlobalQuestState state, Player viewer) {
         int contribution = state.contribution(viewer.getUniqueId());
-        Rank rank = rank(state, viewer.getUniqueId());
+        GlobalQuestState.Rank rank = state.rank(viewer.getUniqueId());
         Map<String, String> values = globalPlaceholders(state, viewer.getUniqueId(), contribution, rank.rank(), rank.participants(), true);
         values.put("player", viewer.getName());
         values.put("uuid", viewer.getUniqueId().toString());
@@ -467,58 +459,19 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         GeneratedQuest quest = state.quest();
         Map<String, String> values = new LinkedHashMap<>();
         values.put("quest_id", quest.definitionId());
-        values.put("quest_display_name", stripMiniMessageFallback(quest.displayName()));
-        putQuestNumbers(values, quest, formatted);
-        values.put("global_progress", number(quest.progress(), formatted));
-        values.put("global_goal_amount", number(quest.goalAmount(), formatted));
-        values.put("global_percent", percent(quest.progress(), quest.goalAmount(), formatted));
-        values.put("contribution", number(contribution, formatted));
-        values.put("contribution_percent", percent(contribution, Math.max(1, quest.progress()), formatted));
-        values.put("global_rank", rank <= 0 ? "-" : number(rank, formatted));
-        values.put("global_participants", number(participants, formatted));
+        values.put("quest_display_name", QuestTokens.stripTags(quest.displayName()));
+        QuestTokens.putQuestNumbers(values, quest, formatted);
+        values.put("global_progress", QuestTokens.number(quest.progress(), formatted));
+        values.put("global_goal_amount", QuestTokens.number(quest.goalAmount(), formatted));
+        values.put("global_percent", QuestTokens.percent(quest.progress(), quest.goalAmount(), formatted));
+        values.put("contribution", QuestTokens.number(contribution, formatted));
+        values.put("contribution_percent", QuestTokens.percent(contribution, Math.max(1, quest.progress()), formatted));
+        values.put("global_rank", rank <= 0 ? "-" : QuestTokens.number(rank, formatted));
+        values.put("global_participants", QuestTokens.number(participants, formatted));
         values.put("global_time_remaining", timeRemainingPlaceholder());
         values.put("quest_type", quest.type().key());
         values.put("period_key", state.periodKey());
         return values;
-    }
-
-    /**
-     * Ranks by contribution (highest first, ties broken by UUID string) in one pass by counting the
-     * participants ahead of the player instead of sorting every contribution.
-     */
-    private Rank rank(GlobalQuestState state, UUID playerId) {
-        int own = state.contribution(playerId);
-        String ownKey = playerId.toString();
-        int participants = 0;
-        int ahead = 0;
-        for (Map.Entry<UUID, Integer> entry : state.contributions().entrySet()) {
-            int value = entry.getValue();
-            if (value <= 0) {
-                continue;
-            }
-            participants++;
-            if (own > 0 && (value > own || value == own && entry.getKey().toString().compareTo(ownKey) < 0)) {
-                ahead++;
-            }
-        }
-        return new Rank(own > 0 ? ahead + 1 : 0, participants);
-    }
-
-    private String percent(int value, int max, boolean formatted) {
-        if (max <= 0) {
-            return "0";
-        }
-        return number(Math.min(100, (int) Math.floor((value * 100.0D) / max)), formatted);
-    }
-
-    private void putQuestNumbers(Map<String, String> values, GeneratedQuest quest, boolean formatted) {
-        values.put("goal_amount", number(quest.goalAmount(), formatted));
-        values.put("goal-amount", number(quest.goalAmount(), formatted));
-        values.put("progress", number(quest.progress(), formatted));
-    }
-
-    private String number(int value, boolean formatted) {
-        return formatted ? QuestNumberFormatter.format(value) : Integer.toString(value);
     }
 
     private void scheduleNextRollover() {
@@ -567,22 +520,15 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return values == null ? List.of() : List.copyOf(values);
     }
 
-    private String stripMiniMessageFallback(String input) {
-        return input == null ? "" : input.replaceAll("<[^>]+>", "").trim();
-    }
-
     private void broadcastStarted(GlobalQuestState state) {
         Scheduler.sync().run(task -> Bukkit.broadcast(configProvider.get().getGlobalQuests().getMessages().getPeriodStarted().asComponent(
-                Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(state.quest().displayName())),
+                Placeholder.unparsed("quest_display_name", QuestTokens.stripTags(state.quest().displayName())),
                 Placeholder.unparsed("quest_id", state.quest().definitionId()),
                 Placeholder.unparsed("quest_type", state.quest().type().key())
         )));
     }
 
     private record Period(String key, LocalDateTime startsAt, LocalDateTime endsAt) {
-    }
-
-    private record Rank(int rank, int participants) {
     }
 
     private record UnavailablePeriod(String periodKey, long definitionsRevision) {

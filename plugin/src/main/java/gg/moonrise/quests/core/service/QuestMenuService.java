@@ -37,6 +37,7 @@ import gg.moonrise.quests.ui.QuestMilestoneSelectorUI;
 import gg.moonrise.quests.ui.QuestMenuUI;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestTokens;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -47,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -1052,7 +1054,7 @@ public class QuestMenuService {
     }
 
     public static class MapTokens {
-        private final java.util.Map<String, String> values = new java.util.LinkedHashMap<>();
+        private final Map<String, String> values = new LinkedHashMap<>();
 
         public MapTokens put(String key, String value) {
             values.put(key, value == null ? "" : value);
@@ -1065,11 +1067,7 @@ public class QuestMenuService {
         }
 
         public String apply(String template) {
-            String output = template == null ? "" : template;
-            for (java.util.Map.Entry<String, String> entry : values.entrySet()) {
-                output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-            }
-            return output;
+            return QuestTokens.apply(template, values);
         }
     }
 

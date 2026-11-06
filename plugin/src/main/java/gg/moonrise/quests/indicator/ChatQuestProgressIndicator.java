@@ -9,6 +9,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestTokens;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -121,7 +122,7 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
             player.sendMessage(miniMessage.deserialize(header));
         }
         for (BatchEntry entry : entries.values()) {
-            player.sendMessage(miniMessage.deserialize(applyTokens(config.getLine(), entry.placeholders())));
+            player.sendMessage(miniMessage.deserialize(QuestTokens.apply(config.getLine(), entry.placeholders())));
         }
     }
 
@@ -132,14 +133,6 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
 
     private Config.ChatProgressIndicator settings(Config.ProgressIndicators config) {
         return config.getChat() == null ? new Config.ChatProgressIndicator() : config.getChat();
-    }
-
-    private String applyTokens(String template, Map<String, String> values) {
-        String output = template == null ? "" : template;
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
     }
 
     private record BatchKey(QuestProgressIndicatorContext.Scope scope, UUID instanceId) {
@@ -178,9 +171,7 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
             Map<String, String> values = new LinkedHashMap<>(context.placeholders());
             values.put("previous_progress", QuestNumberFormatter.format(previousProgress));
             values.put("previous-progress", QuestNumberFormatter.format(previousProgress));
-            values.put("progress", QuestNumberFormatter.format(context.quest().progress()));
-            values.put("goal_amount", QuestNumberFormatter.format(context.quest().goalAmount()));
-            values.put("goal-amount", QuestNumberFormatter.format(context.quest().goalAmount()));
+            QuestTokens.putQuestNumbers(values, context.quest(), true);
             entries.put(key, new BatchEntry(Map.copyOf(values)));
         }
 

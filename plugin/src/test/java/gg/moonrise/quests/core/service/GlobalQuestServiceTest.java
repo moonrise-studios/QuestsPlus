@@ -306,6 +306,24 @@ class GlobalQuestServiceTest {
     }
 
     @Test
+    public void globalTokensRenderEveryPlaceholder() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        GlobalQuestService service = serviceWithConfig(configProvider);
+        when(configProvider.get()).thenReturn(new Config());
+        UUID top = new UUID(0L, 9L);
+        UUID viewerId = new UUID(0L, 2L);
+        GlobalQuestState base = activeGlobalState(top);
+        GlobalQuestState state = base.withQuest(base.quest().withProgress(7, false), Map.of(top, 5, viewerId, 2));
+        String template = "<player>|<quest_id>|<quest_display_name>|<progress>/<goal_amount>/<goal-amount>|<global_progress>/<global_goal_amount>"
+                + "|<global_percent>|<contribution>|<contribution_percent>|<global_rank>/<global_participants>|<quest_type>|<period_key>";
+
+        assertEquals(
+                "Viewer|global-kill-all-mobs|Global Mob Slayer|7/10/10|7/10|70|2|28|2/2|" + QuestTypes.KILL_ALL_MOBS.key() + "|" + state.periodKey(),
+                service.replaceGlobalTokens(template, state, viewer("Viewer", viewerId))
+        );
+    }
+
+    @Test
     public void rolloverAccountsForDaylightSavingAndIgnoresEarlyTask() {
         ZoneId newYork = ZoneId.of("America/New_York");
         AtomicReference<Clock> clock = new AtomicReference<>(Clock.fixed(ZonedDateTime.of(2026, 10, 30, 12, 0, 0, 0, newYork).toInstant(), newYork));

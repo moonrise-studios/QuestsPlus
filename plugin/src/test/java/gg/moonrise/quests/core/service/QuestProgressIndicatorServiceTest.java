@@ -17,6 +17,7 @@ import org.mockbukkit.mockbukkit.entity.PlayerMock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -123,6 +124,54 @@ class QuestProgressIndicatorServiceTest {
         service.showGlobal(player, globalState(Map.of(UUID.randomUUID(), 3)), 0);
 
         assertEquals("-", bossBar.shown.getLast().placeholders().get("global_rank"));
+    }
+
+    @Test
+    public void personalPlaceholdersAreRenderedWithFormattedNumbersAndPercent() {
+        PlayerMock player = server.addPlayer("Formatter");
+        RecordingIndicator bossBar = new RecordingIndicator("BOSS_BAR", true, "<quest_display_name> <progress>/<goal_amount> (<percent>)");
+        QuestProgressIndicatorService service = service(bossBar);
+
+        service.showPersonal(player, quest(5), 4);
+
+        QuestProgressIndicatorContext shown = bossBar.shown.getLast();
+        Map<String, String> expected = new LinkedHashMap<>();
+        expected.put("player", "Formatter");
+        expected.put("uuid", player.getUniqueId().toString());
+        expected.put("quest_id", "break-stone");
+        expected.put("quest_display_name", "Stone Breaker");
+        expected.put("quest_difficulty", "Easy");
+        expected.put("quest_difficulty_id", "easy");
+        expected.put("goal_amount", "10");
+        expected.put("goal-amount", "10");
+        expected.put("progress", "5");
+        expected.put("percent", "50.00%");
+        assertEquals(expected, shown.placeholders());
+        assertEquals("Stone Breaker 5/10 (50.00%)", PlainTextComponentSerializer.plainText().serialize(shown.title()));
+    }
+
+    @Test
+    public void globalPlaceholdersAreRenderedWithFormattedNumbersPercentAndRank() {
+        PlayerMock player = server.addPlayer("GlobalFormatter");
+        RecordingIndicator bossBar = new RecordingIndicator("BOSS_BAR", true, "");
+        QuestProgressIndicatorService service = service(bossBar);
+        UUID other = UUID.randomUUID();
+
+        service.showGlobal(player, globalState(Map.of(player.getUniqueId(), 1_250, other, 3_750)), 0);
+
+        Map<String, String> placeholders = bossBar.shown.getLast().placeholders();
+        assertEquals("5,000", placeholders.get("progress"));
+        assertEquals("10,000", placeholders.get("goal_amount"));
+        assertEquals("50.00%", placeholders.get("percent"));
+        assertEquals("5,000", placeholders.get("global_progress"));
+        assertEquals("10,000", placeholders.get("global_goal_amount"));
+        assertEquals("50", placeholders.get("global_percent"));
+        assertEquals("1,250", placeholders.get("contribution"));
+        assertEquals("25", placeholders.get("contribution_percent"));
+        assertEquals("2", placeholders.get("global_rank"));
+        assertEquals("2", placeholders.get("global_participants"));
+        assertEquals("Ends in 6d", placeholders.get("global_time_remaining"));
+        assertEquals("Global Slayer", placeholders.get("quest_display_name"));
     }
 
     private static String expectedRank(Map<UUID, Integer> contributions, UUID playerId) {

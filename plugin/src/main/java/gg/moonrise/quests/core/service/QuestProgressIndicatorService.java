@@ -9,11 +9,10 @@ import gg.moonrise.quests.indicator.QuestProgressIndicator;
 import gg.moonrise.quests.indicator.QuestProgressIndicatorContext;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
-import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestSchedules;
+import gg.moonrise.quests.util.QuestTokens;
 import org.bukkit.entity.Player;
 
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,8 +25,6 @@ import java.util.UUID;
 @SpringComponent
 @RequiredArgsConstructor
 public class QuestProgressIndicatorService {
-
-    private static final ThreadLocal<DecimalFormat> PERCENT_FORMATTER = ThreadLocal.withInitial(() -> new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(java.util.Locale.US)));
 
     private final ConfigProvider configProvider;
     private final QuestDefinitionService definitionService;
@@ -70,7 +67,7 @@ public class QuestProgressIndicatorService {
             if (!selectedTypes.contains(indicator.type())) {
                 continue;
             }
-            Component title = miniMessage.deserialize(applyTokens(indicator.titleTemplate(config), values));
+            Component title = miniMessage.deserialize(QuestTokens.apply(indicator.titleTemplate(config), values));
             indicator.show(new QuestProgressIndicatorContext(player, scope, quest, globalState, previousProgress, progress, values, title));
         }
     }
@@ -140,18 +137,18 @@ public class QuestProgressIndicatorService {
     private Map<String, String> globalPlaceholders(Player player, GlobalQuestState state) {
         GeneratedQuest quest = state.quest();
         int contribution = state.contribution(player.getUniqueId());
-        Rank rank = rank(state, player.getUniqueId());
+        GlobalQuestState.Rank rank = state.rank(player.getUniqueId());
         Map<String, String> values = commonQuestPlaceholders(player, quest);
         values.putAll(definitionService.variablePlaceholders(quest));
         putQuestNumbers(values, quest);
-        values.put("global_progress", QuestNumberFormatter.format(quest.progress()));
-        values.put("global_goal_amount", QuestNumberFormatter.format(quest.goalAmount()));
-        values.put("global_percent", percent(quest.progress(), quest.goalAmount()));
-        values.put("contribution", QuestNumberFormatter.format(contribution));
-        values.put("contribution_percent", percent(contribution, Math.max(1, quest.progress())));
-        values.put("global_rank", rank.rank() <= 0 ? "-" : QuestNumberFormatter.format(rank.rank()));
-        values.put("global_participants", QuestNumberFormatter.format(rank.participants()));
-        values.put("global_time_remaining", timeRemaining(state.endsAt()));
+        values.put("global_progress", QuestTokens.number(quest.progress(), true));
+        values.put("global_goal_amount", QuestTokens.number(quest.goalAmount(), true));
+        values.put("global_percent", QuestTokens.percent(quest.progress(), quest.goalAmount(), true));
+        values.put("contribution", QuestTokens.number(contribution, true));
+        values.put("contribution_percent", QuestTokens.percent(contribution, Math.max(1, quest.progress()), true));
+        values.put("global_rank", rank.rank() <= 0 ? "-" : QuestTokens.number(rank.rank(), true));
+        values.put("global_participants", QuestTokens.number(rank.participants(), true));
+        values.put("global_time_remaining", QuestSchedules.formatRemaining("Ends in ", Duration.between(LocalDateTime.now(), state.endsAt()), true));
         values.put("quest_type", quest.type().key());
         values.put("period_key", state.periodKey());
         return values;
@@ -162,7 +159,7 @@ public class QuestProgressIndicatorService {
         values.put("player", player.getName());
         values.put("uuid", player.getUniqueId().toString());
         values.put("quest_id", quest.definitionId());
-        values.put("quest_display_name", stripMiniMessageFallback(quest.displayName()));
+        values.put("quest_display_name", QuestTokens.stripTags(quest.displayName()));
         values.put("quest_difficulty", quest.difficultyDisplayName());
         values.put("quest_difficulty_id", quest.difficultyId());
         putQuestNumbers(values, quest);
@@ -170,18 +167,8 @@ public class QuestProgressIndicatorService {
     }
 
     private void putQuestNumbers(Map<String, String> values, GeneratedQuest quest) {
-        values.put("goal_amount", QuestNumberFormatter.format(quest.goalAmount()));
-        values.put("goal-amount", QuestNumberFormatter.format(quest.goalAmount()));
-        values.put("progress", QuestNumberFormatter.format(quest.progress()));
-        values.put("percent", progressPercent(quest));
-    }
-
-    private String applyTokens(String template, Map<String, String> values) {
-        String output = template == null ? "" : template;
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        QuestTokens.putQuestNumbers(values, quest, true);
+        values.put("percent", QuestTokens.progressPercent(quest));
     }
 
     private double progress(GeneratedQuest quest) {
@@ -189,64 +176,5 @@ public class QuestProgressIndicatorService {
             return 0.0D;
         }
         return Math.clamp(quest.progress() / (double) quest.goalAmount(), 0.0D, 1.0D);
-    }
-
-    private String percent(int value, int max) {
-        if (max <= 0) {
-            return "0";
-        }
-        return QuestNumberFormatter.format(Math.min(100, (int) Math.floor((value * 100.0D) / max)));
-    }
-
-    private String progressPercent(GeneratedQuest quest) {
-        if (quest.goalAmount() <= 0) {
-            return "0.00%";
-        }
-        double percent = Math.clamp((quest.progress() * 100.0D) / quest.goalAmount(), 0.0D, 100.0D);
-        return PERCENT_FORMATTER.get().format(percent) + "%";
-    }
-
-    private String timeRemaining(LocalDateTime endsAt) {
-        long remainingMillis = Duration.between(LocalDateTime.now(), endsAt).toMillis();
-        long ceilMinutes = remainingMillis <= 0 ? 0 : (remainingMillis + 59_999) / 60_000;
-        if (ceilMinutes < 60) {
-            return "Ends in " + QuestNumberFormatter.format(ceilMinutes) + "m";
-        }
-        long ceilHours = (ceilMinutes + 59) / 60;
-        if (ceilHours < 24) {
-            return "Ends in " + QuestNumberFormatter.format(ceilHours) + "h";
-        }
-        long ceilDays = (ceilHours + 23) / 24;
-        return "Ends in " + QuestNumberFormatter.format(ceilDays) + "d";
-    }
-
-    /**
-     * Ranks the player among positive contributors, highest first with ties broken by UUID string, in one pass
-     * by counting the contributors ranked ahead instead of sorting everyone.
-     */
-    private Rank rank(GlobalQuestState state, UUID playerId) {
-        int playerContribution = state.contribution(playerId);
-        String playerKey = playerId.toString();
-        int participants = 0;
-        int ahead = 0;
-        for (Map.Entry<UUID, Integer> entry : state.contributions().entrySet()) {
-            int contribution = entry.getValue();
-            if (contribution <= 0) {
-                continue;
-            }
-            participants++;
-            if (contribution > playerContribution
-                    || (contribution == playerContribution && entry.getKey().toString().compareTo(playerKey) < 0)) {
-                ahead++;
-            }
-        }
-        return new Rank(playerContribution > 0 ? ahead + 1 : 0, participants);
-    }
-
-    private String stripMiniMessageFallback(String input) {
-        return input == null ? "" : input.replaceAll("<[^>]+>", "").trim();
-    }
-
-    private record Rank(int rank, int participants) {
     }
 }

@@ -25,6 +25,7 @@ import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestTokens;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -655,7 +656,7 @@ public class QuestService {
             }
             configProvider.get().getMessages().getProgressLine().send(
                     sender,
-                    Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(quest.displayName())),
+                    Placeholder.unparsed("quest_display_name", QuestTokens.stripTags(quest.displayName())),
                     Placeholder.unparsed("progress", QuestNumberFormatter.format(quest.progress())),
                     Placeholder.unparsed("goal_amount", QuestNumberFormatter.format(quest.goalAmount())),
                     Placeholder.unparsed("status", quest.completed() ? "completed" : "active")
@@ -677,14 +678,10 @@ public class QuestService {
     }
 
     public String replaceQuestTokens(String template, GeneratedQuest quest, Player player) {
-        String output = template == null ? "" : template;
         Map<String, String> values = commonPlaceholders(quest, player);
         values.putAll(definitionService.variablePlaceholders(quest));
-        putQuestNumbers(values, quest, true);
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        QuestTokens.putQuestNumbers(values, quest, true);
+        return QuestTokens.apply(template, values);
     }
 
     public String replaceRawVariableDisplayValues(String template, GeneratedQuest quest) {
@@ -749,7 +746,7 @@ public class QuestService {
         recordCompletionStats(player, state, quest);
         runOnEntityOrRetired(player, () -> {
             if (player.isOnline()) {
-                configProvider.get().getMessages().getQuestCompleted().send(player, Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(quest.displayName())));
+                configProvider.get().getMessages().getQuestCompleted().send(player, Placeholder.unparsed("quest_display_name", QuestTokens.stripTags(quest.displayName())));
             }
             // Already on the player's entity thread, so the commands run directly.
             dispatchConsoleCommands(player.getUniqueId(), resolvedRewardCommands(player, quest, canAccessQuest(player, quest)));
@@ -841,7 +838,7 @@ public class QuestService {
     private void sendCompletedDifficultyLine(CommandSender sender, String difficultyId, String difficultyDisplayName, int questsCompleted) {
         configProvider.get().getMessages().getCompletedDifficultyLine().send(
                 sender,
-                Placeholder.unparsed("quest_difficulty", stripMiniMessageFallback(difficultyDisplayName)),
+                Placeholder.unparsed("quest_difficulty", QuestTokens.stripTags(difficultyDisplayName)),
                 Placeholder.unparsed("difficulty_id", difficultyId),
                 Placeholder.unparsed("quests_completed", QuestNumberFormatter.format(questsCompleted))
         );
@@ -907,30 +904,29 @@ public class QuestService {
     private void sendMilestoneCompletedMessage(Player player, GeneratedQuest quest, QuestCompletionStats stats, QuestMilestone milestone) {
         configProvider.get().getMessages().getMilestoneCompleted().send(
                 player,
-                Placeholder.unparsed("quest_display_name", stripMiniMessageFallback(quest.displayName())),
-                Placeholder.unparsed("quest_difficulty", stripMiniMessageFallback(quest.difficultyDisplayName())),
-                Placeholder.unparsed("difficulty", stripMiniMessageFallback(quest.difficultyDisplayName())),
+                Placeholder.unparsed("quest_display_name", QuestTokens.stripTags(quest.displayName())),
+                Placeholder.unparsed("quest_difficulty", QuestTokens.stripTags(quest.difficultyDisplayName())),
+                Placeholder.unparsed("difficulty", QuestTokens.stripTags(quest.difficultyDisplayName())),
                 Placeholder.unparsed("difficulty_id", quest.difficultyId()),
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(stats.difficultyCompleted())),
                 Placeholder.unparsed("milestone_completed", QuestNumberFormatter.format(milestone.completed())),
-                Placeholder.unparsed("milestone_display_name", stripMiniMessageFallback(milestone.displayName()))
+                Placeholder.unparsed("milestone_display_name", QuestTokens.stripTags(milestone.displayName()))
         );
     }
 
     private void sendMilestoneClaimedMessage(Player player, QuestMilestoneClaim claim) {
         configProvider.get().getMessages().getMilestoneClaimed().send(
                 player,
-                Placeholder.unparsed("quest_difficulty", stripMiniMessageFallback(claim.difficultyDisplayName())),
-                Placeholder.unparsed("difficulty", stripMiniMessageFallback(claim.difficultyDisplayName())),
+                Placeholder.unparsed("quest_difficulty", QuestTokens.stripTags(claim.difficultyDisplayName())),
+                Placeholder.unparsed("difficulty", QuestTokens.stripTags(claim.difficultyDisplayName())),
                 Placeholder.unparsed("difficulty_id", claim.difficultyId()),
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(claim.difficultyCompleted())),
                 Placeholder.unparsed("milestone_completed", QuestNumberFormatter.format(claim.milestone().completed())),
-                Placeholder.unparsed("milestone_display_name", stripMiniMessageFallback(claim.milestone().displayName()))
+                Placeholder.unparsed("milestone_display_name", QuestTokens.stripTags(claim.milestone().displayName()))
         );
     }
 
     private String replaceMilestoneTokens(String template, Player player, GeneratedQuest quest, QuestCompletionStats stats, QuestMilestone milestone) {
-        String output = template == null ? "" : template;
         Map<String, String> values = new LinkedHashMap<>();
         values.put("player", player.getName());
         values.put("uuid", player.getUniqueId().toString());
@@ -938,14 +934,10 @@ public class QuestService {
         values.put("difficulty_id", quest.difficultyId());
         values.put("completed", Integer.toString(stats.difficultyCompleted()));
         values.put("milestone_completed", Integer.toString(milestone.completed()));
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        return QuestTokens.apply(template, values);
     }
 
     private String replaceMilestoneClaimTokens(String template, Player player, QuestMilestoneClaim claim) {
-        String output = template == null ? "" : template;
         Map<String, String> values = new LinkedHashMap<>();
         values.put("player", player.getName());
         values.put("uuid", player.getUniqueId().toString());
@@ -953,10 +945,7 @@ public class QuestService {
         values.put("difficulty_id", claim.difficultyId());
         values.put("completed", Integer.toString(claim.difficultyCompleted()));
         values.put("milestone_completed", Integer.toString(claim.milestone().completed()));
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        return QuestTokens.apply(template, values);
     }
 
     private List<String> rewardCommands(GeneratedQuest quest, boolean premiumRewardsAccessible) {
@@ -998,36 +987,18 @@ public class QuestService {
         values.put("player", player.getName());
         values.put("uuid", player.getUniqueId().toString());
         values.put("quest_id", quest.definitionId());
-        values.put("quest_display_name", stripMiniMessageFallback(quest.displayName()));
+        values.put("quest_display_name", QuestTokens.stripTags(quest.displayName()));
         values.put("quest_difficulty", quest.difficultyDisplayName());
         values.put("quest_difficulty_id", quest.difficultyId());
-        putQuestNumbers(values, quest, true);
+        QuestTokens.putQuestNumbers(values, quest, true);
         return values;
     }
 
     private String replaceQuestRewardTokens(String template, GeneratedQuest quest, Player player) {
-        String output = template == null ? "" : template;
         Map<String, String> values = commonPlaceholders(quest, player);
         values.putAll(definitionService.variablePlaceholders(quest));
-        putQuestNumbers(values, quest, false);
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
-    }
-
-    private void putQuestNumbers(Map<String, String> values, GeneratedQuest quest, boolean formatted) {
-        values.put("goal_amount", number(quest.goalAmount(), formatted));
-        values.put("goal-amount", number(quest.goalAmount(), formatted));
-        values.put("progress", number(quest.progress(), formatted));
-    }
-
-    private String number(int value, boolean formatted) {
-        return formatted ? QuestNumberFormatter.format(value) : Integer.toString(value);
-    }
-
-    private String stripMiniMessageFallback(String input) {
-        return input == null ? "" : input.replaceAll("<[^>]+>", "").trim();
+        QuestTokens.putQuestNumbers(values, quest, false);
+        return QuestTokens.apply(template, values);
     }
 
     private List<GeneratedQuest> normalizeQuestSlots(List<GeneratedQuest> quests) {

@@ -477,6 +477,37 @@ class QuestServiceTest {
         return new QuestDefinition(id, QuestTypes.KILL_MOB, true, "easy", "Easy", "Kill zombies", List.of(), Map.of(), Map.of(), null, List.of());
     }
 
+    @Test
+    public void questTokensRenderFormattedNumbersStrippedNameAndVariables() {
+        GeneratedQuest quest = new GeneratedQuest(
+                UUID.randomUUID(),
+                playerId,
+                RESET_KEY,
+                "zombies",
+                QuestTypes.KILL_MOB,
+                "easy",
+                "<gold>Easy",
+                " <green>Kill <b>zombies</b> ",
+                List.of(),
+                Map.of(),
+                0,
+                false,
+                12_000,
+                1_500,
+                false
+        );
+        when(definitionService.variablePlaceholders(quest)).thenReturn(Map.of("entity", "Zombie"));
+
+        String rendered = service.replaceQuestTokens(
+                "<player>|<uuid>|<quest_id>|<quest_display_name>|<quest_difficulty>|<quest_difficulty_id>|<progress>/<goal_amount>/<goal-amount>|<entity>|<unknown>",
+                quest,
+                player
+        );
+
+        assertEquals("Steve|" + playerId + "|zombies|Kill zombies|<gold>Easy|easy|1,500/12,000/12,000|Zombie|<unknown>", rendered);
+        assertEquals("", service.replaceQuestTokens(null, quest, player));
+    }
+
     private GeneratedQuest quest(int slotIndex, int progress, boolean completed) {
         return new GeneratedQuest(
                 UUID.randomUUID(),

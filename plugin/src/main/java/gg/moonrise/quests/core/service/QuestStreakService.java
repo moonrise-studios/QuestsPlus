@@ -13,6 +13,7 @@ import gg.moonrise.quests.model.QuestStreakMilestone;
 import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestTokens;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -449,7 +450,6 @@ public class QuestStreakService {
     }
 
     private String replaceTokens(String template, String playerName, UUID playerId, QuestStreakState state, QuestStreakMilestone milestone) {
-        String output = template == null ? "" : template;
         Map<String, String> values = Map.of(
                 "player", playerName,
                 "uuid", playerId.toString(),
@@ -457,10 +457,7 @@ public class QuestStreakService {
                 "highest_streak", Integer.toString(state.highestStreak()),
                 "milestone_streak", Integer.toString(milestone.streak())
         );
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+        return QuestTokens.apply(template, values);
     }
 
     private LocalDate parseDate(String resetKey) {
