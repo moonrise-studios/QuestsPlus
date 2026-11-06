@@ -83,6 +83,12 @@ public class QuestProgressIndicatorService {
         }
     }
 
+    public void clearPlayer(UUID playerId) {
+        for (QuestProgressIndicator indicator : indicators) {
+            indicator.clear(playerId);
+        }
+    }
+
     public List<String> availableIndicatorTypes() {
         Config.ProgressIndicators config = config();
         if (!enabled(config)) {

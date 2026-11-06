@@ -51,15 +51,37 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             );
             player.showBossBar(bossBar);
 
+            UUID playerId = player.getUniqueId();
             long durationSeconds = Math.max(1, config.getDurationSeconds());
-            ScheduledTask hideTask = Scheduler.entity(player).runDelayed(delayedTask -> {
-                ActiveBossBar active = activeBars.remove(player.getUniqueId());
-                if (active != null && player.isOnline()) {
-                    player.hideBossBar(active.bossBar());
-                }
-            }, Duration.ofSeconds(durationSeconds));
-            activeBars.put(player.getUniqueId(), new ActiveBossBar(bossBar, hideTask));
+            ScheduledTask hideTask = Scheduler.entity(player).runDelayed(
+                    delayedTask -> {
+                        if (removeIfCurrent(playerId, bossBar) && player.isOnline()) {
+                            player.hideBossBar(bossBar);
+                        }
+                    },
+                    () -> removeIfCurrent(playerId, bossBar),
+                    Duration.ofSeconds(durationSeconds)
+            );
+            if (hideTask == null) {
+                // The player's scheduler is retired, so the bar could never be hidden on time.
+                player.hideBossBar(bossBar);
+                return;
+            }
+            activeBars.put(playerId, new ActiveBossBar(bossBar, hideTask));
         });
+    }
+
+    @Override
+    public void clear(UUID playerId) {
+        ActiveBossBar active = activeBars.remove(playerId);
+        if (active == null) {
+            return;
+        }
+        active.hideTask().cancel();
+        Player player = Bukkit.getPlayer(playerId);
+        if (player != null && player.isOnline()) {
+            player.hideBossBar(active.bossBar());
+        }
     }
 
     @Override
@@ -87,6 +109,11 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
         }
         active.hideTask().cancel();
         player.hideBossBar(active.bossBar());
+    }
+
+    private boolean removeIfCurrent(UUID playerId, BossBar bossBar) {
+        ActiveBossBar active = activeBars.get(playerId);
+        return active != null && active.bossBar() == bossBar && activeBars.remove(playerId, active);
     }
 
     private Config.BossBarProgressIndicator config() {

@@ -119,6 +119,20 @@ class ChatQuestProgressIndicatorTest {
         verify(entityScheduler, times(2)).runDelayed(ArgumentMatchers.<Consumer<ScheduledTask>>any(), any(Runnable.class), any(Duration.class));
     }
 
+    @Test
+    public void clearCancelsPendingFlushAndForgetsBatch() {
+        PlayerMock player = server.addPlayer("Quitter");
+        ScheduledTask flushTask = mock(ScheduledTask.class);
+        when(runDelayed()).thenReturn(flushTask);
+
+        indicator.show(context(player, quest(3), 0));
+        indicator.clear(player.getUniqueId());
+        indicator.show(context(player, quest(4), 3));
+
+        verify(flushTask).cancel();
+        verify(entityScheduler, times(2)).runDelayed(ArgumentMatchers.<Consumer<ScheduledTask>>any(), any(Runnable.class), any(Duration.class));
+    }
+
     private ScheduledTask runDelayed() {
         return entityScheduler.runDelayed(ArgumentMatchers.<Consumer<ScheduledTask>>any(), any(Runnable.class), any(Duration.class));
     }

@@ -32,6 +32,10 @@ public class QuestIndicatorPreferenceService {
         return Optional.ofNullable(scope == Scope.GLOBAL ? preferences.global() : preferences.personal());
     }
 
+    public void evict(UUID playerId) {
+        cache.remove(playerId);
+    }
+
     public CompletableFuture<Preferences> loadPreference(UUID playerId) {
         return sqlProvider.supplyAsync(() -> {
             try (Connection connection = sqlProvider.getConnection();

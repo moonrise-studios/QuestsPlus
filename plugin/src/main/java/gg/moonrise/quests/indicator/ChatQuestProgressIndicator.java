@@ -60,6 +60,14 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
     }
 
     @Override
+    public void clear(UUID playerId) {
+        PendingBatch batch = batches.remove(playerId);
+        if (batch != null) {
+            batch.cancel();
+        }
+    }
+
+    @Override
     public void clearAll() {
         for (PendingBatch batch : batches.values()) {
             batch.cancel();

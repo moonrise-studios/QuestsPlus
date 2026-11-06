@@ -2,6 +2,9 @@ package gg.moonrise.quests.indicator;
 
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
+
+import java.util.UUID;
+
 @SpringComponent
 public class ActionBarQuestProgressIndicator implements QuestProgressIndicator {
 
@@ -20,6 +23,11 @@ public class ActionBarQuestProgressIndicator implements QuestProgressIndicator {
                 player.sendActionBar(context.title());
             }
         });
+    }
+
+    @Override
+    public void clear(UUID playerId) {
+        // ActionBars keep no per-player state.
     }
 
     @Override
