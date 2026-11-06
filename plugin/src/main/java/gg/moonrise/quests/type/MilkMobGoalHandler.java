@@ -9,6 +9,7 @@ import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.util.QuestDisplayNames;
+import lombok.RequiredArgsConstructor;
 import org.bukkit.Material;
 import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Entity;
@@ -17,7 +18,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
-import org.springframework.context.annotation.Lazy;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @SpringComponent
+@RequiredArgsConstructor
 public class MilkMobGoalHandler implements GoalHandler {
 
     public static final String MOB_TYPE = "mob-type";
@@ -32,11 +33,6 @@ public class MilkMobGoalHandler implements GoalHandler {
 
     private final QuestService questService;
     private final QuestResetService resetService;
-
-    public MilkMobGoalHandler(@Lazy QuestService questService, @Lazy QuestResetService resetService) {
-        this.questService = questService;
-        this.resetService = resetService;
-    }
 
     @Override
     public QuestType type() {

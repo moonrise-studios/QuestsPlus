@@ -199,8 +199,9 @@ class QuestDefinitionServiceTest {
     private static QuestDefinitionService service(ConfigProvider configProvider, List<QuestVariableSelector> selectors) {
         GoalHandler handler = mock(GoalHandler.class);
         when(handler.type()).thenReturn(TYPE);
-        QuestDefinitionService service = new QuestDefinitionService(configProvider, selectors, List.of(handler));
+        QuestDefinitionService service = new QuestDefinitionService(configProvider, selectors);
         service.init();
+        service.registerBuiltInGoalHandlers(List.of(handler));
         return service;
     }
 

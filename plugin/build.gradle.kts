@@ -64,7 +64,7 @@ dependencies {
 
     testRuntimeOnly(libs.engine)
     testRuntimeOnly(libs.paper)
-    testRuntimeOnly(libs.springContext)
+    testImplementation(libs.springContext)
     testRuntimeOnly(libs.jakarta)
     testRuntimeOnly(libs.cloudAnnotations)
     testRuntimeOnly(libs.cloudPaper)

@@ -18,6 +18,7 @@ import gg.moonrise.quests.util.QuestNumberFormatter;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,13 +40,17 @@ public class QuestDefinitionService implements Reloadable {
 
     private final ConfigProvider configProvider;
     private final List<QuestVariableSelector> selectors;
-    private final List<GoalHandler> goalHandlers;
 
     private volatile DefinitionSnapshot snapshot = DefinitionSnapshot.EMPTY;
     private volatile Map<String, QuestVariableSelector> selectorsByType = Map.of();
     private volatile Map<QuestType, GoalHandler> handlersByType = Map.of();
     private volatile Map<QuestType, String> handlerOwnersByType = Map.of();
 
+    /**
+     * Registers the variable selectors. Definitions are first parsed by
+     * {@link #registerBuiltInGoalHandlers(Collection)}: the built-in handlers depend on services that
+     * depend on this one, so they are handed in after construction instead of being injected here.
+     */
     @PostConstruct
     public void init() {
         Map<String, QuestVariableSelector> selectorMap = new HashMap<>();
@@ -53,9 +58,14 @@ public class QuestDefinitionService implements Reloadable {
             selectorMap.put(selector.type().toUpperCase(Locale.ROOT), selector);
         }
         this.selectorsByType = Map.copyOf(selectorMap);
+    }
 
-        Map<QuestType, GoalHandler> handlerMap = new LinkedHashMap<>();
-        Map<QuestType, String> ownerMap = new LinkedHashMap<>();
+    /**
+     * Registers the plugin's own goal handlers and parses the definitions once with all of them known.
+     */
+    public synchronized void registerBuiltInGoalHandlers(Collection<? extends GoalHandler> goalHandlers) {
+        Map<QuestType, GoalHandler> handlerMap = new LinkedHashMap<>(handlersByType);
+        Map<QuestType, String> ownerMap = new LinkedHashMap<>(handlerOwnersByType);
         for (GoalHandler handler : goalHandlers) {
             handlerMap.put(handler.type(), handler);
             ownerMap.put(handler.type(), INTERNAL_OWNER);

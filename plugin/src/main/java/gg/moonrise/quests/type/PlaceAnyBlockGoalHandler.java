@@ -8,24 +8,20 @@ import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import lombok.RequiredArgsConstructor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.springframework.context.annotation.Lazy;
 
 import java.util.Map;
 import java.util.UUID;
 
 @SpringComponent
+@RequiredArgsConstructor
 public class PlaceAnyBlockGoalHandler implements GoalHandler {
 
     private final QuestService questService;
     private final QuestResetService resetService;
-
-    public PlaceAnyBlockGoalHandler(@Lazy QuestService questService, @Lazy QuestResetService resetService) {
-        this.questService = questService;
-        this.resetService = resetService;
-    }
 
     @Override
     public QuestType type() {

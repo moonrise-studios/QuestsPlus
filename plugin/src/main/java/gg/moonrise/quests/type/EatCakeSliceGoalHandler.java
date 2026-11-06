@@ -9,6 +9,7 @@ import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import lombok.RequiredArgsConstructor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.type.Cake;
@@ -17,21 +18,16 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.springframework.context.annotation.Lazy;
 
 import java.util.Map;
 import java.util.UUID;
 
 @SpringComponent
+@RequiredArgsConstructor
 public class EatCakeSliceGoalHandler implements GoalHandler {
 
     private final QuestService questService;
     private final QuestResetService resetService;
-
-    public EatCakeSliceGoalHandler(@Lazy QuestService questService, @Lazy QuestResetService resetService) {
-        this.questService = questService;
-        this.resetService = resetService;
-    }
 
     @Override
     public QuestType type() {

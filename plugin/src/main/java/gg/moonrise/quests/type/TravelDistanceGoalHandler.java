@@ -9,29 +9,25 @@ import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import lombok.RequiredArgsConstructor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
-import org.springframework.context.annotation.Lazy;
 
 import java.util.Map;
 import java.util.UUID;
 
 @SpringComponent
+@RequiredArgsConstructor
 public class TravelDistanceGoalHandler implements GoalHandler {
 
     public static final String GOAL_AMOUNT = QuestTypeSupport.GOAL_AMOUNT;
 
     private final QuestService questService;
     private final QuestResetService resetService;
-
-    public TravelDistanceGoalHandler(@Lazy QuestService questService, @Lazy QuestResetService resetService) {
-        this.questService = questService;
-        this.resetService = resetService;
-    }
 
     @Override
     public QuestType type() {
