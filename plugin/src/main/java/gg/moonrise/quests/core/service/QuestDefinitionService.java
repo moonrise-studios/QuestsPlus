@@ -270,7 +270,7 @@ public class QuestDefinitionService implements Reloadable {
         if (!loaded.containsKey("easy")) {
             throw new IllegalArgumentException("Quest difficulties must include the default difficulty id 'easy'");
         }
-        return Map.copyOf(loaded);
+        return Collections.unmodifiableMap(loaded);
     }
 
     private Map<String, Integer> loadRequirements(String difficultyId, Map<String, Integer> configured) {
