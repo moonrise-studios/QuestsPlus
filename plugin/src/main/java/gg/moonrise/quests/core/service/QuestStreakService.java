@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -45,9 +46,18 @@ public class QuestStreakService {
     public record StreakRecoveryResult(boolean applied, QuestStreakEvaluation evaluation) {
     }
 
+    /**
+     * Bounds how long a cached state may serve menu reads before it is reloaded, so writes made by another server
+     * sharing the database become visible. Writes on this server always reload from the database first.
+     */
+    private static final Duration CACHE_FRESHNESS = Duration.ofMinutes(1);
+
     private final ConfigProvider configProvider;
     private final SqlProvider sqlProvider;
-    private final Cache<UUID, QuestStreakState> cache = Caffeine.newBuilder().maximumSize(10_000).build();
+    private final Cache<UUID, QuestStreakState> cache = Caffeine.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(CACHE_FRESHNESS)
+            .build();
     /**
      * Tail of each player's queue of streak read-modify-write operations; entries are removed once the queue drains.
      */
@@ -67,7 +77,7 @@ public class QuestStreakService {
             return CompletableFuture.completedFuture(cachedOrEmpty(player.getUniqueId()));
         }
         UUID playerId = player.getUniqueId();
-        return serialized(playerId, () -> refreshState(playerId, currentResetKey));
+        return serialized(playerId, () -> cachedOrRefreshedState(playerId, currentResetKey));
     }
 
     public CompletableFuture<QuestStreakState> stateForMenu(Player player, String currentResetKey) {
@@ -224,15 +234,30 @@ public class QuestStreakService {
     }
 
     /**
-     * Loads the stored state, applies missed reset windows, and caches the result. Callers must hold the player's queue.
+     * Returns the cached state when it is already evaluated for {@code currentResetKey}; otherwise refreshes it from
+     * the database. Callers must hold the player's queue.
+     */
+    private CompletableFuture<QuestStreakState> cachedOrRefreshedState(UUID playerId, String currentResetKey) {
+        QuestStreakState cached = cache.getIfPresent(playerId);
+        if (cached != null && evaluateMissedWindows(cached, currentResetKey).equals(cached)) {
+            return CompletableFuture.completedFuture(cached);
+        }
+        return refreshState(playerId, currentResetKey);
+    }
+
+    /**
+     * Loads the stored state, applies missed reset windows, saves it if that changed anything, and caches the result.
+     * Callers must hold the player's queue.
      */
     private CompletableFuture<QuestStreakState> refreshState(UUID playerId, String currentResetKey) {
-        return loadState(playerId)
-                .thenCompose(state -> evaluateMissedWindows(state, currentResetKey))
-                .thenApply(state -> {
-                    cache.put(playerId, state);
-                    return state;
-                });
+        return loadState(playerId).thenCompose(loaded -> {
+            QuestStreakState evaluated = evaluateMissedWindows(loaded, currentResetKey);
+            CompletableFuture<Void> saved = evaluated.equals(loaded) ? CompletableFuture.completedFuture(null) : saveState(evaluated);
+            return saved.thenApply(unused -> {
+                cache.put(playerId, evaluated);
+                return evaluated;
+            });
+        });
     }
 
     /**
@@ -259,19 +284,18 @@ public class QuestStreakService {
         }
     }
 
-    private CompletableFuture<QuestStreakState> evaluateMissedWindows(QuestStreakState state, String currentResetKey) {
+    private QuestStreakState evaluateMissedWindows(QuestStreakState state, String currentResetKey) {
         LocalDate current = parseDate(currentResetKey);
         if (current == null) {
-            return CompletableFuture.completedFuture(state);
+            return state;
         }
         if (state.lastEvaluatedResetKey() == null || state.lastEvaluatedResetKey().isBlank()) {
-            QuestStreakState initialized = state.withLastEvaluatedResetKey(current.minusDays(resetStepDays()).toString());
-            return saveState(initialized).thenApply(unused -> initialized);
+            return state.withLastEvaluatedResetKey(current.minusDays(resetStepDays()).toString());
         }
 
         LocalDate cursor = parseDate(state.lastEvaluatedResetKey());
         if (cursor == null || !cursor.isBefore(current)) {
-            return CompletableFuture.completedFuture(state);
+            return state;
         }
 
         QuestStreakState updated = state;
@@ -285,8 +309,7 @@ public class QuestStreakService {
             updated = updated.withLastEvaluatedResetKey(window);
             cursor = cursor.plusDays(stepDays);
         }
-        QuestStreakState finalState = updated;
-        return saveState(finalState).thenApply(unused -> finalState);
+        return updated;
     }
 
     private int resetStepDays() {

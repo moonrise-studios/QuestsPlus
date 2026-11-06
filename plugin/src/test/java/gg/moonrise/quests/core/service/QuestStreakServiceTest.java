@@ -1,6 +1,8 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.QuestStreakState;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -11,6 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class QuestStreakServiceTest {
@@ -89,8 +94,56 @@ class QuestStreakServiceTest {
         assertEquals(3, next.join());
     }
 
+    @Test
+    public void ensureStateServesCachedStateAlreadyEvaluatedForCurrentWindow() {
+        SqlProvider sqlProvider = mock(SqlProvider.class);
+        QuestStreakService service = new QuestStreakService(enabledConfig(), sqlProvider);
+        QuestStreakState state = state(3, 2);
+        Player player = player(state.playerId());
+        when(sqlProvider.supplyAsync(any())).thenReturn(CompletableFuture.completedFuture(state));
+
+        QuestStreakState first = service.ensureState(player, "2026-06-20").join();
+        QuestStreakState second = service.ensureState(player, "2026-06-20").join();
+
+        assertEquals(state, first);
+        assertEquals(state, second);
+        verify(sqlProvider, times(1)).supplyAsync(any());
+        verify(sqlProvider, never()).runAsync(any());
+    }
+
+    @Test
+    public void ensureStateReloadsAndSavesWhenANewWindowWasMissed() {
+        SqlProvider sqlProvider = mock(SqlProvider.class);
+        QuestStreakService service = new QuestStreakService(enabledConfig(), sqlProvider);
+        QuestStreakState state = state(3, 2);
+        Player player = player(state.playerId());
+        when(sqlProvider.supplyAsync(any())).thenReturn(CompletableFuture.completedFuture(state));
+        when(sqlProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        service.ensureState(player, "2026-06-20").join();
+        QuestStreakState updated = service.ensureState(player, "2026-06-22").join();
+
+        assertEquals(3, updated.currentStreak());
+        assertEquals(0, updated.shieldBalance());
+        assertEquals("2026-06-21", updated.lastEvaluatedResetKey());
+        verify(sqlProvider, times(2)).supplyAsync(any());
+        verify(sqlProvider, times(1)).runAsync(any());
+    }
+
     private static QuestStreakService service() {
         return new QuestStreakService(mock(ConfigProvider.class), mock(SqlProvider.class));
+    }
+
+    private static ConfigProvider enabledConfig() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        when(configProvider.get()).thenReturn(new Config());
+        return configProvider;
+    }
+
+    private static Player player(UUID playerId) {
+        Player player = mock(Player.class);
+        when(player.getUniqueId()).thenReturn(playerId);
+        return player;
     }
 
     private static QuestStreakState state(int currentStreak, int shieldBalance) {
