@@ -1,8 +1,5 @@
 package gg.moonrise.quests.core.service;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import gg.moonrise.quests.model.PlayerQuestState;
@@ -12,11 +9,13 @@ import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.QuestMilestoneClaim;
 import gg.moonrise.quests.model.QuestMilestone;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.util.QuestRowCodec;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,8 +29,10 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class QuestRepository {
 
+    private static final String REROLLS_TABLE = "player_quest_rerolls";
+    private static final String RESETS_TABLE = "player_quest_resets";
+
     private final SqlProvider sqlProvider;
-    private final Gson gson = new Gson();
 
     public CompletableFuture<List<GeneratedQuest>> loadQuests(UUID playerId, String resetKey) {
         return sqlProvider.supplyAsync(() -> {
@@ -87,37 +88,11 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Integer> loadRerollsUsed(UUID playerId, String resetKey) {
-        return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         SELECT used_count
-                         FROM player_quest_rerolls
-                         WHERE player_uuid = ? AND reset_key = ?
-                         """)) {
-                statement.setString(1, playerId.toString());
-                statement.setString(2, resetKey);
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    return resultSet.next() ? resultSet.getInt("used_count") : 0;
-                }
-            }
-        });
+        return loadUsedCount(REROLLS_TABLE, playerId, resetKey);
     }
 
     public CompletableFuture<Integer> loadQuestResetsUsed(UUID playerId, String resetKey) {
-        return sqlProvider.supplyAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement("""
-                         SELECT used_count
-                         FROM player_quest_resets
-                         WHERE player_uuid = ? AND reset_key = ?
-                         """)) {
-                statement.setString(1, playerId.toString());
-                statement.setString(2, resetKey);
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    return resultSet.next() ? resultSet.getInt("used_count") : 0;
-                }
-            }
-        });
+        return loadUsedCount(RESETS_TABLE, playerId, resetKey);
     }
 
     public CompletableFuture<Void> resetRerolls(UUID playerId, String resetKey) {
@@ -160,7 +135,7 @@ public class QuestRepository {
                 deleteQuests.setString(2, resetKey);
                 deleteQuests.executeUpdate();
             }
-            return readQuestResetsUsed(connection, playerId, resetKey);
+            return readUsedCount(connection, RESETS_TABLE, playerId, resetKey);
         });
     }
 
@@ -173,13 +148,8 @@ public class QuestRepository {
                 delete.setString(1, oldInstanceId.toString());
                 delete.executeUpdate();
             }
-            try (PreparedStatement insert = connection.prepareStatement("""
-                    INSERT INTO player_quests (
-                        instance_id, player_uuid, reset_key, definition_id, type, difficulty_id, difficulty_display_name, display_name,
-                        description, variables, slot_index, premium, goal_amount, progress, completed
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """)) {
+            // The replacement has a fresh instance id, so the upsert always inserts.
+            try (PreparedStatement insert = connection.prepareStatement(sqlProvider.upsertPlayerQuestSql())) {
                 bindQuest(insert, replacement);
                 insert.executeUpdate();
             }
@@ -188,7 +158,7 @@ public class QuestRepository {
                 reroll.setString(2, replacement.resetKey());
                 reroll.executeUpdate();
             }
-            return readRerollsUsed(connection, replacement.playerId(), replacement.resetKey());
+            return readUsedCount(connection, REROLLS_TABLE, replacement.playerId(), replacement.resetKey());
         });
     }
 
@@ -304,26 +274,23 @@ public class QuestRepository {
         }
     }
 
-    private int readRerollsUsed(Connection connection, UUID playerId, String resetKey) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT used_count
-                FROM player_quest_rerolls
-                WHERE player_uuid = ? AND reset_key = ?
-                """)) {
-            statement.setString(1, playerId.toString());
-            statement.setString(2, resetKey);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() ? resultSet.getInt("used_count") : 0;
+    private CompletableFuture<Integer> loadUsedCount(String table, UUID playerId, String resetKey) {
+        return sqlProvider.supplyAsync(() -> {
+            try (Connection connection = sqlProvider.getConnection()) {
+                return readUsedCount(connection, table, playerId, resetKey);
             }
-        }
+        });
     }
 
-    private int readQuestResetsUsed(Connection connection, UUID playerId, String resetKey) throws SQLException {
+    /**
+     * Reads a per-player, per-reset usage counter. {@code table} is always one of the constants above.
+     */
+    private int readUsedCount(Connection connection, String table, UUID playerId, String resetKey) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT used_count
-                FROM player_quest_resets
+                FROM %s
                 WHERE player_uuid = ? AND reset_key = ?
-                """)) {
+                """.formatted(table))) {
             statement.setString(1, playerId.toString());
             statement.setString(2, resetKey);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -361,11 +328,11 @@ public class QuestRepository {
                 resetKey,
                 resultSet.getString("definition_id"),
                 QuestType.of(resultSet.getString("type")),
-                fallback(resultSet.getString("difficulty_id"), "easy"),
-                fallback(resultSet.getString("difficulty_display_name"), "<green><b>EASY"),
+                QuestRowCodec.difficultyId(resultSet.getString("difficulty_id")),
+                QuestRowCodec.difficultyDisplayName(resultSet.getString("difficulty_display_name")),
                 resultSet.getString("display_name"),
-                stringList(resultSet.getString("description")),
-                stringMap(resultSet.getString("variables")),
+                QuestRowCodec.stringList(resultSet.getString("description")),
+                QuestRowCodec.stringMap(resultSet.getString("variables")),
                 slotIndex(resultSet),
                 resultSet.getInt("premium") == 1,
                 resultSet.getInt("goal_amount"),
@@ -383,10 +350,10 @@ public class QuestRepository {
         statement.setString(6, quest.difficultyId());
         statement.setString(7, quest.difficultyDisplayName());
         statement.setString(8, quest.displayName());
-        statement.setString(9, gson.toJson(quest.description()));
-        statement.setString(10, gson.toJson(quest.variables()));
+        statement.setString(9, QuestRowCodec.toJson(quest.description()));
+        statement.setString(10, QuestRowCodec.toJson(quest.variables()));
         if (quest.slotIndex() < 0) {
-            statement.setNull(11, java.sql.Types.INTEGER);
+            statement.setNull(11, Types.INTEGER);
         } else {
             statement.setInt(11, quest.slotIndex());
         }
@@ -396,30 +363,8 @@ public class QuestRepository {
         statement.setInt(15, quest.completed() ? 1 : 0);
     }
 
-    private List<String> stringList(String json) {
-        String[] values = gson.fromJson(json, String[].class);
-        return values == null ? List.of() : List.of(values);
-    }
-
-    private Map<String, String> stringMap(String json) {
-        JsonObject object = gson.fromJson(json, JsonObject.class);
-        if (object == null) {
-            return Map.of();
-        }
-        Map<String, String> values = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
-            JsonElement value = entry.getValue();
-            values.put(entry.getKey(), value == null || value.isJsonNull() ? null : value.getAsString());
-        }
-        return values;
-    }
-
     private int slotIndex(ResultSet resultSet) throws SQLException {
         Object value = resultSet.getObject("slot_index");
         return value == null ? -1 : resultSet.getInt("slot_index");
-    }
-
-    private String fallback(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
     }
 }

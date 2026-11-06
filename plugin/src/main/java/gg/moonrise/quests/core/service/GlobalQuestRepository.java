@@ -1,14 +1,12 @@
 package gg.moonrise.quests.core.service;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.GlobalQuestContribution;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.util.QuestRowCodec;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,10 +24,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class GlobalQuestRepository {
 
-    private static final UUID GLOBAL_PLAYER_ID = new UUID(0L, 0L);
-
     private final SqlProvider sqlProvider;
-    private final Gson gson = new Gson();
 
     public CompletableFuture<GlobalQuestState> loadActive(String periodKey) {
         return sqlProvider.supplyAsync(() -> {
@@ -190,15 +185,15 @@ public class GlobalQuestRepository {
     private GlobalQuestState readState(ResultSet resultSet, Map<UUID, Integer> contributions) throws SQLException {
         GeneratedQuest quest = new GeneratedQuest(
                 UUID.fromString(resultSet.getString("instance_id")),
-                GLOBAL_PLAYER_ID,
+                QuestRowCodec.GLOBAL_PLAYER_ID,
                 resultSet.getString("period_key"),
                 resultSet.getString("definition_id"),
                 QuestType.of(resultSet.getString("type")),
-                fallback(resultSet.getString("difficulty_id"), "easy"),
-                fallback(resultSet.getString("difficulty_display_name"), "<green><b>EASY"),
+                QuestRowCodec.difficultyId(resultSet.getString("difficulty_id")),
+                QuestRowCodec.difficultyDisplayName(resultSet.getString("difficulty_display_name")),
                 resultSet.getString("display_name"),
-                stringList(resultSet.getString("description")),
-                stringMap(resultSet.getString("variables")),
+                QuestRowCodec.stringList(resultSet.getString("description")),
+                QuestRowCodec.stringMap(resultSet.getString("variables")),
                 -1,
                 resultSet.getInt("goal_amount"),
                 resultSet.getInt("progress"),
@@ -260,33 +255,11 @@ public class GlobalQuestRepository {
         statement.setString(7, quest.difficultyId());
         statement.setString(8, quest.difficultyDisplayName());
         statement.setString(9, quest.displayName());
-        statement.setString(10, gson.toJson(quest.description()));
-        statement.setString(11, gson.toJson(quest.variables()));
+        statement.setString(10, QuestRowCodec.toJson(quest.description()));
+        statement.setString(11, QuestRowCodec.toJson(quest.variables()));
         statement.setInt(12, quest.goalAmount());
         statement.setInt(13, quest.progress());
         statement.setInt(14, quest.completed() ? 1 : 0);
         statement.setInt(15, state.rewardsExecuted() ? 1 : 0);
-    }
-
-    private List<String> stringList(String json) {
-        String[] values = gson.fromJson(json, String[].class);
-        return values == null ? List.of() : List.of(values);
-    }
-
-    private Map<String, String> stringMap(String json) {
-        JsonObject object = gson.fromJson(json, JsonObject.class);
-        if (object == null) {
-            return Map.of();
-        }
-        Map<String, String> values = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
-            JsonElement value = entry.getValue();
-            values.put(entry.getKey(), value == null || value.isJsonNull() ? null : value.getAsString());
-        }
-        return values;
-    }
-
-    private String fallback(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
     }
 }
