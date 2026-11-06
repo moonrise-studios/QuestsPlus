@@ -19,6 +19,7 @@ import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestSchedules;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -26,9 +27,9 @@ import org.bukkit.entity.Player;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -52,6 +53,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private final QuestDefinitionService definitionService;
     private final GlobalQuestRepository repository;
     private final QuestProgressIndicatorService progressIndicatorService;
+    private final QuestClock clock;
 
     private volatile DayOfWeek startDay = DayOfWeek.FRIDAY;
     private volatile LocalTime startTime = LocalTime.of(5, 0);
@@ -81,7 +83,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         synchronized (stateLock) {
             this.unavailablePeriod = null;
         }
-        repository.loadExpiredUnrewarded(LocalDateTime.now())
+        repository.loadExpiredUnrewarded(clock.now().toLocalDateTime())
                 .thenCompose(this::finalizeExpiredStates)
                 .thenCompose(unused -> ensureActiveStateAsync())
                 .exceptionally(throwable -> {
@@ -149,7 +151,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     public String timeRemainingPlaceholder() {
         GlobalQuestState state = cachedActiveState();
         LocalDateTime end = state == null ? currentPeriod().endsAt() : state.endsAt();
-        long remainingMillis = Duration.between(LocalDateTime.now(), end).toMillis();
+        long remainingMillis = QuestSchedules.until(clock.now(), end).toMillis();
         long ceilMinutes = remainingMillis <= 0 ? 0 : (remainingMillis + 59_999) / 60_000;
         if (ceilMinutes < 60) {
             return "Ends in " + QuestNumberFormatter.format(ceilMinutes) + "m";
@@ -352,7 +354,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     private Optional<GlobalQuestState> generate(Period period) {
         List<QuestDefinition> definitions = definitionService.globalDefinitions();
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         List<QuestDefinition> enabled = definitions.stream()
                 .filter(QuestDefinition::enabled)
                 .filter(definition -> definition.activeAt(now))
@@ -560,33 +562,40 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         if (previous != null) {
             previous.cancel();
         }
-        LocalDateTime next = currentPeriod().endsAt();
-        Duration delay = Duration.between(LocalDateTime.now(), next);
+        ZonedDateTime now = clock.now();
+        Period period = periodAt(now);
+        Duration delay = QuestSchedules.until(now, period.endsAt());
         if (delay.isNegative() || delay.isZero()) {
             delay = Duration.ofSeconds(1);
         }
-        rolloverTask = Scheduler.sync().runDelayed(task -> {
-            repository.loadExpiredUnrewarded(LocalDateTime.now())
-                    .thenCompose(this::finalizeExpiredStates)
-                    .thenCompose(unused -> ensureActiveStateAsync())
-                    .thenAccept(state -> {
-                        if (state != null) {
-                            broadcastStarted(state);
-                        }
-                    });
+        rolloverTask = Scheduler.sync().runDelayed(task -> onRolloverTaskFired(period.key()), delay);
+        log.info("Scheduled next QuestsPlus global quest rollover for {}.", period.endsAt());
+    }
+
+    private void onRolloverTaskFired(String scheduledPeriodKey) {
+        if (currentPeriod().key().equals(scheduledPeriodKey)) {
+            // Tick timing or a clock adjustment fired the task before the period ended; wait for the real end.
+            log.debug("QuestsPlus global rollover fired before period {} ended; rescheduling.", scheduledPeriodKey);
             scheduleNextRollover();
-        }, delay);
-        log.info("Scheduled next QuestsPlus global quest rollover for {}.", next);
+            return;
+        }
+        repository.loadExpiredUnrewarded(clock.now().toLocalDateTime())
+                .thenCompose(this::finalizeExpiredStates)
+                .thenCompose(unused -> ensureActiveStateAsync())
+                .thenAccept(state -> {
+                    if (state != null) {
+                        broadcastStarted(state);
+                    }
+                });
+        scheduleNextRollover();
     }
 
     private Period currentPeriod() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate date = now.toLocalDate();
-        int delta = Math.floorMod(date.getDayOfWeek().getValue() - startDay.getValue(), 7);
-        LocalDateTime start = date.minusDays(delta).atTime(startTime);
-        if (now.isBefore(start)) {
-            start = start.minusDays(7);
-        }
+        return periodAt(clock.now());
+    }
+
+    private Period periodAt(ZonedDateTime now) {
+        LocalDateTime start = QuestSchedules.weeklyStart(now, startDay, startTime);
         return new Period(start.toLocalDate().toString(), start, start.plusDays(7));
     }
 

@@ -25,11 +25,14 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
 import org.mockito.MockedStatic;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +41,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,7 +61,11 @@ import static org.mockito.Mockito.when;
 
 class GlobalQuestServiceTest {
 
+    private static final QuestClock SYSTEM_CLOCK = Clock::systemDefaultZone;
+
     private final List<Consumer<ScheduledTask>> syncTasks = new ArrayList<>();
+    private final List<Consumer<ScheduledTask>> delayedTasks = new ArrayList<>();
+    private final List<Duration> delays = new ArrayList<>();
     private ServerMock server;
     private MockedStatic<Scheduler> scheduler;
 
@@ -69,7 +77,11 @@ class GlobalQuestServiceTest {
             syncTasks.add(invocation.getArgument(0));
             return mock(ScheduledTask.class);
         });
-        when(syncScheduler.runDelayed(any(), any(Duration.class))).thenReturn(mock(ScheduledTask.class));
+        when(syncScheduler.runDelayed(any(), any(Duration.class))).thenAnswer(invocation -> {
+            delayedTasks.add(invocation.getArgument(0));
+            delays.add(invocation.getArgument(1));
+            return mock(ScheduledTask.class);
+        });
         scheduler = mockStatic(Scheduler.class);
         scheduler.when(Scheduler::sync).thenReturn(syncScheduler);
     }
@@ -86,7 +98,7 @@ class GlobalQuestServiceTest {
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
         Player player = server.addPlayer("RefreshRace");
-        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         GlobalQuestState deletedState = activeGlobalState(player.getUniqueId());
         GlobalQuestState refreshedState = activeGlobalState(player.getUniqueId());
         CompletableFuture<GlobalQuestState> staleLoad = new CompletableFuture<>();
@@ -117,7 +129,7 @@ class GlobalQuestServiceTest {
         QuestProgressIndicatorService progressIndicatorService = mock(QuestProgressIndicatorService.class);
         Player player = server.addPlayer("AdminTarget");
         Config config = new Config();
-        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, progressIndicatorService);
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, progressIndicatorService, SYSTEM_CLOCK);
         GlobalQuestState activeState = activeGlobalState(player.getUniqueId());
 
         when(configProvider.get()).thenReturn(config);
@@ -144,7 +156,7 @@ class GlobalQuestServiceTest {
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
         Player player = server.addPlayer("ReentrantListener");
         UUID otherPlayer = UUID.randomUUID();
-        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         GlobalQuestState initial = activeGlobalState(player.getUniqueId());
         GlobalQuestState advancedByOtherThread = initial.withQuest(initial.quest().withProgress(6, false), Map.of(otherPlayer, 6));
         when(configProvider.get()).thenReturn(new Config());
@@ -177,7 +189,7 @@ class GlobalQuestServiceTest {
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
         Player player = server.addPlayer("ReplacedQuest");
-        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         GlobalQuestState replacement = activeGlobalState(player.getUniqueId());
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
@@ -197,7 +209,7 @@ class GlobalQuestServiceTest {
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
         Player player = server.addPlayer("NoGlobalQuest");
-        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinitions()).thenReturn(List.of());
         when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
@@ -224,7 +236,7 @@ class GlobalQuestServiceTest {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
-        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), SYSTEM_CLOCK);
         UUID winnerId = UUID.randomUUID();
         GlobalQuestState expired = activeGlobalState(winnerId);
         expired = expired.withQuest(expired.quest().withProgress(10, true), Map.of(winnerId, 10));
@@ -278,6 +290,38 @@ class GlobalQuestServiceTest {
         assertEquals("3/3", service.replaceGlobalTokens(template, state, viewer("TiedSecond", tiedSecond)));
         assertEquals("-/3", service.replaceGlobalTokens(template, state, viewer("Idle", idle)));
         assertEquals("-/3", service.replaceGlobalTokens(template, state, server.addPlayer("Stranger")));
+    }
+
+    @Test
+    public void rolloverAccountsForDaylightSavingAndIgnoresEarlyTask() {
+        ZoneId newYork = ZoneId.of("America/New_York");
+        AtomicReference<Clock> clock = new AtomicReference<>(Clock.fixed(ZonedDateTime.of(2026, 10, 30, 12, 0, 0, 0, newYork).toInstant(), newYork));
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
+        GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class), clock::get);
+        when(configProvider.get()).thenReturn(new Config());
+        when(definitionService.globalDefinitions()).thenReturn(List.of());
+        when(repository.loadExpiredUnrewarded(any())).thenReturn(CompletableFuture.completedFuture(List.of()));
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        service.reload();
+
+        // Friday 2026-10-30 12:00 EDT until Friday 2026-11-06 05:00 EST.
+        assertEquals(List.of(Duration.ofDays(6).plusHours(18)), delays);
+        assertEquals("Ends in 7d", service.timeRemainingPlaceholder());
+
+        clock.set(Clock.fixed(ZonedDateTime.of(2026, 11, 6, 4, 0, 0, 0, newYork).toInstant(), newYork));
+        delayedTasks.getLast().accept(mock(ScheduledTask.class));
+
+        verify(repository, times(1)).loadExpiredUnrewarded(any());
+        assertEquals(Duration.ofHours(1), delays.getLast());
+
+        clock.set(Clock.fixed(ZonedDateTime.of(2026, 11, 6, 5, 0, 1, 0, newYork).toInstant(), newYork));
+        delayedTasks.getLast().accept(mock(ScheduledTask.class));
+
+        verify(repository).loadExpiredUnrewarded(LocalDateTime.of(2026, 11, 6, 5, 0, 1));
+        assertEquals(Duration.ofDays(7).minusSeconds(1), delays.getLast());
     }
 
     @Test
@@ -419,7 +463,8 @@ class GlobalQuestServiceTest {
                 configProvider,
                 mock(QuestDefinitionService.class),
                 mock(GlobalQuestRepository.class),
-                mock(QuestProgressIndicatorService.class)
+                mock(QuestProgressIndicatorService.class),
+                SYSTEM_CLOCK
         );
     }
 
