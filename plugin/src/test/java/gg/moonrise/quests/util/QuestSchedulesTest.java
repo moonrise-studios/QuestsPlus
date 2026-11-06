@@ -19,6 +19,26 @@ class QuestSchedulesTest {
     private static final LocalTime FIVE_AM = LocalTime.of(5, 0);
 
     @Test
+    public void parseDayAndTimeFallBackToDefaults() {
+        assertEquals(DayOfWeek.MONDAY, QuestSchedules.parseDay(" monday ", "test"));
+        assertEquals(DayOfWeek.FRIDAY, QuestSchedules.parseDay(null, "test"));
+        assertEquals(DayOfWeek.FRIDAY, QuestSchedules.parseDay("someday", "test"));
+        assertEquals(LocalTime.of(18, 30), QuestSchedules.parseTime("18:30", "test"));
+        assertEquals(FIVE_AM, QuestSchedules.parseTime(null, "test"));
+        assertEquals(FIVE_AM, QuestSchedules.parseTime("25:00", "test"));
+    }
+
+    @Test
+    public void formatRemainingRoundsUpToTheLargestUnit() {
+        assertEquals("Ends in 0m", QuestSchedules.formatRemaining("Ends in ", Duration.ofSeconds(-5), true));
+        assertEquals("Ends in 1m", QuestSchedules.formatRemaining("Ends in ", Duration.ofSeconds(1), true));
+        assertEquals("Ends in 59m", QuestSchedules.formatRemaining("Ends in ", Duration.ofMinutes(59), true));
+        assertEquals("Ends in 2h", QuestSchedules.formatRemaining("Ends in ", Duration.ofMinutes(61), true));
+        assertEquals("Ends in 2d", QuestSchedules.formatRemaining("Ends in ", Duration.ofHours(25), true));
+        assertEquals("Resets in 25h", QuestSchedules.formatRemaining("Resets in ", Duration.ofHours(25), false));
+    }
+
+    @Test
     public void dailyDelayAcrossFallBackIncludesTheRepeatedHour() {
         // 2026-11-01 02:00 EDT falls back to 01:00 EST.
         ZonedDateTime now = ZonedDateTime.of(2026, 10, 31, 12, 0, 0, 0, NEW_YORK);

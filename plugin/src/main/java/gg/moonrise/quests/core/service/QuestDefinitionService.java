@@ -20,11 +20,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -32,6 +35,7 @@ import java.util.Optional;
 public class QuestDefinitionService implements Reloadable {
 
     private static final String INTERNAL_OWNER = "QuestsPlus";
+    private static final String DEFAULT_DIFFICULTY = "easy";
 
     private final ConfigProvider configProvider;
     private final List<QuestVariableSelector> selectors;
@@ -124,7 +128,7 @@ public class QuestDefinitionService implements Reloadable {
         Map<String, QuestDifficulty> difficultiesById = snapshot.difficultiesById();
         QuestDifficulty difficulty = difficultiesById.get(normalized);
         if (difficulty == null) {
-            return difficultiesById.get("easy");
+            return difficultiesById.get(DEFAULT_DIFFICULTY);
         }
         return difficulty;
     }
@@ -244,6 +248,19 @@ public class QuestDefinitionService implements Reloadable {
         reload();
     }
 
+    /**
+     * Picks a value for every variable of {@code definition} with its configured selector.
+     */
+    public Map<String, String> resolveVariables(QuestDefinition definition) {
+        Map<String, String> resolved = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : definition.selectorTypes().entrySet()) {
+            String key = entry.getKey();
+            QuestVariableSelector selector = selector(entry.getValue());
+            resolved.put(key, selector.select(definition.selectorValues().get(key), ThreadLocalRandom.current()));
+        }
+        return Map.copyOf(resolved);
+    }
+
     public Map<String, String> variablePlaceholders(GeneratedQuest quest) {
         return handlerIfRegistered(quest.type())
                 .map(handler -> handler.variablePlaceholders(quest))
@@ -261,7 +278,7 @@ public class QuestDefinitionService implements Reloadable {
         Map<String, QuestDifficulty> loaded = new LinkedHashMap<>();
         Map<String, Config.QuestDifficultyConfig> configured = configProvider.get().getQuestDifficulties();
         if (configured == null || configured.isEmpty()) {
-            configured = Map.of("easy", new Config.QuestDifficultyConfig());
+            configured = Map.of(DEFAULT_DIFFICULTY, new Config.QuestDifficultyConfig());
         }
 
         for (Map.Entry<String, Config.QuestDifficultyConfig> entry : configured.entrySet()) {
@@ -289,7 +306,7 @@ public class QuestDefinitionService implements Reloadable {
             ));
         }
 
-        if (!loaded.containsKey("easy")) {
+        if (!loaded.containsKey(DEFAULT_DIFFICULTY)) {
             throw new IllegalArgumentException("Quest difficulties must include the default difficulty id 'easy'");
         }
         return Collections.unmodifiableMap(loaded);
@@ -344,125 +361,123 @@ public class QuestDefinitionService implements Reloadable {
     }
 
     private List<QuestDefinition> loadDefinitions(Map<String, QuestDifficulty> difficulties) {
-        List<QuestDefinition> loaded = new ArrayList<>();
-        Map<String, Boolean> ids = new HashMap<>();
-        List<Config.QuestDefinitionConfig> questConfigs = configProvider.get().getQuestDefinitions();
-        if (questConfigs == null) {
-            questConfigs = List.of();
-        }
-        for (Config.QuestDefinitionConfig config : questConfigs) {
-            String id = QuestNames.normalize(config.getId());
-            if (id.isBlank()) {
-                throw new IllegalArgumentException("Quest definition id cannot be blank");
-            }
-            if (ids.put(id, true) != null) {
-                throw new IllegalArgumentException("Duplicate quest definition id: " + id);
-            }
-
-            try {
-                QuestType type = QuestType.of(config.getType());
-                String difficultyId = QuestNames.normalize(config.getDifficulty());
-                QuestDifficulty difficulty = difficulties.get(difficultyId);
-                if (difficulty == null) {
-                    throw new IllegalArgumentException("Quest definition " + id + " references unknown difficulty " + difficultyId);
-                }
-
-                Map<String, String> selectorTypes = new LinkedHashMap<>();
-                Map<String, List<String>> selectorValues = new LinkedHashMap<>();
-                Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
-                for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
-                    String variableKey = QuestNames.normalize(entry.getKey());
-                    if (variableKey.isBlank()) {
-                        throw new IllegalArgumentException("Quest definition " + id + " has a blank variable key");
-                    }
-                    Config.VariableConfig variable = entry.getValue();
-                    if (variable == null || variable.getSelector() == null || variable.getSelector().isBlank()) {
-                        throw new IllegalArgumentException("Quest definition " + id + " variable " + variableKey + " has a blank selector");
-                    }
-                    String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
-                    selector(selectorType);
-                    selectorTypes.put(variableKey, selectorType);
-                    selectorValues.put(variableKey, safeList(variable.getValues()));
-                }
-                Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
-
-                QuestDefinition definition = new QuestDefinition(
-                        id,
-                        type,
-                        config.isEnabled(),
-                        difficulty.id(),
-                        difficulty.displayName(),
-                        config.getDisplayName(),
-                        safeList(config.getDescription()),
-                        Map.copyOf(selectorTypes),
-                        Map.copyOf(selectorValues),
-                        QuestDefinitionSchedules.parse(config.getSchedule(), id),
-                        safeList(rewards.getCommands())
-                );
-                handler(type).validateDefinition(definition);
-                loaded.add(definition);
-            } catch (RuntimeException exception) {
-                log.error("Skipping invalid QuestsPlus quest definition '{}': {}", id, exception.getMessage());
-                continue;
-            }
-        }
+        List<QuestDefinition> loaded = loadDefinitions(configProvider.get().getQuestDefinitions(), DefinitionScope.PERSONAL, difficulties);
         log.info("Loaded {} QuestsPlus quest definitions and {} difficulties.", loaded.size(), difficulties.size());
-        return List.copyOf(loaded);
+        return loaded;
     }
 
     private List<QuestDefinition> loadGlobalDefinitions(Map<String, QuestDifficulty> difficulties) {
-        List<QuestDefinition> loaded = new ArrayList<>();
-        Map<String, Boolean> ids = new HashMap<>();
         Config.GlobalQuestsFile globalQuests = configProvider.get().getGlobalQuests();
-        List<Config.QuestDefinitionConfig> questConfigs = globalQuests == null ? null : globalQuests.getQuestDefinitions();
-        if (questConfigs == null) {
-            questConfigs = List.of();
-        }
-        for (Config.QuestDefinitionConfig config : questConfigs) {
+        return loadDefinitions(globalQuests == null ? null : globalQuests.getQuestDefinitions(), DefinitionScope.GLOBAL, difficulties);
+    }
+
+    /**
+     * Parses definitions for one scope. Invalid definitions are logged and skipped; only a blank or
+     * duplicate personal id aborts the whole reload, because quests already stored for it would become ambiguous.
+     */
+    private List<QuestDefinition> loadDefinitions(
+            List<Config.QuestDefinitionConfig> questConfigs,
+            DefinitionScope scope,
+            Map<String, QuestDifficulty> difficulties
+    ) {
+        List<QuestDefinition> loaded = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
+        for (Config.QuestDefinitionConfig config : questConfigs == null ? List.<Config.QuestDefinitionConfig>of() : questConfigs) {
             String id = QuestNames.normalize(config.getId());
-            if (id.isBlank() || ids.put(id, true) != null) {
-                log.error("Skipping invalid QuestsPlus global quest definition '{}': duplicate or blank id", id);
+            if (id.isBlank() || !ids.add(id)) {
+                if (scope.strictIds()) {
+                    throw new IllegalArgumentException(id.isBlank() ? "Quest definition id cannot be blank" : "Duplicate quest definition id: " + id);
+                }
+                log.error("Skipping invalid QuestsPlus {} '{}': duplicate or blank id", scope.label(), id);
                 continue;
             }
+
             try {
-                QuestType type = QuestType.of(config.getType());
-                QuestDifficulty difficulty = difficulties.getOrDefault(QuestNames.normalize(config.getDifficulty()), difficulties.get("easy"));
-                Map<String, String> selectorTypes = new LinkedHashMap<>();
-                Map<String, List<String>> selectorValues = new LinkedHashMap<>();
-                Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
-                for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
-                    String variableKey = QuestNames.normalize(entry.getKey());
-                    Config.VariableConfig variable = entry.getValue();
-                    String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
-                    selector(selectorType);
-                    selectorTypes.put(variableKey, selectorType);
-                    selectorValues.put(variableKey, safeList(variable.getValues()));
-                }
-                Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
-                QuestDefinition definition = new QuestDefinition(
-                        id,
-                        type,
-                        config.isEnabled(),
-                        difficulty.id(),
-                        difficulty.displayName(),
-                        config.getDisplayName(),
-                        safeList(config.getDescription()),
-                        Map.copyOf(selectorTypes),
-                        Map.copyOf(selectorValues),
-                        QuestDefinitionSchedules.parse(config.getSchedule(), id),
-                        safeList(rewards.getCommands())
-                );
-                handler(type).validateDefinition(definition);
-                loaded.add(definition);
+                loaded.add(parseDefinition(id, config, scope, difficulties));
             } catch (RuntimeException exception) {
-                log.error("Skipping invalid QuestsPlus global quest definition '{}': {}", id, exception.getMessage());
+                log.error("Skipping invalid QuestsPlus {} '{}': {}", scope.label(), id, exception.getMessage());
             }
         }
         return List.copyOf(loaded);
+    }
+
+    private QuestDefinition parseDefinition(
+            String id,
+            Config.QuestDefinitionConfig config,
+            DefinitionScope scope,
+            Map<String, QuestDifficulty> difficulties
+    ) {
+        QuestType type = QuestType.of(config.getType());
+        QuestDifficulty difficulty = definitionDifficulty(id, config, scope, difficulties);
+
+        Map<String, String> selectorTypes = new LinkedHashMap<>();
+        Map<String, List<String>> selectorValues = new LinkedHashMap<>();
+        Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
+        for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
+            String variableKey = QuestNames.normalize(entry.getKey());
+            if (variableKey.isBlank()) {
+                throw new IllegalArgumentException("Quest definition " + id + " has a blank variable key");
+            }
+            Config.VariableConfig variable = entry.getValue();
+            if (variable == null || variable.getSelector() == null || variable.getSelector().isBlank()) {
+                throw new IllegalArgumentException("Quest definition " + id + " variable " + variableKey + " has a blank selector");
+            }
+            String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
+            selector(selectorType);
+            selectorTypes.put(variableKey, selectorType);
+            selectorValues.put(variableKey, safeList(variable.getValues()));
+        }
+        Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
+
+        QuestDefinition definition = new QuestDefinition(
+                id,
+                type,
+                config.isEnabled(),
+                difficulty.id(),
+                difficulty.displayName(),
+                config.getDisplayName(),
+                safeList(config.getDescription()),
+                Map.copyOf(selectorTypes),
+                Map.copyOf(selectorValues),
+                QuestDefinitionSchedules.parse(config.getSchedule(), id),
+                safeList(rewards.getCommands())
+        );
+        handler(type).validateDefinition(definition);
+        return definition;
+    }
+
+    private QuestDifficulty definitionDifficulty(
+            String id,
+            Config.QuestDefinitionConfig config,
+            DefinitionScope scope,
+            Map<String, QuestDifficulty> difficulties
+    ) {
+        String difficultyId = QuestNames.normalize(config.getDifficulty());
+        QuestDifficulty difficulty = difficulties.get(difficultyId);
+        if (difficulty != null) {
+            return difficulty;
+        }
+        if (scope.defaultsUnknownDifficulty()) {
+            return difficulties.get(DEFAULT_DIFFICULTY);
+        }
+        throw new IllegalArgumentException("Quest definition " + id + " references unknown difficulty " + difficultyId);
     }
 
     private List<String> safeList(List<String> values) {
         return values == null ? List.of() : List.copyOf(values);
+    }
+
+    /**
+     * How strictly definitions of one scope are parsed.
+     *
+     * @param label name used in log messages
+     * @param strictIds whether a blank or duplicate id fails the reload instead of skipping the definition
+     * @param defaultsUnknownDifficulty whether an unknown difficulty falls back to the default difficulty
+     */
+    private record DefinitionScope(String label, boolean strictIds, boolean defaultsUnknownDifficulty) {
+
+        private static final DefinitionScope PERSONAL = new DefinitionScope("quest definition", true, false);
+        private static final DefinitionScope GLOBAL = new DefinitionScope("global quest definition", false, true);
     }
 
     /**

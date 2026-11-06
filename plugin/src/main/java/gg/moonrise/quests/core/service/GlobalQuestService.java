@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.GlobalQuestContribution;
@@ -30,12 +29,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,8 +52,8 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private final QuestProgressIndicatorService progressIndicatorService;
     private final QuestClock clock;
 
-    private volatile DayOfWeek startDay = DayOfWeek.FRIDAY;
-    private volatile LocalTime startTime = LocalTime.of(5, 0);
+    private volatile DayOfWeek startDay = QuestSchedules.DEFAULT_DAY;
+    private volatile LocalTime startTime = QuestSchedules.DEFAULT_TIME;
     /*
      * Every write to activeState, activeStateLoad, unavailablePeriod and stateGeneration happens while
      * holding stateLock; the volatile fields can still be read without it. stateGeneration increases
@@ -78,8 +75,8 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     @Override
     public synchronized void reload() {
         Config.GlobalSchedule schedule = configProvider.get().getGlobalQuests().getSchedule();
-        this.startDay = parseDay(schedule == null ? null : schedule.getDayOfWeek());
-        this.startTime = parseTime(schedule == null ? null : schedule.getTime());
+        this.startDay = QuestSchedules.parseDay(schedule == null ? null : schedule.getDayOfWeek(), "global quest");
+        this.startTime = QuestSchedules.parseTime(schedule == null ? null : schedule.getTime(), "global quest");
         synchronized (stateLock) {
             this.unavailablePeriod = null;
         }
@@ -151,17 +148,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     public String timeRemainingPlaceholder() {
         GlobalQuestState state = cachedActiveState();
         LocalDateTime end = state == null ? currentPeriod().endsAt() : state.endsAt();
-        long remainingMillis = QuestSchedules.until(clock.now(), end).toMillis();
-        long ceilMinutes = remainingMillis <= 0 ? 0 : (remainingMillis + 59_999) / 60_000;
-        if (ceilMinutes < 60) {
-            return "Ends in " + QuestNumberFormatter.format(ceilMinutes) + "m";
-        }
-        long ceilHours = (ceilMinutes + 59) / 60;
-        if (ceilHours < 24) {
-            return "Ends in " + QuestNumberFormatter.format(ceilHours) + "h";
-        }
-        long ceilDays = (ceilHours + 23) / 24;
-        return "Ends in " + QuestNumberFormatter.format(ceilDays) + "d";
+        return QuestSchedules.formatRemaining("Ends in ", QuestSchedules.until(clock.now(), end), true);
     }
 
     public List<QuestProgressResult> progressMatching(Player player, QuestType type, int amount, Predicate<GeneratedQuest> matcher) {
@@ -363,20 +350,10 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
             return Optional.empty();
         }
         QuestDefinition definition = enabled.get(ThreadLocalRandom.current().nextInt(enabled.size()));
-        Map<String, String> variables = resolveVariables(definition);
+        Map<String, String> variables = definitionService.resolveVariables(definition);
         GeneratedQuest quest = definitionService.handler(definition.type())
                 .createGeneratedQuest(definition, GLOBAL_PLAYER_ID, period.key(), variables);
         return Optional.of(new GlobalQuestState(quest, period.key(), period.startsAt(), period.endsAt(), Map.of(), false));
-    }
-
-    private Map<String, String> resolveVariables(QuestDefinition definition) {
-        Map<String, String> resolved = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : definition.selectorTypes().entrySet()) {
-            String key = entry.getKey();
-            QuestVariableSelector selector = definitionService.selector(entry.getValue());
-            resolved.put(key, selector.select(definition.selectorValues().get(key), ThreadLocalRandom.current()));
-        }
-        return Map.copyOf(resolved);
     }
 
     private CompletableFuture<Void> finalizeExpiredStates(List<GlobalQuestState> states) {
@@ -597,27 +574,6 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private Period periodAt(ZonedDateTime now) {
         LocalDateTime start = QuestSchedules.weeklyStart(now, startDay, startTime);
         return new Period(start.toLocalDate().toString(), start, start.plusDays(7));
-    }
-
-    private DayOfWeek parseDay(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return DayOfWeek.FRIDAY;
-        }
-        try {
-            return DayOfWeek.valueOf(raw.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            log.warn("Invalid QuestsPlus global quest day '{}'. Falling back to FRIDAY.", raw);
-            return DayOfWeek.FRIDAY;
-        }
-    }
-
-    private LocalTime parseTime(String raw) {
-        try {
-            return LocalTime.parse(raw == null ? "" : raw);
-        } catch (DateTimeParseException exception) {
-            log.warn("Invalid QuestsPlus global quest time '{}'. Falling back to 05:00.", raw);
-            return LocalTime.of(5, 0);
-        }
     }
 
     private List<String> safeList(List<String> values) {

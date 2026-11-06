@@ -9,7 +9,6 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestSchedules;
 import org.bukkit.Bukkit;
 
@@ -18,7 +17,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -30,8 +28,8 @@ public class QuestResetService implements Enableable, Reloadable, Disableable {
     private final QuestClock clock;
 
     private volatile boolean weekly;
-    private volatile DayOfWeek weeklyDay = DayOfWeek.FRIDAY;
-    private volatile LocalTime resetTime = LocalTime.of(5, 0);
+    private volatile DayOfWeek weeklyDay = QuestSchedules.DEFAULT_DAY;
+    private volatile LocalTime resetTime = QuestSchedules.DEFAULT_TIME;
     private volatile ZonedDateTime nextResetAt;
     private volatile ScheduledTask resetTask;
 
@@ -46,11 +44,11 @@ public class QuestResetService implements Enableable, Reloadable, Disableable {
         this.weekly = daily.isWeekly();
         if (weekly) {
             Config.GlobalSchedule schedule = daily.getSchedule() == null ? new Config.GlobalSchedule() : daily.getSchedule();
-            this.weeklyDay = parseDay(schedule.getDayOfWeek());
-            this.resetTime = parseResetTime(schedule.getTime());
+            this.weeklyDay = QuestSchedules.parseDay(schedule.getDayOfWeek(), "weekly quest");
+            this.resetTime = QuestSchedules.parseTime(schedule.getTime(), "daily reset");
         } else {
-            this.weeklyDay = DayOfWeek.FRIDAY;
-            this.resetTime = parseResetTime(daily.getResetTime());
+            this.weeklyDay = QuestSchedules.DEFAULT_DAY;
+            this.resetTime = QuestSchedules.parseTime(daily.getResetTime(), "daily reset");
         }
         scheduleNextReset();
     }
@@ -72,17 +70,7 @@ public class QuestResetService implements Enableable, Reloadable, Disableable {
     }
 
     public String resetTimerPlaceholder() {
-        long remainingMillis = QuestSchedules.until(clock.now(), nextResetZoned()).toMillis();
-        long ceilMinutes = remainingMillis <= 0 ? 0 : (remainingMillis + 59_999) / 60_000;
-        if (ceilMinutes < 60) {
-            return "Resets in " + QuestNumberFormatter.format(ceilMinutes) + "m";
-        }
-        long ceilHours = (ceilMinutes + 59) / 60;
-        if (weekly && ceilHours >= 24) {
-            long ceilDays = (ceilHours + 23) / 24;
-            return "Resets in " + QuestNumberFormatter.format(ceilDays) + "d";
-        }
-        return "Resets in " + QuestNumberFormatter.format(ceilHours) + "h";
+        return QuestSchedules.formatRemaining("Resets in ", QuestSchedules.until(clock.now(), nextResetZoned()), weekly);
     }
 
     private ZonedDateTime nextResetZoned() {
@@ -130,26 +118,5 @@ public class QuestResetService implements Enableable, Reloadable, Disableable {
 
     private ZonedDateTime nextResetAfter(ZonedDateTime now) {
         return weekly ? QuestSchedules.nextWeekly(now, weeklyDay, resetTime) : QuestSchedules.nextDaily(now, resetTime);
-    }
-
-    private DayOfWeek parseDay(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return DayOfWeek.FRIDAY;
-        }
-        try {
-            return DayOfWeek.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            log.warn("Invalid QuestsPlus weekly quest day '{}'. Falling back to FRIDAY.", raw);
-            return DayOfWeek.FRIDAY;
-        }
-    }
-
-    private LocalTime parseResetTime(String raw) {
-        try {
-            return LocalTime.parse(raw);
-        } catch (DateTimeParseException exception) {
-            log.warn("Invalid QuestsPlus daily reset time '{}'. Falling back to 05:00.", raw);
-            return LocalTime.of(5, 0);
-        }
     }
 }
