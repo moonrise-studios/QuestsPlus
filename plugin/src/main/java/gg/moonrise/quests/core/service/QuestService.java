@@ -558,29 +558,7 @@ public class QuestService {
 
         globalQuestService.progressMatching(player, type, amount, matcher, cause);
 
-        List<QuestProgressResult> results = new ArrayList<>();
-        synchronized (state) {
-            for (GeneratedQuest quest : state.quests()) {
-                if (quest.completed() || !canAccessQuest(player, quest) || !quest.type().equals(type) || !matcher.test(quest)) {
-                    continue;
-                }
-
-                int approvedAmount = approveProgress(player, quest, amount, cause);
-                if (approvedAmount <= 0) {
-                    continue;
-                }
-
-                int updatedProgress = clampedProgress(quest.progress(), approvedAmount, quest.goalAmount());
-                boolean completedNow = updatedProgress >= quest.goalAmount();
-                GeneratedQuest updated = quest.withProgress(updatedProgress, completedNow);
-                state.replaceQuest(updated);
-                results.add(new QuestProgressResult(updated, completedNow));
-                progressIndicatorService.showPersonal(player, updated, quest.progress());
-
-                persistProgress(player, state, quest, updated, "progress");
-            }
-        }
-        return results;
+        return applyProgress(player, state, quest -> quest.type().equals(type) && matcher.test(quest), amount, cause, "progress");
     }
 
     public List<QuestProgressResult> progressAdminGoal(Player player, String resetKey, int amount, String definitionId) {
@@ -598,28 +576,7 @@ public class QuestService {
             return List.of();
         }
 
-        List<QuestProgressResult> results = new ArrayList<>();
-        synchronized (state) {
-            for (GeneratedQuest quest : state.quests()) {
-                if (quest.completed() || !canAccessQuest(player, quest) || !quest.definitionId().equals(normalizedDefinitionId)) {
-                    continue;
-                }
-                int approvedAmount = approveProgress(player, quest, amount, QuestProgressEvent.Cause.COMMAND);
-                if (approvedAmount <= 0) {
-                    continue;
-                }
-
-                int updatedProgress = clampedProgress(quest.progress(), approvedAmount, quest.goalAmount());
-                boolean completedNow = updatedProgress >= quest.goalAmount();
-                GeneratedQuest updated = quest.withProgress(updatedProgress, completedNow);
-                state.replaceQuest(updated);
-                results.add(new QuestProgressResult(updated, completedNow));
-                progressIndicatorService.showPersonal(player, updated, quest.progress());
-
-                persistProgress(player, state, quest, updated, "command progress");
-            }
-        }
-        return results;
+        return applyProgress(player, state, quest -> quest.definitionId().equals(normalizedDefinitionId), amount, QuestProgressEvent.Cause.COMMAND, "command progress");
     }
 
     public List<QuestProgressResult> progressAdminGoal(Player player, String resetKey, int amount, QuestType type) {
@@ -632,26 +589,46 @@ public class QuestService {
             return List.of();
         }
 
-        List<QuestProgressResult> results = new ArrayList<>();
+        return applyProgress(player, state, quest -> quest.type().equals(type), amount, QuestProgressEvent.Cause.COMMAND, "command progress");
+    }
+
+    /**
+     * Credits {@code amount} to every active, accessible quest matching {@code filter}. The QuestProgressEvent is
+     * fired without holding the state lock, because third-party listeners may call back into QuestsPlus from other
+     * threads; each approved amount is then applied under the lock only if the same quest instance is still active,
+     * clamped against its current progress.
+     */
+    private List<QuestProgressResult> applyProgress(Player player, PlayerQuestState state, Predicate<GeneratedQuest> filter, int amount,
+                                                    QuestProgressEvent.Cause cause, String context) {
+        List<GeneratedQuest> candidates;
         synchronized (state) {
-            for (GeneratedQuest quest : state.quests()) {
-                if (quest.completed() || !canAccessQuest(player, quest) || !quest.type().equals(type)) {
+            candidates = state.quests().stream()
+                    .filter(quest -> !quest.completed() && canAccessQuest(player, quest) && filter.test(quest))
+                    .toList();
+        }
+
+        List<QuestProgressResult> results = new ArrayList<>();
+        for (GeneratedQuest candidate : candidates) {
+            int approvedAmount = approveProgress(player, candidate, amount, cause);
+            if (approvedAmount <= 0) {
+                continue;
+            }
+
+            synchronized (state) {
+                // The quest may have been rerolled, reset, completed or advanced while listeners ran.
+                GeneratedQuest current = state.questAtSlot(candidate.slotIndex());
+                if (current == null || !current.instanceId().equals(candidate.instanceId()) || current.completed()) {
                     continue;
                 }
 
-                int approvedAmount = approveProgress(player, quest, amount, QuestProgressEvent.Cause.COMMAND);
-                if (approvedAmount <= 0) {
-                    continue;
-                }
-
-                int updatedProgress = clampedProgress(quest.progress(), approvedAmount, quest.goalAmount());
-                boolean completedNow = updatedProgress >= quest.goalAmount();
-                GeneratedQuest updated = quest.withProgress(updatedProgress, completedNow);
+                int updatedProgress = clampedProgress(current.progress(), approvedAmount, current.goalAmount());
+                boolean completedNow = updatedProgress >= current.goalAmount();
+                GeneratedQuest updated = current.withProgress(updatedProgress, completedNow);
                 state.replaceQuest(updated);
                 results.add(new QuestProgressResult(updated, completedNow));
-                progressIndicatorService.showPersonal(player, updated, quest.progress());
+                progressIndicatorService.showPersonal(player, updated, current.progress());
 
-                persistProgress(player, state, quest, updated, "command progress");
+                persistProgress(player, state, current, updated, context);
             }
         }
         return results;

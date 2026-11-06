@@ -14,8 +14,10 @@ import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.model.QuestStreakEvaluation;
 import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.GoalHandler;
+import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
+import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
@@ -34,6 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +49,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -361,6 +365,71 @@ class QuestServiceTest {
 
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 500"));
         verify(player, never()).isOnline();
+    }
+
+    @Test
+    public void progressEventIsFiredWithoutHoldingTheStateLock() {
+        GeneratedQuest quest = quest(0, 2, false);
+        PlayerQuestState state = stubProgress(quest);
+        AtomicBoolean lockHeld = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            lockHeld.set(Thread.holdsLock(state));
+            return null;
+        }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
+
+        List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
+
+        assertFalse(lockHeld.get());
+        assertEquals(1, results.size());
+        assertEquals(5, state.questAtSlot(0).progress());
+    }
+
+    @Test
+    public void progressApprovedWhileQuestAdvancedIsClampedAgainstCurrentProgress() {
+        GeneratedQuest quest = quest(0, 2, false);
+        PlayerQuestState state = stubProgress(quest);
+        // Another thread credits 6 while the listener runs.
+        doAnswer(invocation -> {
+            synchronized (state) {
+                state.replaceQuest(quest.withProgress(8, false));
+            }
+            return null;
+        }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
+
+        List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
+
+        assertEquals(10, state.questAtSlot(0).progress());
+        assertTrue(results.getFirst().completedNow());
+        verify(repository).updateProgress(quest.withProgress(10, true));
+    }
+
+    @Test
+    public void progressApprovedAfterQuestWasRerolledIsDropped() {
+        GeneratedQuest quest = quest(0, 2, false);
+        PlayerQuestState state = stubProgress(quest);
+        GeneratedQuest rerolled = quest(0, 0, false);
+        doAnswer(invocation -> {
+            synchronized (state) {
+                state.replaceQuestAtSlot(0, rerolled);
+            }
+            return null;
+        }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
+
+        List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
+
+        assertTrue(results.isEmpty());
+        assertEquals(0, state.questAtSlot(0).progress());
+        verify(repository, never()).updateProgress(any());
+    }
+
+    private PlayerQuestState stubProgress(GeneratedQuest quest) {
+        stubLoad(List.of(quest));
+        PlayerQuestState state = service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
+        when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
+        when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
+                .thenReturn(CompletableFuture.completedFuture(new QuestCompletionStats(1, 1, List.of())));
+        return state;
     }
 
     private void stubCompletion(GeneratedQuest quest) {
