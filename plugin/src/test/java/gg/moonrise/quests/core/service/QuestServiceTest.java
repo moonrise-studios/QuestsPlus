@@ -286,6 +286,21 @@ class QuestServiceTest {
     }
 
     @Test
+    public void completionRunsDefinitionRewardCommandsFromTheDefinitionLookup() {
+        GeneratedQuest almostDone = quest(0, 9, false);
+        stubCompletion(almostDone);
+        QuestDefinition withBonus = new QuestDefinition("zombies", QuestTypes.KILL_MOB, true, "easy", "Easy", "Kill zombies", List.of(), Map.of(), Map.of(), null, List.of("bonus <player>"));
+        when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(withBonus));
+        when(entityScheduler.run(any(), any())).thenReturn(null);
+
+        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "bonus Steve"));
+        verify(definitionService, never()).definitions();
+    }
+
+    @Test
     public void completionWhileOnlineRunsRewardsAndStreakOnEntityThread() {
         GeneratedQuest almostDone = quest(0, 9, false);
         stubCompletion(almostDone);

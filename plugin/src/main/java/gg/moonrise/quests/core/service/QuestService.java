@@ -1094,9 +1094,7 @@ public class QuestService {
                 randomDifficultyRewardCommand(bonus.getCommands()).ifPresent(commands::add);
             }
         }
-        definitionService.definitions().stream()
-                .filter(definition -> definition.id().equals(quest.definitionId()))
-                .findFirst()
+        definitionService.definition(quest)
                 .map(QuestDefinition::rewardCommands)
                 .ifPresent(commands::addAll);
         return commands;
