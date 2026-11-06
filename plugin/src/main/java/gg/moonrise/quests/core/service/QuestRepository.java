@@ -40,7 +40,7 @@ public class QuestRepository {
     private final SqlProvider sqlProvider;
 
     public CompletableFuture<List<GeneratedQuest>> loadQuests(UUID playerId, String resetKey) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(playerId, () -> {
             List<GeneratedQuest> quests = new ArrayList<>();
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
@@ -65,7 +65,7 @@ public class QuestRepository {
         if (quests.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        return sqlProvider.runInTransaction(connection -> {
+        return sqlProvider.runInTransaction(playerKeys(quests), connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertPlayerQuestSql())) {
                 for (GeneratedQuest quest : quests) {
                     bindQuest(statement, quest);
@@ -77,7 +77,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Boolean> updateProgress(GeneratedQuest quest) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(quest.playerId(), () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          UPDATE player_quests
@@ -101,7 +101,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Void> resetRerolls(UUID playerId, String resetKey) {
-        return sqlProvider.runAsync(() -> {
+        return sqlProvider.runAsync(playerId, () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          DELETE FROM player_quest_rerolls
@@ -118,7 +118,7 @@ public class QuestRepository {
         if (limit <= 0) {
             return CompletableFuture.completedFuture(-1);
         }
-        return sqlProvider.supplyInTransaction(connection -> {
+        return sqlProvider.supplyInTransaction(playerId, connection -> {
             try (PreparedStatement ensureUsage = connection.prepareStatement(sqlProvider.currentDatabase().insertQuestResetUsageIfAbsentSql())) {
                 ensureUsage.setString(1, playerId.toString());
                 ensureUsage.setString(2, resetKey);
@@ -145,7 +145,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Integer> replaceQuestAndIncrementRerolls(UUID oldInstanceId, GeneratedQuest replacement) {
-        return sqlProvider.supplyInTransaction(connection -> {
+        return sqlProvider.supplyInTransaction(replacement.playerId(), connection -> {
             try (PreparedStatement delete = connection.prepareStatement("""
                     DELETE FROM player_quests
                     WHERE instance_id = ?
@@ -168,7 +168,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Map<String, Integer>> loadDifficultyCompletedCounts(UUID playerId) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(playerId, () -> {
             Map<String, Integer> counts = new LinkedHashMap<>();
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
@@ -188,7 +188,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Set<String>> loadExecutedMilestones(UUID playerId) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(playerId, () -> {
             Set<String> milestones = new LinkedHashSet<>();
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
@@ -208,7 +208,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<QuestCompletionStats> incrementCompletionStats(UUID playerId, String difficultyId, List<QuestMilestone> milestones) {
-        return sqlProvider.supplyInTransaction(connection -> {
+        return sqlProvider.supplyInTransaction(playerId, connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().incrementDifficultyStatsSql())) {
                 statement.setString(1, playerId.toString());
                 statement.setString(2, difficultyId);
@@ -231,7 +231,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<List<QuestMilestoneClaim>> claimEligibleMilestones(UUID playerId, Map<String, Integer> difficultyCompletions, List<QuestDifficulty> difficulties) {
-        return sqlProvider.supplyInTransaction(connection -> {
+        return sqlProvider.supplyInTransaction(playerId, connection -> {
             List<QuestMilestoneClaim> newlyClaimed = new ArrayList<>();
             for (QuestDifficulty difficulty : difficulties) {
                 int completed = difficultyCompletions.getOrDefault(difficulty.id(), 0);
@@ -252,7 +252,7 @@ public class QuestRepository {
     }
 
     public CompletableFuture<Void> resetDailyQuests(UUID playerId, String resetKey) {
-        return sqlProvider.runAsync(() -> {
+        return sqlProvider.runAsync(playerId, () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          DELETE FROM player_quests
@@ -263,6 +263,17 @@ public class QuestRepository {
                 statement.executeUpdate();
             }
         });
+    }
+
+    /**
+     * Ordering keys of a batch: the distinct owners of its quests.
+     */
+    private static Set<UUID> playerKeys(List<GeneratedQuest> quests) {
+        Set<UUID> players = new LinkedHashSet<>();
+        for (GeneratedQuest quest : quests) {
+            players.add(quest.playerId());
+        }
+        return players;
     }
 
     private int readDifficultyCompletedCount(Connection connection, UUID playerId, String difficultyId) throws SQLException {
@@ -280,7 +291,7 @@ public class QuestRepository {
     }
 
     private CompletableFuture<Integer> loadUsedCount(String table, UUID playerId, String resetKey) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(playerId, () -> {
             try (Connection connection = sqlProvider.getConnection()) {
                 return readUsedCount(connection, table, playerId, resetKey);
             }

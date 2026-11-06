@@ -48,7 +48,7 @@ public class QuestIndicatorPreferenceService {
     public CompletableFuture<Preferences> loadPreference(UUID playerId) {
         Object loadToken = new Object();
         pendingLoads.put(playerId, loadToken);
-        return sqlProvider.supplyAsync(() -> readPreference(playerId))
+        return sqlProvider.supplyAsync(playerId, () -> readPreference(playerId))
                 .thenApply(loaded -> applyLoaded(playerId, loadToken, loaded))
                 .whenComplete((ignored, throwable) -> pendingLoads.remove(playerId, loadToken));
     }
@@ -96,7 +96,7 @@ public class QuestIndicatorPreferenceService {
             pendingLoads.remove(id);
             return (current == null ? Preferences.empty() : current).with(scope, normalized);
         });
-        return sqlProvider.runAsync(() -> {
+        return sqlProvider.runAsync(playerId, () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertIndicatorPreferenceSql())) {
                 statement.setString(1, playerId.toString());
@@ -115,7 +115,7 @@ public class QuestIndicatorPreferenceService {
             Preferences next = base.with(scope, null);
             return next.isEmpty() ? null : next;
         });
-        return sqlProvider.runAsync(() -> {
+        return sqlProvider.runAsync(playerId, () -> {
             try (Connection connection = sqlProvider.getConnection()) {
                 if (updated == null) {
                     try (PreparedStatement statement = connection.prepareStatement("""

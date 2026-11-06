@@ -15,7 +15,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -111,6 +113,42 @@ class SqlProviderLifecycleTest {
         assertTrue(sqlProvider.isAvailable());
         assertEquals(1, maxRunning.get());
         assertEquals(QUEUED_WRITES * 2, countWrites(sqlProvider));
+    }
+
+    @Test
+    public void keyedWorkKeepsSubmissionOrderPerKeyAndIsDrainedOnDisable() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        List<String> order = new CopyOnWriteArrayList<>();
+        List<CompletableFuture<Void>> writes = new ArrayList<>();
+        for (int id = 0; id < QUEUED_WRITES; id++) {
+            int rowId = id;
+            UUID key = id % 2 == 0 ? first : second;
+            writes.add(sqlProvider.runInTransaction(key, connection -> {
+                try (PreparedStatement statement = connection.prepareStatement("INSERT INTO lifecycle_writes (id) VALUES (?)")) {
+                    statement.setInt(1, rowId);
+                    statement.executeUpdate();
+                }
+                order.add(key + ":" + rowId);
+            }));
+        }
+
+        sqlProvider.onDisable();
+
+        writes.forEach(write -> assertFalse(write.isCompletedExceptionally()));
+        for (UUID key : List.of(first, second)) {
+            List<String> keyed = order.stream().filter(entry -> entry.startsWith(key.toString())).toList();
+            List<String> expected = new ArrayList<>();
+            for (int id = key.equals(first) ? 0 : 1; id < QUEUED_WRITES; id += 2) {
+                expected.add(key + ":" + id);
+            }
+            assertEquals(expected, keyed);
+        }
+        assertTrue(sqlProvider.runAsync(first, () -> {
+        }).isCompletedExceptionally());
+
+        sqlProvider = SqliteTestHarness.open(tempDir);
+        assertEquals(QUEUED_WRITES, countWrites(sqlProvider));
     }
 
     @Test

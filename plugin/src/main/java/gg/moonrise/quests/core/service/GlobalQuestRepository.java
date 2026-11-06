@@ -24,10 +24,16 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class GlobalQuestRepository {
 
+    /**
+     * Ordering key of all global quest SQL work. Operations address a global quest by period key, by
+     * instance id or not at all, so one shared key is what keeps every write in submission order.
+     */
+    private static final String SQL_KEY = "global-quests";
+
     private final SqlProvider sqlProvider;
 
     public CompletableFuture<GlobalQuestState> loadActive(String periodKey) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(SQL_KEY, () -> {
             try (Connection connection = sqlProvider.getConnection()) {
                 return loadActive(connection, periodKey);
             }
@@ -35,7 +41,7 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<List<GlobalQuestState>> loadExpiredUnrewarded(LocalDateTime now) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(SQL_KEY, () -> {
             List<GlobalQuestState> states = new ArrayList<>();
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
@@ -58,7 +64,7 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<GlobalQuestState> save(GlobalQuestState state) {
-        return sqlProvider.supplyInTransaction(connection -> {
+        return sqlProvider.supplyInTransaction(SQL_KEY, connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertGlobalQuestSql())) {
                 bindState(statement, state);
                 statement.executeUpdate();
@@ -72,7 +78,7 @@ public class GlobalQuestRepository {
      * transaction, so a failure never leaves orphaned rows behind.
      */
     public CompletableFuture<Void> deletePeriod(String periodKey) {
-        return sqlProvider.runInTransaction(connection -> {
+        return sqlProvider.runInTransaction(SQL_KEY, connection -> {
             UUID instanceId;
             try (PreparedStatement select = connection.prepareStatement("""
                     SELECT instance_id
@@ -115,7 +121,7 @@ public class GlobalQuestRepository {
      * so servers sharing one database never overwrite each other's progress.
      */
     public CompletableFuture<Void> updateProgressAndContribution(GlobalQuestState state, UUID playerId, int credited) {
-        return sqlProvider.runInTransaction(connection -> {
+        return sqlProvider.runInTransaction(SQL_KEY, connection -> {
             // completed is assigned before progress because MySQL evaluates SET assignments left to
             // right against already-updated columns; this order reads the old progress everywhere.
             try (PreparedStatement quest = connection.prepareStatement("""
@@ -140,7 +146,7 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<List<GlobalQuestContribution>> loadRankedContributions(UUID instanceId) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(SQL_KEY, () -> {
             List<GlobalQuestContribution> contributions = new ArrayList<>();
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
@@ -167,7 +173,7 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Boolean> markRewardsExecuted(UUID instanceId) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(SQL_KEY, () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
                          UPDATE global_quests
@@ -181,7 +187,7 @@ public class GlobalQuestRepository {
     }
 
     public CompletableFuture<Boolean> insertRewardExecution(UUID instanceId, UUID playerId, int percentile) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(SQL_KEY, () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().insertRewardExecutionSql())) {
                 statement.setString(1, instanceId.toString());

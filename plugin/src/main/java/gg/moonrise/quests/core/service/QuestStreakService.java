@@ -334,7 +334,7 @@ public class QuestStreakService {
     }
 
     private CompletableFuture<QuestStreakEvaluation> claimStreakMilestones(QuestStreakState state) {
-        return sqlProvider.supplyInTransaction(connection -> {
+        return sqlProvider.supplyInTransaction(state.playerId(), connection -> {
             List<QuestStreakMilestone> newlyExecuted = new ArrayList<>();
             Set<Integer> claimed = new LinkedHashSet<>(state.claimedMilestones());
             for (QuestStreakMilestone milestone : milestones()) {
@@ -351,14 +351,14 @@ public class QuestStreakService {
     }
 
     private CompletableFuture<QuestStreakState> loadState(UUID playerId) {
-        return sqlProvider.supplyAsync(() -> {
+        return sqlProvider.supplyAsync(playerId, () -> {
             QuestStreakState state = readState(playerId);
             return state.withClaimedMilestones(readClaimedStreakMilestones(playerId));
         });
     }
 
     private CompletableFuture<Void> saveState(QuestStreakState state) {
-        return sqlProvider.runAsync(() -> {
+        return sqlProvider.runAsync(state.playerId(), () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertStreakStateSql())) {
                 bindState(statement, state);

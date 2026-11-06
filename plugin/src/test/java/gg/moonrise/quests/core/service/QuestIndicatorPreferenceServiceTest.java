@@ -35,13 +35,13 @@ class QuestIndicatorPreferenceServiceTest {
         Connection connection = mock(Connection.class);
         PreparedStatement statement = mock(PreparedStatement.class);
         resultSet = mock(ResultSet.class);
-        when(sqlProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(sqlProvider.runAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
         when(sqlProvider.getConnection()).thenReturn(connection);
         when(sqlProvider.currentDatabase()).thenReturn(SQLDatabase.of(new SQLiteDialect()));
         when(connection.prepareStatement(anyString())).thenReturn(statement);
         when(statement.executeQuery()).thenReturn(resultSet);
-        when(sqlProvider.supplyAsync(any())).thenAnswer(invocation -> {
-            pendingLoad = new PendingLoad(invocation.getArgument(0), new CompletableFuture<>());
+        when(sqlProvider.supplyAsync(any(), any())).thenAnswer(invocation -> {
+            pendingLoad = new PendingLoad(invocation.getArgument(1), new CompletableFuture<>());
             return pendingLoad.future();
         });
         service = new QuestIndicatorPreferenceService(sqlProvider);
