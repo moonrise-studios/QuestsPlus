@@ -1947,6 +1947,13 @@ public class Config {
             this.name = name;
             this.lore = lore;
         }
+
+        /**
+         * Lore lines for this item; a missing or null {@code lore} entry is treated as no lore.
+         */
+        public List<String> getLore() {
+            return lore == null ? List.of() : lore;
+        }
     }
 
     @Getter

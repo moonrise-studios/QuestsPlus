@@ -7,6 +7,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestDifficulty;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.util.HashSet;
@@ -25,9 +26,8 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
         Set<Integer> occupiedSlots = new HashSet<>();
 
         Config.BackButton backButton = menu.getSelectorBackButton();
-        Set<Integer> reservedSlots = backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots
-                ? Set.of(backButton.getSlot())
-                : Set.of();
+        boolean showBackButton = backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots;
+        Set<Integer> reservedSlots = showBackButton ? Set.of(backButton.getSlot()) : Set.of();
         List<QuestDifficulty> difficulties = menuService.difficulties();
         Map<QuestDifficulty, Integer> selectorSlots = DifficultySelectorSlots.resolve(
                 difficulties,
@@ -44,9 +44,9 @@ public class QuestMilestoneSelectorUI extends ChestMenu {
                     .build());
         }
 
-        if (backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots) {
+        if (showBackButton) {
             addTrackedButton(occupiedSlots, totalSlots, backButton.getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(backButton.getItem(), new QuestMenuService.MapTokens(), org.bukkit.Material.ARROW))
+                    .item(viewer -> menuService.buildTokenItem(backButton.getItem(), new QuestMenuService.MapTokens(), Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }

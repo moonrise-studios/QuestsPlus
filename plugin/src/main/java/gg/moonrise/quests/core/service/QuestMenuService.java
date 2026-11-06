@@ -380,6 +380,9 @@ public class QuestMenuService {
     }
 
     public ItemStack buildMenuItem(Config.MenuItem item) {
+        if (item == null) {
+            return new ItemStack(Material.STONE);
+        }
         return ItemBuilder.of(resolveMaterial(item.getMaterial(), Material.STONE))
                 .name(item.getName())
                 .lore(item.getLore())
@@ -453,17 +456,19 @@ public class QuestMenuService {
     }
 
     public boolean canShowMilestoneButton() {
-        return questService.questMilestonesEnabled() && config().getMenu().getMilestoneButton().isEnabled();
+        Config.MilestoneButton button = config().getMenu().getMilestoneButton();
+        return button != null && button.isEnabled() && questService.questMilestonesEnabled();
     }
 
     public boolean canShowStreakButton() {
-        return streakService.isEnabled() && config().getMenu().getStreakButton().isEnabled();
+        Config.StreakButton button = config().getMenu().getStreakButton();
+        return button != null && button.isEnabled() && streakService.isEnabled();
     }
 
     public ItemStack buildQuestItem(Player viewer, GeneratedQuest quest) {
-        Config.QuestItem template = quest.completed()
+        Config.QuestItem template = questTemplate(quest.completed()
                 ? config().getMenu().getCompletedQuest()
-                : config().getMenu().getActiveQuest();
+                : config().getMenu().getActiveQuest());
         ItemStack item = new ItemStack(resolveMaterial(template.getMaterial(), quest.completed() ? Material.WRITABLE_BOOK : Material.BOOK));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) {
@@ -474,7 +479,8 @@ public class QuestMenuService {
         meta.displayName(withoutItalics(parse(displayName)));
         List<Component> lore = new ArrayList<>();
         QuestDifficulty difficulty = definitionService.difficulty(quest.difficultyId());
-        for (String line : template.getLore()) {
+        for (String rawLine : template.getLore()) {
+            String line = rawLine == null ? "" : rawLine;
             if (addDescriptionLore(lore, line, quest.description(), descriptionLine ->
                     questService.replaceRawVariableDisplayValues(replaceMenuTokens(descriptionLine, quest, viewer), quest))) {
                 continue;
@@ -500,9 +506,9 @@ public class QuestMenuService {
             return buildMenuItem(config().getGlobalQuests().getMenu().getNoActiveQuest());
         }
 
-        Config.QuestItem template = state.quest().completed()
+        Config.QuestItem template = questTemplate(state.quest().completed()
                 ? config().getGlobalQuests().getMenu().getCompletedQuest()
-                : config().getGlobalQuests().getMenu().getActiveQuest();
+                : config().getGlobalQuests().getMenu().getActiveQuest());
         ItemStack item = new ItemStack(resolveMaterial(template.getMaterial(), state.quest().completed() ? Material.EMERALD : Material.NETHER_STAR));
         ItemMeta meta = item.getItemMeta();
         if (meta == null) {
@@ -520,6 +526,10 @@ public class QuestMenuService {
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    private Config.QuestItem questTemplate(Config.QuestItem template) {
+        return template == null ? new Config.QuestItem() : template;
     }
 
     public List<Config.GlobalRewardTierConfig> fullGlobalRewardTiers() {
@@ -959,6 +969,9 @@ public class QuestMenuService {
     }
 
     public ItemStack buildTokenItem(Config.MenuItem item, MapTokens tokens, Material fallback, List<String> appendedLore, String lorePlaceholder) {
+        if (item == null) {
+            return new ItemStack(fallback);
+        }
         ItemStack built = new ItemStack(resolveMaterial(item.getMaterial(), fallback));
         ItemMeta meta = built.getItemMeta();
         if (meta == null) {
