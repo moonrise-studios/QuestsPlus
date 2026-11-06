@@ -9,8 +9,11 @@ import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestDefinitionSchedule;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,6 +45,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -128,6 +133,60 @@ class GlobalQuestServiceTest {
     }
 
     @Test
+    public void progressEventIsFiredWithoutHoldingTheStateLockAndCreditIsReclamped() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
+        GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
+        Player player = server.addPlayer("ReentrantListener");
+        UUID otherPlayer = UUID.randomUUID();
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestState initial = activeGlobalState(player.getUniqueId());
+        GlobalQuestState advancedByOtherThread = initial.withQuest(initial.quest().withProgress(6, false), Map.of(otherPlayer, 6));
+        when(configProvider.get()).thenReturn(new Config());
+        when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
+        when(repository.updateProgressAndContribution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
+        service.cachedActiveState(initial);
+        AtomicBoolean otherThreadBlocked = new AtomicBoolean();
+        registerProgressListener(event -> {
+            // Another thread touching the global state while the listener runs must not block.
+            Thread writer = new Thread(() -> service.cachedActiveState(advancedByOtherThread));
+            writer.start();
+            joinQuietly(writer);
+            otherThreadBlocked.set(writer.isAlive());
+        });
+
+        List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 8);
+
+        assertFalse(otherThreadBlocked.get());
+        assertEquals(1, results.size());
+        assertEquals(10, results.getFirst().quest().progress());
+        assertTrue(results.getFirst().completedNow());
+        assertEquals(4, service.cachedActiveState().contribution(player.getUniqueId()));
+        assertEquals(6, service.cachedActiveState().contribution(otherPlayer));
+        verify(repository).updateProgressAndContribution(any(GlobalQuestState.class), eq(player.getUniqueId()), eq(4));
+    }
+
+    @Test
+    public void progressIsDroppedWhenQuestIsReplacedWhileListenersRun() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
+        GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
+        Player player = server.addPlayer("ReplacedQuest");
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestState replacement = activeGlobalState(player.getUniqueId());
+        when(configProvider.get()).thenReturn(new Config());
+        when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
+        service.cachedActiveState(activeGlobalState(player.getUniqueId()));
+        registerProgressListener(event -> service.cachedActiveState(replacement));
+
+        List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 5);
+
+        assertTrue(results.isEmpty());
+        assertSame(replacement, service.cachedActiveState());
+        verify(repository, never()).updateProgressAndContribution(any(), any(), anyInt());
+    }
+
+    @Test
     public void missingGlobalQuestIsCachedForThePeriodInsteadOfQueryingOnEveryEvent() {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
@@ -207,6 +266,30 @@ class GlobalQuestServiceTest {
         LocalDateTime startsAt = currentPeriodStart();
         GeneratedQuest quest = globalQuest(0, 10, false);
         return new GlobalQuestState(quest, startsAt.toLocalDate().toString(), startsAt, startsAt.plusDays(7), Map.of(playerId, 0), false);
+    }
+
+    private void registerProgressListener(Consumer<QuestProgressEvent> handler) {
+        AtomicBoolean handled = new AtomicBoolean();
+        server.getPluginManager().registerEvent(
+                QuestProgressEvent.class,
+                new Listener() {
+                },
+                EventPriority.NORMAL,
+                (listener, event) -> {
+                    if (event instanceof QuestProgressEvent progressEvent && handled.compareAndSet(false, true)) {
+                        handler.accept(progressEvent);
+                    }
+                },
+                MockBukkit.createMockPlugin()
+        );
+    }
+
+    private static void joinQuietly(Thread thread) {
+        try {
+            thread.join(2_000L);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static QuestDefinition globalDefinition() {

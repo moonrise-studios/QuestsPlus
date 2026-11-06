@@ -180,6 +180,13 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
             return List.of();
         }
 
+        // Listeners may call back into QuestsPlus from other threads, so the event is fired without
+        // holding the state lock; the result is re-validated against the current state below.
+        int approvedAmount = approveProgress(player, quest, amount, cause);
+        if (approvedAmount <= 0) {
+            return List.of();
+        }
+
         int credited;
         int previousProgress;
         GeneratedQuest updated;
@@ -187,11 +194,9 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         GlobalQuestState updatedState;
         synchronized (stateLock) {
             GlobalQuestState current = cachedActiveState();
-            if (current == null || current.quest().completed() || !current.quest().type().equals(type) || !matcher.test(current.quest())) {
-                return List.of();
-            }
-            int approvedAmount = approveProgress(player, current.quest(), amount, cause);
-            if (approvedAmount <= 0) {
+            // The quest may have been refreshed, completed or advanced while listeners ran: only credit
+            // the same quest instance, clamped against its current progress.
+            if (current == null || !current.quest().instanceId().equals(quest.instanceId()) || current.quest().completed()) {
                 return List.of();
             }
             int remaining = current.quest().goalAmount() - current.quest().progress();
