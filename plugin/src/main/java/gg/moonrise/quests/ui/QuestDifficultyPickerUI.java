@@ -7,6 +7,7 @@ import gg.moonrise.quests.config.DifficultyPicker;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.QuestDifficulty;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -44,7 +45,7 @@ public class QuestDifficultyPickerUI extends ChestMenu {
 
         if (backButton != null && backButton.isEnabled() && backButton.getSlot() >= 0 && backButton.getSlot() < totalSlots) {
             menuSlots.add(backButton.getSlot(), Button.builder()
-                    .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), org.bukkit.Material.ARROW))
+                    .item(viewer -> menuService.items().buildTokenItem(backButton.getItem(), new MenuTokens(), Material.ARROW))
                     .action((button, clicker, event) -> menuService.openDailyQuests(clicker))
                     .build());
         }

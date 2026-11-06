@@ -8,6 +8,7 @@ import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.model.QuestMilestone;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -51,7 +52,7 @@ public class QuestMilestoneMenuUI extends ChestMenu {
                                     .putNumber("page", safePage + 1)
                                     .putNumber("previous_page", previousPage + 1)
                                     .putNumber("next_page", safePage + 2),
-                            org.bukkit.Material.ARROW
+                            Material.ARROW
                     ))
                     .action((button, clicker, event) -> new QuestMilestoneMenuUI(clicker, menuService, state, difficulty, previousPage).open())
                     .build());
@@ -62,7 +63,7 @@ public class QuestMilestoneMenuUI extends ChestMenu {
                     .item(viewer -> menuService.items().buildTokenItem(
                             menu.getBackButton().getItem(),
                             new MenuTokens().putNumber("page", safePage + 1),
-                            org.bukkit.Material.ARROW
+                            Material.ARROW
                     ))
                     .action((button, clicker, event) -> menuService.openMilestoneSelector(clicker))
                     .build());
@@ -77,7 +78,7 @@ public class QuestMilestoneMenuUI extends ChestMenu {
                                     .putNumber("page", safePage + 1)
                                     .putNumber("previous_page", safePage)
                                     .putNumber("next_page", nextPage + 1),
-                            org.bukkit.Material.ARROW
+                            Material.ARROW
                     ))
                     .action((button, clicker, event) -> new QuestMilestoneMenuUI(clicker, menuService, state, difficulty, nextPage).open())
                     .build());

@@ -43,6 +43,7 @@ import org.incendo.cloud.context.CommandContext;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 @Slf4j(topic = "QuestsPlus")
@@ -209,8 +210,8 @@ public class QuestCommand implements PaperCommand {
                 });
     }
 
-    private java.util.concurrent.CompletableFuture<Void> updateIndicatorPreferences(Player player, List<QuestIndicatorPreferenceService.Scope> scopes, String normalizedType) {
-        java.util.concurrent.CompletableFuture<Void> future = java.util.concurrent.CompletableFuture.completedFuture(null);
+    private CompletableFuture<Void> updateIndicatorPreferences(Player player, List<QuestIndicatorPreferenceService.Scope> scopes, String normalizedType) {
+        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         for (QuestIndicatorPreferenceService.Scope scope : scopes) {
             future = future.thenCompose(unused -> QuestIndicatorPreferenceService.DEFAULT.equals(normalizedType)
                     ? indicatorPreferenceService.clearPreference(player.getUniqueId(), scope)

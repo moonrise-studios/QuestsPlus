@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -141,7 +142,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             return BossBar.Color.YELLOW;
         }
         try {
-            return BossBar.Color.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+            return BossBar.Color.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             log.warn("Invalid QuestsPlus bossbar progress indicator color '{}'. Using YELLOW.", raw);
             return BossBar.Color.YELLOW;
@@ -153,7 +154,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             return BossBar.Overlay.PROGRESS;
         }
         try {
-            return BossBar.Overlay.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+            return BossBar.Overlay.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             log.warn("Invalid QuestsPlus bossbar progress indicator overlay '{}'. Using PROGRESS.", raw);
             return BossBar.Overlay.PROGRESS;

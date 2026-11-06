@@ -8,6 +8,7 @@ import org.bukkit.event.Listener;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Handles validation, generation, placeholder rendering, and optional events for a quest type.
@@ -41,7 +42,7 @@ public interface GoalHandler extends Listener {
      * @param variables resolved variable values
      * @return a generated quest instance
      */
-    public GeneratedQuest createGeneratedQuest(QuestDefinition definition, java.util.UUID playerId, String resetKey, Map<String, String> variables);
+    public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables);
 
     /**
      * Provides additional variable placeholders for display and reward rendering.

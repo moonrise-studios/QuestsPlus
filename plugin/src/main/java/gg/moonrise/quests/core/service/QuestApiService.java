@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -164,7 +165,7 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
             throw new IllegalArgumentException("Cannot register quest variable selector for disabled plugin " + owner.getName());
         }
         definitionService.registerVariableSelector(selector);
-        externalSelectors.computeIfAbsent(owner, ignored -> new LinkedHashMap<>()).put(selector.type().toUpperCase(java.util.Locale.ROOT), selector);
+        externalSelectors.computeIfAbsent(owner, ignored -> new LinkedHashMap<>()).put(selector.type().toUpperCase(Locale.ROOT), selector);
         log.info("Registered external QuestsPlus variable selector {} from {}.", selector.type(), owner.getName());
     }
 

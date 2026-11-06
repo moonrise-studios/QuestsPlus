@@ -1,6 +1,7 @@
 package gg.moonrise.quests.core.service;
 
 import de.exlll.configlib.NameFormatters;
+import de.exlll.configlib.YamlConfigurationProperties;
 import gg.moonrise.engine.config.Configuration;
 import gg.moonrise.engine.message.Message;
 import gg.moonrise.engine.state.Reloadable;
@@ -127,7 +128,7 @@ public class ConfigProvider implements Reloadable {
         return Configuration.config(new File(folder, fileName), type, properties()).get();
     }
 
-    private Function<de.exlll.configlib.YamlConfigurationProperties.Builder<?>, de.exlll.configlib.YamlConfigurationProperties.Builder<?>> properties() {
+    private Function<YamlConfigurationProperties.Builder<?>, YamlConfigurationProperties.Builder<?>> properties() {
         return builder -> {
             builder.setNameFormatter(NameFormatters.LOWER_KEBAB_CASE);
             builder.addSerializer(Message.class, new MessageSerializer());

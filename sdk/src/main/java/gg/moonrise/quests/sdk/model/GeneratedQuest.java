@@ -1,5 +1,6 @@
 package gg.moonrise.quests.sdk.model;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,7 +32,7 @@ public record GeneratedQuest(
         String difficultyId,
         String difficultyDisplayName,
         String displayName,
-        java.util.List<String> description,
+        List<String> description,
         Map<String, String> variables,
         int slotIndex,
         boolean premium,
@@ -66,7 +67,7 @@ public record GeneratedQuest(
             String difficultyId,
             String difficultyDisplayName,
             String displayName,
-            java.util.List<String> description,
+            List<String> description,
             Map<String, String> variables,
             int goalAmount,
             int progress,
@@ -118,7 +119,7 @@ public record GeneratedQuest(
             String difficultyId,
             String difficultyDisplayName,
             String displayName,
-            java.util.List<String> description,
+            List<String> description,
             Map<String, String> variables,
             int slotIndex,
             int goalAmount,

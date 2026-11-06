@@ -9,6 +9,7 @@ import gg.moonrise.quests.util.QuestNumberFormatter;
 import org.incendo.cloud.annotations.Command;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -130,8 +131,8 @@ class QuestStateAndNamesTest {
         GlobalQuestState state = new GlobalQuestState(
                 quest(-1, "GLOBAL", false),
                 "weekly",
-                java.time.LocalDateTime.now(),
-                java.time.LocalDateTime.now().plusDays(7),
+                LocalDateTime.now(),
+                LocalDateTime.now().plusDays(7),
                 Map.of(active, 10, zero, 0),
                 false
         );

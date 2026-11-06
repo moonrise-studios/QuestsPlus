@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -194,7 +195,7 @@ public class QuestStreakService {
         if (window <= 0) {
             return 0;
         }
-        int elapsed = (int) java.time.temporal.ChronoUnit.DAYS.between(lost, current);
+        int elapsed = (int) ChronoUnit.DAYS.between(lost, current);
         return Math.max(0, window - elapsed + 1);
     }
 

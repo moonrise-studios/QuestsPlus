@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -176,7 +177,7 @@ public class QuestDefinitionService implements Reloadable {
 
     public List<QuestType> registeredTypes() {
         return handlersByType.keySet().stream()
-                .sorted(java.util.Comparator.comparing(QuestType::key))
+                .sorted(Comparator.comparing(QuestType::key))
                 .toList();
     }
 
@@ -185,7 +186,7 @@ public class QuestDefinitionService implements Reloadable {
         List<QuestType> internal = handlerOwnersByType.entrySet().stream()
                 .filter(entry -> INTERNAL_OWNER.equals(entry.getValue()))
                 .map(Map.Entry::getKey)
-                .sorted(java.util.Comparator.comparing(QuestType::key))
+                .sorted(Comparator.comparing(QuestType::key))
                 .toList();
         if (!internal.isEmpty()) {
             grouped.put(INTERNAL_OWNER, internal);
@@ -199,13 +200,13 @@ public class QuestDefinitionService implements Reloadable {
                     List<QuestType> types = handlerOwnersByType.entrySet().stream()
                             .filter(entry -> owner.equals(entry.getValue()))
                             .map(Map.Entry::getKey)
-                            .sorted(java.util.Comparator.comparing(QuestType::key))
+                            .sorted(Comparator.comparing(QuestType::key))
                             .toList();
                     if (!types.isEmpty()) {
                         grouped.put(owner, types);
                     }
                 });
-        return java.util.Collections.unmodifiableMap(grouped);
+        return Collections.unmodifiableMap(grouped);
     }
 
     public synchronized void registerGoalHandler(GoalHandler handler) {

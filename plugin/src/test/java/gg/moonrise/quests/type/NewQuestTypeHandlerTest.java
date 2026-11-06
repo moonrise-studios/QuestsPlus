@@ -5,6 +5,7 @@ import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
+import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import io.papermc.paper.event.player.PlayerTradeEvent;
 import org.bukkit.Material;
@@ -123,7 +124,7 @@ class NewQuestTypeHandlerTest {
         assertTrue(matcher.getValue().test(quest(QuestTypes.VILLAGER_TRADE, Map.of())));
     }
 
-    private static QuestDefinition definition(String id, gg.moonrise.quests.sdk.model.QuestType type, Map<String, List<String>> selectorValues) {
+    private static QuestDefinition definition(String id, QuestType type, Map<String, List<String>> selectorValues) {
         return new QuestDefinition(
                 id,
                 type,
@@ -139,7 +140,7 @@ class NewQuestTypeHandlerTest {
         );
     }
 
-    private static GeneratedQuest quest(gg.moonrise.quests.sdk.model.QuestType type, Map<String, String> variables) {
+    private static GeneratedQuest quest(QuestType type, Map<String, String> variables) {
         return new GeneratedQuest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
