@@ -41,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -60,6 +61,7 @@ public class QuestService {
     private final Cache<StateLoadKey, PendingStateLoad> stateLoadCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<RerollUsageKey, Integer> rerollUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
     private final Cache<ResetPurchaseUsageKey, Integer> resetPurchaseUsageCache = Caffeine.newBuilder().maximumSize(10_000).build();
+    private final AtomicReference<CachedMenuLayout> menuLayoutCache = new AtomicReference<>();
 
     public CompletableFuture<PlayerQuestState> ensurePlayerStateAsync(UUID playerId, String resetKey) {
         PlayerQuestState cached = stateCache.getIfPresent(playerId);
@@ -211,39 +213,43 @@ public class QuestService {
         return questRepository.resetRerolls(playerId, resetKey);
     }
 
-    public int dailyQuestSlots() {
-        int capacity = questSlotCapacity();
-        if (capacity <= 0) {
-            return 0;
+    /**
+     * Returns the quest slot layout of the active config. It is computed once per config instance; a reload
+     * swaps the instance in {@link ConfigProvider}, which makes the next call compute the new layout.
+     */
+    public QuestMenuLayout menuLayout() {
+        Config config = configProvider.get();
+        CachedMenuLayout cached = menuLayoutCache.get();
+        if (cached != null && cached.config() == config) {
+            return cached.layout();
         }
-        return Math.clamp(configProvider.get().getDaily().getQuestCount(), 1, capacity);
+        QuestMenuLayout layout = QuestMenuLayout.of(config);
+        menuLayoutCache.set(new CachedMenuLayout(config, layout));
+        return layout;
+    }
+
+    public int dailyQuestSlots() {
+        return menuLayout().dailyQuestSlots();
     }
 
     public int totalQuestSlots(Player player) {
-        return Math.min(questSlotCapacity(), dailyQuestSlots() + premiumSlotLimit(player));
+        QuestMenuLayout layout = menuLayout();
+        return Math.min(layout.capacity(), layout.dailyQuestSlots() + premiumSlotLimit(player, layout));
     }
 
     public int totalVisibleQuestSlots() {
-        return Math.min(questSlotCapacity(), dailyQuestSlots() + visiblePremiumSlotLimit());
+        return menuLayout().totalVisibleQuestSlots();
     }
 
     public int visiblePremiumSlotLimit() {
-        Config.PremiumQuestsFile premium = configProvider.get().getPremiumQuests();
-        if (premium == null || !premium.isEnabled()) {
-            return 0;
-        }
-        Map<String, Integer> limits = premium.getPermissionLimits() == null ? Map.of() : premium.getPermissionLimits();
-        int highest = 0;
-        for (Integer configuredLimit : limits.values()) {
-            int limit = configuredLimit == null ? 0 : Math.max(0, configuredLimit);
-            if (limit > highest) {
-                highest = limit;
-            }
-        }
-        return Math.clamp(highest, 0, Math.max(0, questSlotCapacity() - dailyQuestSlots()));
+        return menuLayout().visiblePremiumSlots();
     }
 
     public int premiumSlotLimit(Player player) {
+        return premiumSlotLimit(player, menuLayout());
+    }
+
+    private int premiumSlotLimit(Player player, QuestMenuLayout layout) {
         Config.PremiumQuestsFile premium = configProvider.get().getPremiumQuests();
         if (premium == null || !premium.isEnabled()) {
             return 0;
@@ -260,22 +266,22 @@ public class QuestService {
                 highest = limit;
             }
         }
-        return Math.clamp(highest, 0, Math.max(0, questSlotCapacity() - dailyQuestSlots()));
+        return Math.clamp(highest, 0, Math.max(0, layout.capacity() - layout.dailyQuestSlots()));
     }
 
     public boolean isPremiumSlot(int slotIndex) {
-        return slotIndex >= dailyQuestSlots();
+        return menuLayout().isPremiumSlot(slotIndex);
     }
 
     public boolean canAccessSlot(Player player, int slotIndex) {
-        if (slotIndex < 0 || slotIndex >= totalVisibleQuestSlots()) {
+        QuestMenuLayout layout = menuLayout();
+        if (slotIndex < 0 || slotIndex >= layout.totalVisibleQuestSlots()) {
             return false;
         }
-        if (!isPremiumSlot(slotIndex)) {
+        if (!layout.isPremiumSlot(slotIndex)) {
             return true;
         }
-        int firstPremiumSlot = dailyQuestSlots();
-        return slotIndex < firstPremiumSlot + premiumSlotLimit(player);
+        return slotIndex < layout.dailyQuestSlots() + premiumSlotLimit(player, layout);
     }
 
     public boolean canAccessQuest(Player player, GeneratedQuest quest) {
@@ -655,45 +661,6 @@ public class QuestService {
 
     private int clampedProgress(int progress, int amount, int goalAmount) {
         return Math.clamp((long) progress + amount, 0, Math.max(0, goalAmount));
-    }
-
-    private int questSlotCapacity() {
-        Config config = configProvider.get();
-        Config.QuestMenu menu = config.getMenu();
-        int totalSlots = Math.clamp(menu.getRows(), 1, 6) * 9;
-        Set<Integer> reservedSlots = new java.util.HashSet<>();
-        addReservedSlot(reservedSlots, config.getGlobalQuests().getMenu().getSlot(), totalSlots);
-        Config.MilestoneButton milestoneButton = menu.getMilestoneButton();
-        if (config.isQuestMilestonesEnabled() && milestoneButton != null && milestoneButton.isEnabled()) {
-            addReservedSlot(reservedSlots, milestoneButton.getSlot(), totalSlots);
-        }
-        Config.Streaks streaks = config.getStreaks();
-        Config.StreakButton streakButton = menu.getStreakButton();
-        if (streaks != null && streaks.isEnabled() && streakButton != null && streakButton.isEnabled()) {
-            addReservedSlot(reservedSlots, streakButton.getSlot(), totalSlots);
-        }
-        Config.QuestResetButton resetButton = menu.getResetButton();
-        if (resetButton != null && resetButton.isEnabled()) {
-            addReservedSlot(reservedSlots, resetButton.getSlot(), totalSlots);
-        }
-
-        List<Integer> contentSlots = menu.getContentSlots() == null ? List.of() : menu.getContentSlots();
-        long configuredCapacity = contentSlots.stream()
-                .filter(slot -> slot >= 0 && slot < totalSlots && !reservedSlots.contains(slot))
-                .distinct()
-                .count();
-        if (configuredCapacity > 0) {
-            return Math.toIntExact(configuredCapacity);
-        }
-        return (int) java.util.stream.IntStream.range(0, totalSlots)
-                .filter(slot -> !reservedSlots.contains(slot))
-                .count();
-    }
-
-    private void addReservedSlot(Set<Integer> reservedSlots, int slot, int totalSlots) {
-        if (slot >= 0 && slot < totalSlots) {
-            reservedSlots.add(slot);
-        }
     }
 
     private int approveProgress(Player player, GeneratedQuest quest, int amount, QuestProgressEvent.Cause cause) {
@@ -1141,5 +1108,11 @@ public class QuestService {
     }
 
     private record ResetPurchaseUsageKey(UUID playerId, String resetKey) {
+    }
+
+    /**
+     * A layout and the config instance it was computed from; compared by identity, not equality.
+     */
+    private record CachedMenuLayout(Config config, QuestMenuLayout layout) {
     }
 }
