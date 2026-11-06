@@ -1,5 +1,7 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.engine.paper.scheduler.Scheduler;
+import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -7,47 +9,94 @@ import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestDefinitionSchedule;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
+import org.mockito.MockedStatic;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class GlobalQuestServiceTest {
 
+    private final List<Consumer<ScheduledTask>> syncTasks = new ArrayList<>();
     private ServerMock server;
+    private MockedStatic<Scheduler> scheduler;
 
     @BeforeEach
     public void setUp() {
         server = MockBukkit.mock();
+        SyncScheduler syncScheduler = mock(SyncScheduler.class);
+        when(syncScheduler.run(any())).thenAnswer(invocation -> {
+            syncTasks.add(invocation.getArgument(0));
+            return mock(ScheduledTask.class);
+        });
+        when(syncScheduler.runDelayed(any(), any(Duration.class))).thenReturn(mock(ScheduledTask.class));
+        scheduler = mockStatic(Scheduler.class);
+        scheduler.when(Scheduler::sync).thenReturn(syncScheduler);
     }
 
     @AfterEach
     public void tearDown() {
+        scheduler.close();
         MockBukkit.unmock();
+    }
+
+    @Test
+    public void loadStartedBeforeRefreshDoesNotOverwriteRefreshedQuest() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
+        GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
+        Player player = server.addPlayer("RefreshRace");
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        GlobalQuestState deletedState = activeGlobalState(player.getUniqueId());
+        GlobalQuestState refreshedState = activeGlobalState(player.getUniqueId());
+        CompletableFuture<GlobalQuestState> staleLoad = new CompletableFuture<>();
+        when(configProvider.get()).thenReturn(new Config());
+        when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
+        when(repository.loadActive(any()))
+                .thenReturn(staleLoad)
+                .thenReturn(CompletableFuture.completedFuture(refreshedState));
+        when(repository.deletePeriod(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.updateProgressAndContribution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
+
+        CompletableFuture<GlobalQuestState> menuLoad = service.activeStateAsync();
+        assertSame(refreshedState, service.refreshActiveQuest().join());
+        staleLoad.complete(deletedState);
+
+        assertSame(refreshedState, service.cachedActiveState());
+        assertSame(refreshedState, menuLoad.join());
+        service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 3);
+        assertEquals(refreshedState.quest().instanceId(), service.cachedActiveState().quest().instanceId());
+        assertEquals(3, service.cachedActiveState().quest().progress());
     }
 
     @Test

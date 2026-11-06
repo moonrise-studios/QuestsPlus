@@ -55,9 +55,17 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
 
     private volatile DayOfWeek startDay = DayOfWeek.FRIDAY;
     private volatile LocalTime startTime = LocalTime.of(5, 0);
+    /*
+     * Every write to activeState, activeStateLoad, unavailablePeriod and stateGeneration happens while
+     * holding stateLock; the volatile fields can still be read without it. stateGeneration increases
+     * whenever the cached state is replaced or invalidated, so a load that started earlier can tell
+     * that its result is stale and must not be published.
+     */
+    private final Object stateLock = new Object();
     private volatile GlobalQuestState activeState;
     private volatile CompletableFuture<GlobalQuestState> activeStateLoad;
     private volatile UnavailablePeriod unavailablePeriod;
+    private long stateGeneration;
     private volatile ScheduledTask rolloverTask;
 
     @Override
@@ -70,7 +78,9 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         Config.GlobalSchedule schedule = configProvider.get().getGlobalQuests().getSchedule();
         this.startDay = parseDay(schedule == null ? null : schedule.getDayOfWeek());
         this.startTime = parseTime(schedule == null ? null : schedule.getTime());
-        this.unavailablePeriod = null;
+        synchronized (stateLock) {
+            this.unavailablePeriod = null;
+        }
         repository.loadExpiredUnrewarded(LocalDateTime.now())
                 .thenCompose(this::finalizeExpiredStates)
                 .thenCompose(unused -> ensureActiveStateAsync())
@@ -105,13 +115,22 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     }
 
     public void cachedActiveState(GlobalQuestState state) {
-        this.activeState = state;
+        synchronized (stateLock) {
+            stateGeneration++;
+            activeState = state;
+            activeStateLoad = null;
+        }
     }
 
     public CompletableFuture<GlobalQuestState> refreshActiveQuest() {
         Period period = currentPeriod();
-        activeState = null;
-        unavailablePeriod = null;
+        synchronized (stateLock) {
+            // Loads and progress writes that started before the refresh see a new generation and are dropped.
+            stateGeneration++;
+            activeState = null;
+            activeStateLoad = null;
+            unavailablePeriod = null;
+        }
         return repository.deletePeriod(period.key())
                 .thenCompose(unused -> ensureActiveStateAsync())
                 .thenApply(state -> {
@@ -166,7 +185,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         GeneratedQuest updated;
         Map<UUID, Integer> contributions;
         GlobalQuestState updatedState;
-        synchronized (this) {
+        synchronized (stateLock) {
             GlobalQuestState current = cachedActiveState();
             if (current == null || current.quest().completed() || !current.quest().type().equals(type) || !matcher.test(current.quest())) {
                 return List.of();
@@ -242,7 +261,9 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         if (loading != null) {
             return loading;
         }
-        synchronized (this) {
+        CompletableFuture<GlobalQuestState> created = new CompletableFuture<>();
+        long generation;
+        synchronized (stateLock) {
             cached = activeState;
             if (cached != null && cached.periodKey().equals(period.key())) {
                 return CompletableFuture.completedFuture(cached);
@@ -251,38 +272,52 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
             if (loading != null) {
                 return loading;
             }
-            CompletableFuture<GlobalQuestState> created = loadOrCreateActiveState(period);
             activeStateLoad = created;
-            created.whenComplete((state, throwable) -> {
-                synchronized (GlobalQuestService.this) {
-                    if (activeStateLoad == created) {
-                        activeStateLoad = null;
-                    }
-                }
-            });
-            return created;
+            generation = stateGeneration;
         }
+        loadOrCreateActiveState(period, generation).whenComplete((state, throwable) -> {
+            synchronized (stateLock) {
+                if (activeStateLoad == created) {
+                    activeStateLoad = null;
+                }
+            }
+            if (throwable != null) {
+                created.completeExceptionally(throwable);
+            } else {
+                created.complete(state);
+            }
+        });
+        return created;
     }
 
-    private CompletableFuture<GlobalQuestState> loadOrCreateActiveState(Period period) {
+    private CompletableFuture<GlobalQuestState> loadOrCreateActiveState(Period period, long generation) {
         return repository.loadActive(period.key())
                 .thenCompose(loaded -> {
                     if (loaded != null) {
-                        activeState = loaded;
-                        return CompletableFuture.completedFuture(loaded);
+                        return CompletableFuture.completedFuture(publishLoadedState(generation, loaded));
                     }
                     long definitionsRevision = definitionService.revision();
                     Optional<GlobalQuestState> generated = generate(period);
                     if (generated.isEmpty()) {
-                        activeState = null;
-                        markUnavailable(period, definitionsRevision);
+                        markUnavailable(generation, period, definitionsRevision);
                         return CompletableFuture.completedFuture(null);
                     }
-                    return repository.save(generated.get()).thenApply(saved -> {
-                        activeState = saved;
-                        return saved;
-                    });
+                    return repository.save(generated.get()).thenApply(saved -> publishLoadedState(generation, saved));
                 });
+    }
+
+    /**
+     * Publishes a state loaded by a load that started at {@code generation}, unless the cache was
+     * refreshed or replaced in the meantime; then the newer cached state wins and is returned instead.
+     */
+    private GlobalQuestState publishLoadedState(long generation, GlobalQuestState loaded) {
+        synchronized (stateLock) {
+            if (generation != stateGeneration) {
+                return cachedActiveState();
+            }
+            activeState = loaded;
+            return loaded;
+        }
     }
 
     /**
@@ -296,9 +331,15 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                 && unavailable.definitionsRevision() == definitionService.revision();
     }
 
-    private void markUnavailable(Period period, long definitionsRevision) {
-        UnavailablePeriod previous = unavailablePeriod;
-        unavailablePeriod = new UnavailablePeriod(period.key(), definitionsRevision);
+    private void markUnavailable(long generation, Period period, long definitionsRevision) {
+        UnavailablePeriod previous;
+        synchronized (stateLock) {
+            if (generation != stateGeneration) {
+                return;
+            }
+            previous = unavailablePeriod;
+            unavailablePeriod = new UnavailablePeriod(period.key(), definitionsRevision);
+        }
         if (previous == null || !previous.periodKey().equals(period.key())) {
             log.warn("No enabled QuestsPlus global quest definitions are available for period {}.", period.key());
         }
