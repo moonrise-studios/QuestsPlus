@@ -890,10 +890,7 @@ public class QuestService {
         }, () -> {
             // Progress is only credited to quests the player can access, so a premium quest that got completed
             // was accessible; the permission is not re-checked because it may no longer be readable offline.
-            List<String> commands = resolvedRewardCommands(player, quest, quest.premium());
-            if (!commands.isEmpty()) {
-                Scheduler.sync().run(task -> dispatchConsoleCommands(player.getUniqueId(), commands));
-            }
+            dispatchCommittedRewardCommands(player, resolvedRewardCommands(player, quest, quest.premium()));
         });
     }
 
@@ -996,14 +993,19 @@ public class QuestService {
             return;
         }
 
+        List<String> commands = new ArrayList<>();
+        for (QuestMilestone milestone : stats.newlyExecutedMilestones()) {
+            for (String command : milestone.commands()) {
+                commands.add(replaceMilestoneTokens(command, player, quest, stats, milestone));
+            }
+        }
+        dispatchCommittedRewardCommands(player, commands);
         Scheduler.entity(player).run(task -> {
+            if (!player.isOnline()) {
+                return;
+            }
             for (QuestMilestone milestone : stats.newlyExecutedMilestones()) {
-                if (player.isOnline()) {
-                    sendMilestoneCompletedMessage(player, quest, stats, milestone);
-                }
-                for (String command : milestone.commands()) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceMilestoneTokens(command, player, quest, stats, milestone));
-                }
+                sendMilestoneCompletedMessage(player, quest, stats, milestone);
             }
         });
     }
@@ -1012,17 +1014,35 @@ public class QuestService {
         if (!questMilestonesEnabled() || claims.isEmpty()) {
             return;
         }
+
+        List<String> commands = new ArrayList<>();
+        for (QuestMilestoneClaim claim : claims) {
+            for (String command : claim.milestone().commands()) {
+                commands.add(replaceMilestoneClaimTokens(command, player, claim));
+            }
+        }
+        dispatchCommittedRewardCommands(player, commands);
         Scheduler.entity(player).run(task -> {
             if (!player.isOnline()) {
                 return;
             }
             for (QuestMilestoneClaim claim : claims) {
                 sendMilestoneClaimedMessage(player, claim);
-                for (String command : claim.milestone().commands()) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceMilestoneClaimTokens(command, player, claim));
-                }
             }
         });
+    }
+
+    /**
+     * Runs reward commands whose claim is already committed. They must run even if the player has logged out
+     * meanwhile, so they go to the global scheduler as console commands; their tokens only need the name and
+     * UUID, which the caller resolved while the Player was at hand.
+     */
+    private void dispatchCommittedRewardCommands(Player player, List<String> commands) {
+        if (commands.isEmpty()) {
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        Scheduler.sync().run(task -> dispatchConsoleCommands(playerId, commands));
     }
 
     private void sendMilestoneCompletedMessage(Player player, GeneratedQuest quest, QuestCompletionStats stats, QuestMilestone milestone) {

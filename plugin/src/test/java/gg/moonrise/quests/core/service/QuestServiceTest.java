@@ -7,6 +7,8 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestCompletionStats;
 import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.model.QuestMilestone;
+import gg.moonrise.quests.model.QuestMilestoneClaim;
 import gg.moonrise.quests.model.QuestSelectionResult;
 import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.model.QuestStreakEvaluation;
@@ -325,6 +327,40 @@ class QuestServiceTest {
         service.ensurePlayerStateAsync(player, RESET_KEY).join();
 
         verify(streakService, never()).evaluateQuestCompletion(any(), any(), any());
+    }
+
+    @Test
+    public void milestoneReachedWhilePlayerLogsOutStillRunsItsCommands() {
+        GeneratedQuest almostDone = quest(0, 9, false);
+        stubCompletion(almostDone);
+        QuestMilestone milestone = new QuestMilestone("easy", 1, "First Quest", List.of(), List.of("eco give <player> 100", "notify <uuid> <milestone_completed>"));
+        when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
+                .thenReturn(CompletableFuture.completedFuture(new QuestCompletionStats(1, 1, List.of(milestone))));
+        when(entityScheduler.run(any(), any())).thenReturn(null);
+        // The message task is dropped because the player's entity is gone.
+        when(entityScheduler.run(any())).thenReturn(null);
+
+        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 100"));
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "notify " + playerId + " 1"));
+        assertTrue(service.cachedState(playerId, RESET_KEY).hasExecutedMilestone("easy", 1));
+    }
+
+    @Test
+    public void retroactiveMilestoneClaimRunsCommandsWhenPlayerIsOffline() {
+        stubLoad(List.of());
+        QuestMilestone milestone = new QuestMilestone("easy", 5, "Five Quests", List.of(), List.of("eco give <player> 500"));
+        QuestDifficulty difficulty = new QuestDifficulty("easy", "Easy", 0, 0, Map.of(), List.of(), List.of(), List.of(milestone));
+        when(definitionService.difficulties()).thenReturn(List.of(difficulty));
+        when(repository.claimEligibleMilestones(eq(playerId), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(List.of(new QuestMilestoneClaim("easy", "Easy", 5, milestone))));
+        when(entityScheduler.run(any())).thenReturn(null);
+
+        service.ensurePlayerStateAsync(player, RESET_KEY).join();
+
+        bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 500"));
+        verify(player, never()).isOnline();
     }
 
     private void stubCompletion(GeneratedQuest quest) {
