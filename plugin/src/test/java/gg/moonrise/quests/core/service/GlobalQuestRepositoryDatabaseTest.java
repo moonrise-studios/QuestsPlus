@@ -10,14 +10,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GlobalQuestRepositoryDatabaseTest {
@@ -58,11 +64,12 @@ class GlobalQuestRepositoryDatabaseTest {
 
         repository.updateProgressAndContribution(withProgress(initial, 7, false), playerB, 7).join();
         repository.updateProgressAndContribution(withProgress(initial, 12, false), playerA, 5).join();
-        repository.updateProgressAndContribution(withProgress(initial, 15, true), playerA, 3).join();
+        repository.updateProgressAndContribution(withProgress(initial, 15, false), playerA, 3).join();
 
         loaded = repository.loadActive("week-1").join();
         assertEquals(15, loaded.quest().progress());
-        assertTrue(loaded.quest().completed());
+        // Completion is derived from the stored progress against the goal of 100.
+        assertFalse(loaded.quest().completed());
         assertEquals(8, loaded.contribution(playerA));
         assertEquals(7, loaded.contribution(playerB));
         assertEquals(2, loaded.participants());
@@ -101,6 +108,49 @@ class GlobalQuestRepositoryDatabaseTest {
         assertNull(repository.loadActive("week-newer").join());
         assertEquals(List.of(), repository.loadRankedContributions(newer.quest().instanceId()).join());
         assertEquals(List.of(), repository.loadExpiredUnrewarded(now).join().stream().map(GlobalQuestState::periodKey).toList());
+    }
+
+    @Test
+    public void progressUpdatesApplyCreditedDeltasFromStaleStates() {
+        UUID playerA = UUID.randomUUID();
+        UUID playerB = UUID.randomUUID();
+        GlobalQuestState initial = state("week-shared", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(6), 0, false);
+        repository.save(initial).join();
+
+        // Two servers sharing the database each saw progress 0 and credited their own amount.
+        repository.updateProgressAndContribution(withProgress(initial, 30, false), playerA, 30).join();
+        repository.updateProgressAndContribution(withProgress(initial, 20, false), playerB, 20).join();
+
+        GlobalQuestState loaded = repository.loadActive("week-shared").join();
+        assertEquals(50, loaded.quest().progress());
+        assertFalse(loaded.quest().completed());
+
+        repository.updateProgressAndContribution(withProgress(initial, 0, false), playerA, 80).join();
+
+        loaded = repository.loadActive("week-shared").join();
+        assertEquals(100, loaded.quest().progress());
+        assertTrue(loaded.quest().completed());
+        assertEquals(110, loaded.contribution(playerA));
+        assertEquals(20, loaded.contribution(playerB));
+    }
+
+    @Test
+    public void failedPeriodDeletionRollsBackEarlierDeletes() throws SQLException {
+        UUID playerId = UUID.randomUUID();
+        GlobalQuestState state = state("week-rollback", LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(6), 0, false);
+        repository.save(state).join();
+        repository.updateProgressAndContribution(withProgress(state, 5, false), playerId, 5).join();
+        try (Connection connection = sqlProvider.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE global_quest_reward_executions");
+        }
+
+        CompletionException failure = assertThrows(CompletionException.class, () -> repository.deletePeriod("week-rollback").join());
+
+        assertNotNull(failure.getCause());
+        GlobalQuestState loaded = repository.loadActive("week-rollback").join();
+        assertNotNull(loaded);
+        assertEquals(5, loaded.contribution(playerId));
     }
 
     private static GlobalQuestState withProgress(GlobalQuestState state, int progress, boolean completed) {

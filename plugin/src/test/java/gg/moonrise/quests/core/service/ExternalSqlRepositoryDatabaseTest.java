@@ -125,13 +125,20 @@ class ExternalSqlRepositoryDatabaseTest {
             assertEquals(state.quest().instanceId(), repository.loadActive(periodKey).join().quest().instanceId());
 
             repository.updateProgressAndContribution(withProgress(state, 7, false), playerB, 7).join();
-            repository.updateProgressAndContribution(withProgress(state, 15, true), playerA, 8).join();
+            repository.updateProgressAndContribution(withProgress(state, 15, false), playerA, 8).join();
 
             GlobalQuestState loaded = repository.loadActive(periodKey).join();
             assertEquals(15, loaded.quest().progress());
-            assertTrue(loaded.quest().completed());
+            assertFalse(loaded.quest().completed());
             assertEquals(8, loaded.contribution(playerA));
             assertEquals(7, loaded.contribution(playerB));
+
+            // Crediting past the goal caps progress and derives completion from the stored progress.
+            repository.updateProgressAndContribution(withProgress(state, 0, false), playerA, 90).join();
+            loaded = repository.loadActive(periodKey).join();
+            assertEquals(100, loaded.quest().progress());
+            assertTrue(loaded.quest().completed());
+            assertEquals(98, loaded.contribution(playerA));
 
             List<GlobalQuestContribution> ranked = repository.loadRankedContributions(state.quest().instanceId()).join();
             assertEquals(List.of(playerA, playerB), ranked.stream().map(GlobalQuestContribution::playerId).toList());

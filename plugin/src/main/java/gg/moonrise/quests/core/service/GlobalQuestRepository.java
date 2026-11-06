@@ -67,57 +67,67 @@ public class GlobalQuestRepository {
         });
     }
 
+    /**
+     * Deletes the period's quest together with its contributions and reward executions in one
+     * transaction, so a failure never leaves orphaned rows behind.
+     */
     public CompletableFuture<Void> deletePeriod(String periodKey) {
-        return sqlProvider.runAsync(() -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement select = connection.prepareStatement("""
-                         SELECT instance_id
-                         FROM global_quests
-                         WHERE period_key = ?
-                         """)) {
+        return sqlProvider.runInTransaction(connection -> {
+            UUID instanceId;
+            try (PreparedStatement select = connection.prepareStatement("""
+                    SELECT instance_id
+                    FROM global_quests
+                    WHERE period_key = ?
+                    """)) {
                 select.setString(1, periodKey);
-                UUID instanceId = null;
                 try (ResultSet resultSet = select.executeQuery()) {
-                    if (resultSet.next()) {
-                        instanceId = UUID.fromString(resultSet.getString("instance_id"));
+                    if (!resultSet.next()) {
+                        return;
                     }
+                    instanceId = UUID.fromString(resultSet.getString("instance_id"));
                 }
-                if (instanceId == null) {
-                    return;
-                }
-                try (PreparedStatement contributions = connection.prepareStatement("""
-                         DELETE FROM global_quest_contributions
-                         WHERE instance_id = ?
-                         """);
-                     PreparedStatement rewards = connection.prepareStatement("""
-                         DELETE FROM global_quest_reward_executions
-                         WHERE instance_id = ?
-                         """);
-                     PreparedStatement quest = connection.prepareStatement("""
-                         DELETE FROM global_quests
-                         WHERE period_key = ?
-                         """)) {
-                    contributions.setString(1, instanceId.toString());
-                    contributions.executeUpdate();
-                    rewards.setString(1, instanceId.toString());
-                    rewards.executeUpdate();
-                    quest.setString(1, periodKey);
-                    quest.executeUpdate();
-                }
+            }
+            try (PreparedStatement contributions = connection.prepareStatement("""
+                     DELETE FROM global_quest_contributions
+                     WHERE instance_id = ?
+                     """);
+                 PreparedStatement rewards = connection.prepareStatement("""
+                     DELETE FROM global_quest_reward_executions
+                     WHERE instance_id = ?
+                     """);
+                 PreparedStatement quest = connection.prepareStatement("""
+                     DELETE FROM global_quests
+                     WHERE period_key = ?
+                     """)) {
+                contributions.setString(1, instanceId.toString());
+                contributions.executeUpdate();
+                rewards.setString(1, instanceId.toString());
+                rewards.executeUpdate();
+                quest.setString(1, periodKey);
+                quest.executeUpdate();
             }
         });
     }
 
+    /**
+     * Adds {@code credited} to the stored progress (capped at the goal) and to the player's
+     * contribution. The delta is applied in SQL instead of writing the caller's absolute progress,
+     * so servers sharing one database never overwrite each other's progress.
+     */
     public CompletableFuture<Void> updateProgressAndContribution(GlobalQuestState state, UUID playerId, int credited) {
         return sqlProvider.runInTransaction(connection -> {
+            // completed is assigned before progress because MySQL evaluates SET assignments left to
+            // right against already-updated columns; this order reads the old progress everywhere.
             try (PreparedStatement quest = connection.prepareStatement("""
                     UPDATE global_quests
-                    SET progress = ?, completed = ?
+                    SET completed = CASE WHEN completed = 1 OR progress + ? >= goal_amount THEN 1 ELSE 0 END,
+                        progress = CASE WHEN progress + ? > goal_amount THEN goal_amount ELSE progress + ? END
                     WHERE instance_id = ?
                     """)) {
-                quest.setInt(1, state.quest().progress());
-                quest.setInt(2, state.quest().completed() ? 1 : 0);
-                quest.setString(3, state.quest().instanceId().toString());
+                quest.setInt(1, credited);
+                quest.setInt(2, credited);
+                quest.setInt(3, credited);
+                quest.setString(4, state.quest().instanceId().toString());
                 quest.executeUpdate();
             }
             try (PreparedStatement contribution = connection.prepareStatement(sqlProvider.incrementGlobalContributionSql())) {
