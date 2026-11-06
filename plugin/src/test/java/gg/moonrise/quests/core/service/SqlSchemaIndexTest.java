@@ -4,8 +4,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -63,6 +65,40 @@ class SqlSchemaIndexTest {
 
         execute(sqlProvider, insertGlobalQuest("00000000-0000-0000-0000-000000000001", "week-1"));
         assertThrows(SQLException.class, () -> execute(sqlProvider, insertGlobalQuest("00000000-0000-0000-0000-000000000002", "week-1")));
+    }
+
+    @Test
+    public void legacyTablesGainColumnsAddedInLaterVersions() throws Exception {
+        Files.createDirectories(tempDir.resolve("storage"));
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + tempDir.resolve("storage/quests.db"));
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE player_quests (
+                        instance_id TEXT PRIMARY KEY, player_uuid TEXT NOT NULL, reset_key TEXT NOT NULL, definition_id TEXT NOT NULL,
+                        type TEXT NOT NULL, display_name TEXT NOT NULL, description TEXT NOT NULL, variables TEXT NOT NULL,
+                        goal_amount INTEGER NOT NULL, progress INTEGER NOT NULL, completed INTEGER NOT NULL
+                    )
+                    """);
+            statement.execute("CREATE TABLE player_quest_indicator_preferences (player_uuid TEXT PRIMARY KEY, indicator_type TEXT NOT NULL)");
+        }
+
+        sqlProvider = SqliteTestHarness.open(tempDir);
+
+        Set<String> questColumns = columnNames(sqlProvider, "player_quests");
+        assertTrue(questColumns.containsAll(Set.of("difficulty_id", "difficulty_display_name", "slot_index", "premium")));
+        assertTrue(columnNames(sqlProvider, "player_quest_indicator_preferences").containsAll(Set.of("personal_indicator_type", "global_indicator_type")));
+        assertTrue(indexNames(sqlProvider).contains("idx_player_quests_player_reset_slot"));
+    }
+
+    private static Set<String> columnNames(SqlProvider provider, String table) throws SQLException {
+        Set<String> names = new HashSet<>();
+        try (Connection connection = provider.getConnection();
+             ResultSet columns = connection.getMetaData().getColumns(null, null, table, null)) {
+            while (columns.next()) {
+                names.add(columns.getString("COLUMN_NAME"));
+            }
+        }
+        return names;
     }
 
     private static String insertGlobalQuest(String instanceId, String periodKey) {

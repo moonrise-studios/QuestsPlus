@@ -360,7 +360,7 @@ public class QuestStreakService {
     private CompletableFuture<Void> saveState(QuestStreakState state) {
         return sqlProvider.runAsync(() -> {
             try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertStreakStateSql())) {
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertStreakStateSql())) {
                 bindState(statement, state);
                 statement.executeUpdate();
             }
@@ -415,7 +415,7 @@ public class QuestStreakService {
     }
 
     private boolean insertStreakMilestone(Connection connection, UUID playerId, int streak) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.insertStreakMilestoneSql())) {
+        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().insertStreakMilestoneSql())) {
             statement.setString(1, playerId.toString());
             statement.setInt(2, streak);
             return statement.executeUpdate() > 0;

@@ -98,7 +98,7 @@ public class QuestIndicatorPreferenceService {
         });
         return sqlProvider.runAsync(() -> {
             try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertIndicatorPreferenceSql())) {
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertIndicatorPreferenceSql())) {
                 statement.setString(1, playerId.toString());
                 statement.setString(2, fallbackLegacy(updated));
                 statement.setString(3, updated.personal());
@@ -127,7 +127,7 @@ public class QuestIndicatorPreferenceService {
                     }
                     return;
                 }
-                try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertIndicatorPreferenceSql())) {
+                try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertIndicatorPreferenceSql())) {
                     statement.setString(1, playerId.toString());
                     statement.setString(2, fallbackLegacy(updated));
                     statement.setString(3, updated.personal());

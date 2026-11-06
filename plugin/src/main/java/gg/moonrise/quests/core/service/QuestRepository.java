@@ -31,6 +31,11 @@ public class QuestRepository {
 
     private static final String REROLLS_TABLE = "player_quest_rerolls";
     private static final String RESETS_TABLE = "player_quest_resets";
+    private static final String CLAIM_QUEST_RESET_USAGE_SQL = """
+            UPDATE player_quest_resets
+            SET used_count = used_count + 1
+            WHERE player_uuid = ? AND reset_key = ? AND used_count < ?
+            """;
 
     private final SqlProvider sqlProvider;
 
@@ -61,7 +66,7 @@ public class QuestRepository {
             return CompletableFuture.completedFuture(null);
         }
         return sqlProvider.runInTransaction(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertPlayerQuestSql())) {
+            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertPlayerQuestSql())) {
                 for (GeneratedQuest quest : quests) {
                     bindQuest(statement, quest);
                     statement.addBatch();
@@ -114,12 +119,12 @@ public class QuestRepository {
             return CompletableFuture.completedFuture(-1);
         }
         return sqlProvider.supplyInTransaction(connection -> {
-            try (PreparedStatement ensureUsage = connection.prepareStatement(sqlProvider.insertQuestResetUsageIfAbsentSql())) {
+            try (PreparedStatement ensureUsage = connection.prepareStatement(sqlProvider.currentDatabase().insertQuestResetUsageIfAbsentSql())) {
                 ensureUsage.setString(1, playerId.toString());
                 ensureUsage.setString(2, resetKey);
                 ensureUsage.executeUpdate();
             }
-            try (PreparedStatement resetUsage = connection.prepareStatement(sqlProvider.claimQuestResetUsageSql())) {
+            try (PreparedStatement resetUsage = connection.prepareStatement(CLAIM_QUEST_RESET_USAGE_SQL)) {
                 resetUsage.setString(1, playerId.toString());
                 resetUsage.setString(2, resetKey);
                 resetUsage.setInt(3, limit);
@@ -149,11 +154,11 @@ public class QuestRepository {
                 delete.executeUpdate();
             }
             // The replacement has a fresh instance id, so the upsert always inserts.
-            try (PreparedStatement insert = connection.prepareStatement(sqlProvider.upsertPlayerQuestSql())) {
+            try (PreparedStatement insert = connection.prepareStatement(sqlProvider.currentDatabase().upsertPlayerQuestSql())) {
                 bindQuest(insert, replacement);
                 insert.executeUpdate();
             }
-            try (PreparedStatement reroll = connection.prepareStatement(sqlProvider.incrementQuestRerollSql())) {
+            try (PreparedStatement reroll = connection.prepareStatement(sqlProvider.currentDatabase().incrementQuestRerollSql())) {
                 reroll.setString(1, replacement.playerId().toString());
                 reroll.setString(2, replacement.resetKey());
                 reroll.executeUpdate();
@@ -204,7 +209,7 @@ public class QuestRepository {
 
     public CompletableFuture<QuestCompletionStats> incrementCompletionStats(UUID playerId, String difficultyId, List<QuestMilestone> milestones) {
         return sqlProvider.supplyInTransaction(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.incrementDifficultyStatsSql())) {
+            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().incrementDifficultyStatsSql())) {
                 statement.setString(1, playerId.toString());
                 statement.setString(2, difficultyId);
                 statement.executeUpdate();
@@ -313,7 +318,7 @@ public class QuestRepository {
     }
 
     private boolean insertExecutedMilestone(Connection connection, UUID playerId, String difficultyId, int completed) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.insertQuestMilestoneSql())) {
+        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().insertQuestMilestoneSql())) {
             statement.setString(1, playerId.toString());
             statement.setString(2, difficultyId);
             statement.setInt(3, completed);

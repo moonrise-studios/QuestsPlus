@@ -111,7 +111,7 @@ class QuestStreakServiceDatabaseTest {
 
     private void insertState(QuestStreakState state) throws SQLException {
         try (Connection connection = sqlProvider.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertStreakStateSql())) {
+             PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertStreakStateSql())) {
             statement.setString(1, state.playerId().toString());
             statement.setInt(2, state.currentStreak());
             statement.setInt(3, state.highestStreak());

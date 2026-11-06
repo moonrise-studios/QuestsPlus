@@ -59,7 +59,7 @@ public class GlobalQuestRepository {
 
     public CompletableFuture<GlobalQuestState> save(GlobalQuestState state) {
         return sqlProvider.supplyInTransaction(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.upsertGlobalQuestSql())) {
+            try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertGlobalQuestSql())) {
                 bindState(statement, state);
                 statement.executeUpdate();
             }
@@ -130,7 +130,7 @@ public class GlobalQuestRepository {
                 quest.setString(4, state.quest().instanceId().toString());
                 quest.executeUpdate();
             }
-            try (PreparedStatement contribution = connection.prepareStatement(sqlProvider.incrementGlobalContributionSql())) {
+            try (PreparedStatement contribution = connection.prepareStatement(sqlProvider.currentDatabase().incrementGlobalContributionSql())) {
                 contribution.setString(1, state.quest().instanceId().toString());
                 contribution.setString(2, playerId.toString());
                 contribution.setInt(3, credited);
@@ -183,7 +183,7 @@ public class GlobalQuestRepository {
     public CompletableFuture<Boolean> insertRewardExecution(UUID instanceId, UUID playerId, int percentile) {
         return sqlProvider.supplyAsync(() -> {
             try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sqlProvider.insertRewardExecutionSql())) {
+                 PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().insertRewardExecutionSql())) {
                 statement.setString(1, instanceId.toString());
                 statement.setString(2, playerId.toString());
                 statement.setInt(3, percentile);

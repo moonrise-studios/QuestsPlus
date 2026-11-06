@@ -9,11 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.QuestsPlusPlugin;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.sql.MariaDBDatabase;
-import gg.moonrise.quests.core.sql.MySQLDatabase;
-import gg.moonrise.quests.core.sql.PostgreSQLDatabase;
 import gg.moonrise.quests.core.sql.SQLDatabase;
-import gg.moonrise.quests.core.sql.SQLiteDatabase;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -132,54 +128,6 @@ public class SqlProvider implements Disableable {
         });
     }
 
-    public String upsertPlayerQuestSql() {
-        return currentDatabase().upsertPlayerQuestSql();
-    }
-
-    public String insertQuestResetUsageIfAbsentSql() {
-        return currentDatabase().insertQuestResetUsageIfAbsentSql();
-    }
-
-    public String claimQuestResetUsageSql() {
-        return currentDatabase().claimQuestResetUsageSql();
-    }
-
-    public String incrementQuestRerollSql() {
-        return currentDatabase().incrementQuestRerollSql();
-    }
-
-    public String incrementDifficultyStatsSql() {
-        return currentDatabase().incrementDifficultyStatsSql();
-    }
-
-    public String insertQuestMilestoneSql() {
-        return currentDatabase().insertQuestMilestoneSql();
-    }
-
-    public String upsertGlobalQuestSql() {
-        return currentDatabase().upsertGlobalQuestSql();
-    }
-
-    public String incrementGlobalContributionSql() {
-        return currentDatabase().incrementGlobalContributionSql();
-    }
-
-    public String insertRewardExecutionSql() {
-        return currentDatabase().insertRewardExecutionSql();
-    }
-
-    public String upsertStreakStateSql() {
-        return currentDatabase().upsertStreakStateSql();
-    }
-
-    public String insertStreakMilestoneSql() {
-        return currentDatabase().insertStreakMilestoneSql();
-    }
-
-    public String upsertIndicatorPreferenceSql() {
-        return currentDatabase().upsertIndicatorPreferenceSql();
-    }
-
     private synchronized ReloadResult reconnectIfChanged(Config.Storage storage) {
         if (isAvailable() && StorageSettings.of(storage).equals(connectedSettings)) {
             return new ReloadResult.Unchanged();
@@ -188,7 +136,7 @@ public class SqlProvider implements Disableable {
     }
 
     private synchronized ReloadResult reconnect(Config.Storage storage) {
-        SQLDatabase newDatabase = database(storage);
+        SQLDatabase newDatabase = SQLDatabase.forStorageType(storage.getType());
         HikariDataSource newDataSource = null;
         try {
             HikariConfig hikariConfig = newDatabase.hikariConfig(plugin, storage);
@@ -228,16 +176,6 @@ public class SqlProvider implements Disableable {
         } catch (RuntimeException exception) {
             log.warn("Failed to close the previous QuestsPlus SQL data source.", exception);
         }
-    }
-
-    private SQLDatabase database(Config.Storage storage) {
-        Config.Storage.StorageType type = storage.getType() == null ? Config.Storage.StorageType.SQLITE : storage.getType();
-        return switch (type) {
-            case MARIADB -> new MariaDBDatabase();
-            case MYSQL -> new MySQLDatabase();
-            case POSTGRESQL -> new PostgreSQLDatabase();
-            case SQLITE -> new SQLiteDatabase();
-        };
     }
 
     private ThreadFactory sqlThreadFactory() {

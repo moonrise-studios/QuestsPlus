@@ -1,5 +1,7 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.quests.core.sql.SQLDatabase;
+import gg.moonrise.quests.core.sql.SQLiteDialect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +37,7 @@ class QuestIndicatorPreferenceServiceTest {
         resultSet = mock(ResultSet.class);
         when(sqlProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(sqlProvider.getConnection()).thenReturn(connection);
-        when(sqlProvider.upsertIndicatorPreferenceSql()).thenReturn("UPSERT");
+        when(sqlProvider.currentDatabase()).thenReturn(SQLDatabase.of(new SQLiteDialect()));
         when(connection.prepareStatement(anyString())).thenReturn(statement);
         when(statement.executeQuery()).thenReturn(resultSet);
         when(sqlProvider.supplyAsync(any())).thenAnswer(invocation -> {
