@@ -1,13 +1,13 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.util.QuestNames;
 import lombok.RequiredArgsConstructor;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -65,7 +65,7 @@ public class QuestIndicatorPreferenceService {
                 if (!resultSet.next()) {
                     return Optional.empty();
                 }
-                String legacy = normalize(resultSet.getString("indicator_type"));
+                String legacy = QuestNames.constantKey(resultSet.getString("indicator_type"));
                 String personal = normalizeNullable(resultSet.getString("personal_indicator_type"));
                 String global = normalizeNullable(resultSet.getString("global_indicator_type"));
                 return Optional.of(new Preferences(
@@ -88,7 +88,7 @@ public class QuestIndicatorPreferenceService {
     }
 
     public CompletableFuture<Void> setPreference(UUID playerId, Scope scope, String indicatorType) {
-        String normalized = normalize(indicatorType);
+        String normalized = QuestNames.constantKey(indicatorType);
         if (DEFAULT.equals(normalized)) {
             return clearPreference(playerId, scope);
         }
@@ -138,17 +138,8 @@ public class QuestIndicatorPreferenceService {
         });
     }
 
-    public String normalize(String input) {
-        return java.util.Objects.requireNonNullElse(input, "")
-                .trim()
-                .toUpperCase(Locale.ROOT)
-                .replace('-', '_')
-                .replace(' ', '_')
-                .replaceAll("[^A-Z0-9_]", "");
-    }
-
     private String normalizeNullable(String input) {
-        String normalized = normalize(input);
+        String normalized = QuestNames.constantKey(input);
         return normalized.isBlank() ? null : normalized;
     }
 

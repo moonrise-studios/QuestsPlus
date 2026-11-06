@@ -3,7 +3,6 @@ package gg.moonrise.quests.model;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.command.QuestCommand;
-import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.util.QuestDisplayNames;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
@@ -28,7 +27,6 @@ class QuestStateAndNamesTest {
     @Test
     public void questNamesNormalizeForStorageAndPlaceholders() {
         assertEquals("daily-kills", QuestNames.normalize(" Daily_Kills "));
-        assertEquals("daily_kills", QuestNames.placeholderKey("Daily-Kills"));
         assertEquals("", QuestNames.normalize(null));
     }
 
@@ -40,12 +38,11 @@ class QuestStateAndNamesTest {
 
     @Test
     public void indicatorPreferencesNormalizeCommandInput() {
-        QuestIndicatorPreferenceService service = new QuestIndicatorPreferenceService(null);
-
-        assertEquals("BOSS_BAR", service.normalize(" boss-bar "));
-        assertEquals("ACTION_BAR", service.normalize("action bar"));
-        assertEquals("CHAT", service.normalize("chat!"));
-        assertEquals("", service.normalize(null));
+        assertEquals("BOSS_BAR", QuestNames.constantKey(" boss-bar "));
+        assertEquals("ACTION_BAR", QuestNames.constantKey("action bar"));
+        assertEquals("CHAT", QuestNames.constantKey("chat!"));
+        assertEquals("QUEST_TYPE_2", QuestNames.constantKey("quest type-2"));
+        assertEquals("", QuestNames.constantKey(null));
     }
 
     @Test

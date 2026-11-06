@@ -24,6 +24,7 @@ import gg.moonrise.quests.core.service.SqlProvider;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -36,9 +37,7 @@ import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.context.CommandContext;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 @Slf4j(topic = "QuestsPlus")
@@ -158,7 +157,7 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        String normalizedType = indicatorPreferenceService.normalize(type);
+        String normalizedType = QuestNames.constantKey(type);
         List<QuestIndicatorPreferenceService.Scope> scopes = indicatorScopes(scope);
         if (scopes.isEmpty()) {
             configProvider.get().getMessages().getIndicatorUnavailable().send(player, Placeholder.unparsed("indicator", scope));
@@ -212,7 +211,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     private List<QuestIndicatorPreferenceService.Scope> indicatorScopes(String scope) {
-        String normalized = indicatorPreferenceService.normalize(scope);
+        String normalized = QuestNames.constantKey(scope);
         if (normalized.isBlank() || "BOTH".equals(normalized) || "ALL".equals(normalized)) {
             return List.of(QuestIndicatorPreferenceService.Scope.PERSONAL, QuestIndicatorPreferenceService.Scope.GLOBAL);
         }
@@ -551,19 +550,10 @@ public class QuestCommand implements PaperCommand {
      * ignores case, spaces, and dashes. Candidates are returned unchanged.
      */
     private List<String> matchingSuggestions(Stream<String> candidates, String input) {
-        String needle = normalizeSuggestionInput(input);
+        String needle = QuestNames.constantKey(input);
         return candidates
-                .filter(candidate -> normalizeSuggestionInput(candidate).contains(needle))
+                .filter(candidate -> QuestNames.constantKey(candidate).contains(needle))
                 .toList();
-    }
-
-    private String normalizeSuggestionInput(String input) {
-        return Objects.requireNonNullElse(input, "")
-                .trim()
-                .toUpperCase(Locale.ROOT)
-                .replace('-', '_')
-                .replace(' ', '_')
-                .replaceAll("[^A-Z0-9_]", "");
     }
 
     private QuestType parseRegisteredQuestType(String questType) {

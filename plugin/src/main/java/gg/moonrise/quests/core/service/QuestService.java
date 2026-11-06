@@ -23,6 +23,7 @@ import gg.moonrise.quests.model.QuestSelectionResult;
 import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.sdk.util.QuestPlaceholders;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestTokens;
@@ -694,7 +695,7 @@ public class QuestService {
             }
             String displayValue = displayValues.get(entry.getKey());
             if (displayValue == null) {
-                displayValue = displayValues.get(QuestNames.placeholderKey(entry.getKey()));
+                displayValue = displayValues.get(QuestPlaceholders.placeholderKey(entry.getKey()));
             }
             if (displayValue == null || displayValue.equals(rawValue)) {
                 continue;

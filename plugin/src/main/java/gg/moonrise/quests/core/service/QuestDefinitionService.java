@@ -13,6 +13,7 @@ import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.model.QuestMilestone;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.sdk.util.QuestPlaceholders;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 
@@ -278,7 +279,7 @@ public class QuestDefinitionService implements Reloadable {
                     Map<String, String> values = new LinkedHashMap<>();
                     for (Map.Entry<String, String> entry : quest.variables().entrySet()) {
                         values.put(entry.getKey(), entry.getValue());
-                        values.put(QuestNames.placeholderKey(entry.getKey()), entry.getValue());
+                        values.put(QuestPlaceholders.placeholderKey(entry.getKey()), entry.getValue());
                     }
                     return values;
                 });
