@@ -64,7 +64,20 @@ public class QuestDefinitionService implements Reloadable {
     @Override
     public synchronized void reload() {
         Map<String, QuestDifficulty> loadedDifficulties = loadDifficulties();
-        this.snapshot = DefinitionSnapshot.of(loadedDifficulties, loadDefinitions(loadedDifficulties));
+        this.snapshot = DefinitionSnapshot.of(
+                snapshot.revision() + 1,
+                loadedDifficulties,
+                loadDefinitions(loadedDifficulties),
+                loadGlobalDefinitions(loadedDifficulties)
+        );
+    }
+
+    /**
+     * Increases every time definitions are re-parsed (config reload or handler/selector registration),
+     * so callers can tell when results derived from earlier definitions are stale.
+     */
+    public long revision() {
+        return snapshot.revision();
     }
 
     public List<QuestDefinition> enabledDefinitions() {
@@ -92,6 +105,18 @@ public class QuestDefinitionService implements Reloadable {
             return Optional.empty();
         }
         return definition(quest.definitionId());
+    }
+
+    public List<QuestDefinition> globalDefinitions() {
+        return snapshot.globalDefinitions();
+    }
+
+    public Optional<QuestDefinition> globalDefinition(String id) {
+        String normalized = QuestNames.normalize(id);
+        if (normalized.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(snapshot.globalDefinitionsById().get(normalized));
     }
 
     public QuestDifficulty difficulty(String id) {
@@ -385,6 +410,57 @@ public class QuestDefinitionService implements Reloadable {
         return List.copyOf(loaded);
     }
 
+    private List<QuestDefinition> loadGlobalDefinitions(Map<String, QuestDifficulty> difficulties) {
+        List<QuestDefinition> loaded = new ArrayList<>();
+        Map<String, Boolean> ids = new HashMap<>();
+        Config.GlobalQuestsFile globalQuests = configProvider.get().getGlobalQuests();
+        List<Config.QuestDefinitionConfig> questConfigs = globalQuests == null ? null : globalQuests.getQuestDefinitions();
+        if (questConfigs == null) {
+            questConfigs = List.of();
+        }
+        for (Config.QuestDefinitionConfig config : questConfigs) {
+            String id = QuestNames.normalize(config.getId());
+            if (id.isBlank() || ids.put(id, true) != null) {
+                log.error("Skipping invalid QuestsPlus global quest definition '{}': duplicate or blank id", id);
+                continue;
+            }
+            try {
+                QuestType type = QuestType.of(config.getType());
+                QuestDifficulty difficulty = difficulties.getOrDefault(QuestNames.normalize(config.getDifficulty()), difficulties.get("easy"));
+                Map<String, String> selectorTypes = new LinkedHashMap<>();
+                Map<String, List<String>> selectorValues = new LinkedHashMap<>();
+                Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
+                for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
+                    String variableKey = QuestNames.normalize(entry.getKey());
+                    Config.VariableConfig variable = entry.getValue();
+                    String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
+                    selector(selectorType);
+                    selectorTypes.put(variableKey, selectorType);
+                    selectorValues.put(variableKey, safeList(variable.getValues()));
+                }
+                Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
+                QuestDefinition definition = new QuestDefinition(
+                        id,
+                        type,
+                        config.isEnabled(),
+                        difficulty.id(),
+                        difficulty.displayName(),
+                        config.getDisplayName(),
+                        safeList(config.getDescription()),
+                        Map.copyOf(selectorTypes),
+                        Map.copyOf(selectorValues),
+                        QuestDefinitionSchedules.parse(config.getSchedule(), id),
+                        safeList(rewards.getCommands())
+                );
+                handler(type).validateDefinition(definition);
+                loaded.add(definition);
+            } catch (RuntimeException exception) {
+                log.error("Skipping invalid QuestsPlus global quest definition '{}': {}", id, exception.getMessage());
+            }
+        }
+        return List.copyOf(loaded);
+    }
+
     private List<String> safeList(List<String> values) {
         return values == null ? List.of() : List.copyOf(values);
     }
@@ -394,19 +470,31 @@ public class QuestDefinitionService implements Reloadable {
      * observe definitions from one reload paired with difficulties from another.
      */
     private record DefinitionSnapshot(
+            long revision,
             Map<String, QuestDifficulty> difficultiesById,
             List<QuestDefinition> definitions,
-            Map<String, QuestDefinition> definitionsById
+            Map<String, QuestDefinition> definitionsById,
+            List<QuestDefinition> globalDefinitions,
+            Map<String, QuestDefinition> globalDefinitionsById
     ) {
 
-        private static final DefinitionSnapshot EMPTY = new DefinitionSnapshot(Map.of(), List.of(), Map.of());
+        private static final DefinitionSnapshot EMPTY = new DefinitionSnapshot(0L, Map.of(), List.of(), Map.of(), List.of(), Map.of());
 
-        private static DefinitionSnapshot of(Map<String, QuestDifficulty> difficultiesById, List<QuestDefinition> definitions) {
+        private static DefinitionSnapshot of(
+                long revision,
+                Map<String, QuestDifficulty> difficultiesById,
+                List<QuestDefinition> definitions,
+                List<QuestDefinition> globalDefinitions
+        ) {
+            return new DefinitionSnapshot(revision, difficultiesById, definitions, byId(definitions), globalDefinitions, byId(globalDefinitions));
+        }
+
+        private static Map<String, QuestDefinition> byId(List<QuestDefinition> definitions) {
             Map<String, QuestDefinition> byId = new HashMap<>();
             for (QuestDefinition definition : definitions) {
                 byId.put(definition.id(), definition);
             }
-            return new DefinitionSnapshot(difficultiesById, definitions, Map.copyOf(byId));
+            return Map.copyOf(byId);
         }
     }
 }

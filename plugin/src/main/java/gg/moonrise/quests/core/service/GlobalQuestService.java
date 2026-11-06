@@ -16,10 +16,8 @@ import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.GlobalQuestContribution;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
-import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
-import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -34,12 +32,10 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -203,7 +199,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     }
 
     private int approveProgress(Player player, GeneratedQuest quest, int amount, QuestProgressEvent.Cause cause) {
-        QuestDefinition definition = globalDefinition(quest).orElse(null);
+        QuestDefinition definition = definitionService.globalDefinition(quest.definitionId()).orElse(null);
         if (definition == null) {
             log.warn("Skipping QuestsPlus global progress for generated quest {} because definition '{}' is not loaded.", quest.instanceId(), quest.definitionId());
             return 0;
@@ -215,12 +211,6 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
             return 0;
         }
         return event.amount();
-    }
-
-    private Optional<QuestDefinition> globalDefinition(GeneratedQuest quest) {
-        return loadGlobalDefinitions().stream()
-                .filter(definition -> definition.id().equals(quest.definitionId()))
-                .findFirst();
     }
 
     public String replaceGlobalTokens(String template, GlobalQuestState state, Player viewer) {
@@ -287,7 +277,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     }
 
     private GlobalQuestState generate(Period period) {
-        List<QuestDefinition> definitions = loadGlobalDefinitions();
+        List<QuestDefinition> definitions = definitionService.globalDefinitions();
         Instant now = Instant.now();
         List<QuestDefinition> enabled = definitions.stream()
                 .filter(QuestDefinition::enabled)
@@ -302,56 +292,6 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         GeneratedQuest quest = definitionService.handler(definition.type())
                 .createGeneratedQuest(definition, GLOBAL_PLAYER_ID, period.key(), variables);
         return new GlobalQuestState(quest, period.key(), period.startsAt(), period.endsAt(), Map.of(), false);
-    }
-
-    private List<QuestDefinition> loadGlobalDefinitions() {
-        List<QuestDefinition> loaded = new ArrayList<>();
-        Map<String, Boolean> ids = new HashMap<>();
-        List<Config.QuestDefinitionConfig> questConfigs = configProvider.get().getGlobalQuests().getQuestDefinitions();
-        if (questConfigs == null) {
-            questConfigs = List.of();
-        }
-        for (Config.QuestDefinitionConfig config : questConfigs) {
-            String id = QuestNames.normalize(config.getId());
-            if (id.isBlank() || ids.put(id, true) != null) {
-                log.error("Skipping invalid QuestsPlus global quest definition '{}': duplicate or blank id", id);
-                continue;
-            }
-            try {
-                QuestType type = QuestType.of(config.getType());
-                QuestDifficulty difficulty = definitionService.difficulty(config.getDifficulty());
-                Map<String, String> selectorTypes = new LinkedHashMap<>();
-                Map<String, List<String>> selectorValues = new LinkedHashMap<>();
-                Map<String, Config.VariableConfig> variables = config.getVariables() == null ? Map.of() : config.getVariables();
-                for (Map.Entry<String, Config.VariableConfig> entry : variables.entrySet()) {
-                    String variableKey = QuestNames.normalize(entry.getKey());
-                    Config.VariableConfig variable = entry.getValue();
-                    String selectorType = variable.getSelector().trim().toUpperCase(Locale.ROOT);
-                    definitionService.selector(selectorType);
-                    selectorTypes.put(variableKey, selectorType);
-                    selectorValues.put(variableKey, safeList(variable.getValues()));
-                }
-                Config.Rewards rewards = config.getRewards() == null ? new Config.Rewards() : config.getRewards();
-                QuestDefinition definition = new QuestDefinition(
-                        id,
-                        type,
-                        config.isEnabled(),
-                        difficulty.id(),
-                        difficulty.displayName(),
-                        config.getDisplayName(),
-                        safeList(config.getDescription()),
-                        Map.copyOf(selectorTypes),
-                        Map.copyOf(selectorValues),
-                        QuestDefinitionSchedules.parse(config.getSchedule(), id),
-                        safeList(rewards.getCommands())
-                );
-                definitionService.handler(type).validateDefinition(definition);
-                loaded.add(definition);
-            } catch (RuntimeException exception) {
-                log.error("Skipping invalid QuestsPlus global quest definition '{}': {}", id, exception.getMessage());
-            }
-        }
-        return List.copyOf(loaded);
     }
 
     private Map<String, String> resolveVariables(QuestDefinition definition) {

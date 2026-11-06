@@ -2,10 +2,9 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.GlobalQuestState;
-import gg.moonrise.quests.model.QuestDifficulty;
-import gg.moonrise.quests.sdk.GoalHandler;
-import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
+import gg.moonrise.quests.sdk.model.QuestDefinition;
+import gg.moonrise.quests.sdk.model.QuestDefinitionSchedule;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.entity.Player;
@@ -21,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -54,17 +54,13 @@ class GlobalQuestServiceTest {
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
         GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
         QuestProgressIndicatorService progressIndicatorService = mock(QuestProgressIndicatorService.class);
-        GoalHandler goalHandler = mock(GoalHandler.class);
-        QuestVariableSelector selector = mock(QuestVariableSelector.class);
         Player player = server.addPlayer("AdminTarget");
         Config config = new Config();
         GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, progressIndicatorService);
         GlobalQuestState activeState = activeGlobalState(player.getUniqueId());
 
         when(configProvider.get()).thenReturn(config);
-        when(definitionService.difficulty("easy")).thenReturn(new QuestDifficulty("easy", "<green><b>EASY", -1, -1, Map.of(), List.of(), List.of(), List.of()));
-        when(definitionService.selector("LIST")).thenReturn(selector);
-        when(definitionService.handler(any())).thenReturn(goalHandler);
+        when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         when(repository.updateProgressAndContribution(any(), eq(player.getUniqueId()), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
         service.cachedActiveState(activeState);
 
@@ -132,6 +128,22 @@ class GlobalQuestServiceTest {
         LocalDateTime startsAt = currentPeriodStart();
         GeneratedQuest quest = globalQuest(0, 10, false);
         return new GlobalQuestState(quest, startsAt.toLocalDate().toString(), startsAt, startsAt.plusDays(7), Map.of(playerId, 0), false);
+    }
+
+    private static QuestDefinition globalDefinition() {
+        return new QuestDefinition(
+                "global-kill-all-mobs",
+                QuestTypes.KILL_ALL_MOBS,
+                true,
+                "easy",
+                "<green><b>EASY",
+                "<green>Global Mob Slayer",
+                List.of(),
+                Map.of(),
+                Map.of(),
+                QuestDefinitionSchedule.alwaysActive(),
+                List.of()
+        );
     }
 
     private static GeneratedQuest globalQuest(int progress, int goalAmount, boolean completed) {
