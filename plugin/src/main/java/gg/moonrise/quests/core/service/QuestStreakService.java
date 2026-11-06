@@ -443,23 +443,32 @@ public class QuestStreakService {
         if (evaluation.newlyExecutedMilestones().isEmpty()) {
             return;
         }
-        Scheduler.entity(player).run(task -> {
-            if (!player.isOnline()) {
-                return;
+        // The claims are already committed, so the console commands must run even if the player has logged out
+        // meanwhile; they only need the name and UUID, which are resolved now while the Player is at hand.
+        String playerName = player.getName();
+        UUID playerId = player.getUniqueId();
+        List<String> commands = new ArrayList<>();
+        for (QuestStreakMilestone milestone : evaluation.newlyExecutedMilestones()) {
+            for (String command : milestone.commands()) {
+                commands.add(replaceTokens(command, playerName, playerId, evaluation.state(), milestone));
             }
-            for (QuestStreakMilestone milestone : evaluation.newlyExecutedMilestones()) {
-                for (String command : milestone.commands()) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceTokens(command, player, evaluation.state(), milestone));
+        }
+        Scheduler.sync().run(task -> {
+            for (String command : commands) {
+                try {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+                } catch (RuntimeException exception) {
+                    log.error("Failed to run QuestsPlus streak milestone command '{}' for {}.", command, playerId, exception);
                 }
             }
         });
     }
 
-    private String replaceTokens(String template, Player player, QuestStreakState state, QuestStreakMilestone milestone) {
+    private String replaceTokens(String template, String playerName, UUID playerId, QuestStreakState state, QuestStreakMilestone milestone) {
         String output = template == null ? "" : template;
         Map<String, String> values = Map.of(
-                "player", player.getName(),
-                "uuid", player.getUniqueId().toString(),
+                "player", playerName,
+                "uuid", playerId.toString(),
                 "streak", Integer.toString(state.currentStreak()),
                 "highest_streak", Integer.toString(state.highestStreak()),
                 "milestone_streak", Integer.toString(milestone.streak())

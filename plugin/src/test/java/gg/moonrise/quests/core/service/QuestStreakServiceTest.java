@@ -1,18 +1,30 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.engine.paper.scheduler.Scheduler;
+import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.model.QuestStreakEvaluation;
+import gg.moonrise.quests.model.QuestStreakMilestone;
 import gg.moonrise.quests.model.QuestStreakState;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import org.bukkit.Bukkit;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -128,6 +140,41 @@ class QuestStreakServiceTest {
         assertEquals("2026-06-21", updated.lastEvaluatedResetKey());
         verify(sqlProvider, times(2)).supplyAsync(any());
         verify(sqlProvider, times(1)).runAsync(any());
+    }
+
+    @Test
+    public void claimedStreakMilestoneCommandsRunOnGlobalSchedulerWhenPlayerIsOffline() {
+        SqlProvider sqlProvider = mock(SqlProvider.class);
+        QuestStreakService service = new QuestStreakService(enabledConfig(), sqlProvider);
+        QuestStreakState lost = new QuestStreakState(UUID.randomUUID(), 0, 5, "2026-06-18", "2026-06-19", 3, "2026-06-19", 0, 1, Set.of());
+        Player player = player(lost.playerId());
+        when(player.getName()).thenReturn("Steve");
+        when(player.isOnline()).thenReturn(false);
+        QuestStreakMilestone milestone = new QuestStreakMilestone(3, "3 Day Streak", List.of(), List.of("eco give <player> 500", "notify <uuid> <milestone_streak>"));
+        when(sqlProvider.supplyAsync(any())).thenReturn(CompletableFuture.completedFuture(lost));
+        when(sqlProvider.runAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
+        doAnswer(invocation -> CompletableFuture.completedFuture(new QuestStreakEvaluation(lost.withStreak(3), List.of(milestone))))
+                .when(sqlProvider).supplyInTransaction(any());
+        SyncScheduler syncScheduler = mock(SyncScheduler.class);
+        when(syncScheduler.run(any())).thenAnswer(invocation -> {
+            Consumer<ScheduledTask> task = invocation.getArgument(0);
+            task.accept(mock(ScheduledTask.class));
+            return null;
+        });
+        ConsoleCommandSender console = mock(ConsoleCommandSender.class);
+
+        try (MockedStatic<Scheduler> scheduler = mockStatic(Scheduler.class);
+             MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            scheduler.when(Scheduler::sync).thenReturn(syncScheduler);
+            bukkit.when(Bukkit::getConsoleSender).thenReturn(console);
+
+            QuestStreakService.StreakRecoveryResult result = service.recoverStreak(player, "2026-06-20").join();
+
+            assertTrue(result.applied());
+            bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 500"));
+            bukkit.verify(() -> Bukkit.dispatchCommand(console, "notify " + lost.playerId() + " 3"));
+            scheduler.verify(() -> Scheduler.entity(any()), never());
+        }
     }
 
     private static QuestStreakService service() {
