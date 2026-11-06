@@ -144,14 +144,26 @@ public class QuestRepository {
         });
     }
 
-    public CompletableFuture<Integer> replaceQuestAndIncrementRerolls(UUID oldInstanceId, GeneratedQuest replacement) {
+    /**
+     * Replaces a quest with its reroll and counts the reroll, all in one transaction. Nothing is written when the
+     * player has already used {@code limit} rerolls for the reset window, or when the old quest row is gone (for
+     * example because a second reroll request for the same quest already replaced it).
+     */
+    public CompletableFuture<RerollOutcome> replaceQuestAndIncrementRerolls(UUID oldInstanceId, GeneratedQuest replacement, int limit) {
         return sqlProvider.supplyInTransaction(replacement.playerId(), connection -> {
+            int used = readUsedCount(connection, REROLLS_TABLE, replacement.playerId(), replacement.resetKey());
+            if (used >= limit) {
+                return new RerollOutcome.LimitReached(used);
+            }
             try (PreparedStatement delete = connection.prepareStatement("""
                     DELETE FROM player_quests
                     WHERE instance_id = ?
                     """)) {
                 delete.setString(1, oldInstanceId.toString());
-                delete.executeUpdate();
+                if (delete.executeUpdate() != 1) {
+                    // Nothing has been written yet, so returning commits an empty transaction.
+                    return new RerollOutcome.QuestMissing();
+                }
             }
             // The replacement has a fresh instance id, so the upsert always inserts.
             try (PreparedStatement insert = connection.prepareStatement(sqlProvider.currentDatabase().upsertPlayerQuestSql())) {
@@ -163,7 +175,7 @@ public class QuestRepository {
                 reroll.setString(2, replacement.resetKey());
                 reroll.executeUpdate();
             }
-            return readUsedCount(connection, REROLLS_TABLE, replacement.playerId(), replacement.resetKey());
+            return new RerollOutcome.Rerolled(readUsedCount(connection, REROLLS_TABLE, replacement.playerId(), replacement.resetKey()));
         });
     }
 
@@ -382,5 +394,29 @@ public class QuestRepository {
     private int slotIndex(ResultSet resultSet) throws SQLException {
         Object value = resultSet.getObject("slot_index");
         return value == null ? -1 : resultSet.getInt("slot_index");
+    }
+
+    /**
+     * Result of {@link #replaceQuestAndIncrementRerolls(UUID, GeneratedQuest, int)}.
+     */
+    public sealed interface RerollOutcome {
+
+        /**
+         * The quest was replaced; {@code used} is the updated reroll count.
+         */
+        record Rerolled(int used) implements RerollOutcome {
+        }
+
+        /**
+         * The player had no rerolls left; {@code used} is the stored reroll count. Nothing was changed.
+         */
+        record LimitReached(int used) implements RerollOutcome {
+        }
+
+        /**
+         * The quest being replaced no longer exists. Nothing was changed.
+         */
+        record QuestMissing() implements RerollOutcome {
+        }
     }
 }

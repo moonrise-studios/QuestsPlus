@@ -78,7 +78,7 @@ class ExternalSqlRepositoryDatabaseTest {
             assertTrue(updated.completed());
 
             GeneratedQuest replacement = quest(playerId, "daily", "replacement", 0, false, 0, false);
-            assertEquals(1, repository.replaceQuestAndIncrementRerolls(slotZero.instanceId(), replacement).join());
+            assertEquals(new QuestRepository.RerollOutcome.Rerolled(1), repository.replaceQuestAndIncrementRerolls(slotZero.instanceId(), replacement, 5).join());
             assertEquals(1, repository.loadRerollsUsed(playerId, "daily").join());
 
             QuestMilestone first = milestone("easy", 1, "First Quest");

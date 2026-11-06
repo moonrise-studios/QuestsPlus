@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -131,19 +132,55 @@ class QuestRepositoryDatabaseTest {
         GeneratedQuest secondReplacement = quest(playerId, "daily", "second-replacement", 0, false, 0, false);
         repository.saveGeneratedQuests(List.of(original)).join();
 
-        assertEquals(1, repository.replaceQuestAndIncrementRerolls(original.instanceId(), replacement).join());
+        assertEquals(new QuestRepository.RerollOutcome.Rerolled(1), repository.replaceQuestAndIncrementRerolls(original.instanceId(), replacement, 5).join());
 
         List<GeneratedQuest> loaded = repository.loadQuests(playerId, "daily").join();
         assertEquals(List.of(replacement.instanceId()), loaded.stream().map(GeneratedQuest::instanceId).toList());
         assertEquals(1, repository.loadRerollsUsed(playerId, "daily").join());
 
-        assertEquals(2, repository.replaceQuestAndIncrementRerolls(replacement.instanceId(), secondReplacement).join());
+        assertEquals(new QuestRepository.RerollOutcome.Rerolled(2), repository.replaceQuestAndIncrementRerolls(replacement.instanceId(), secondReplacement, 5).join());
         assertEquals(List.of(secondReplacement.instanceId()), repository.loadQuests(playerId, "daily").join().stream().map(GeneratedQuest::instanceId).toList());
         assertEquals(2, repository.loadRerollsUsed(playerId, "daily").join());
 
         repository.resetRerolls(playerId, "daily").join();
 
         assertEquals(0, repository.loadRerollsUsed(playerId, "daily").join());
+    }
+
+    @Test
+    public void doubleSubmittedRerollOfTheSameQuestOnlyReplacesItOnce() {
+        UUID playerId = UUID.randomUUID();
+        GeneratedQuest original = quest(playerId, "daily", "original", 0, false, 0, false);
+        GeneratedQuest first = quest(playerId, "daily", "first", 0, false, 0, false);
+        GeneratedQuest second = quest(playerId, "daily", "second", 0, false, 0, false);
+        repository.saveGeneratedQuests(List.of(original)).join();
+
+        CompletableFuture<QuestRepository.RerollOutcome> firstSubmit = repository.replaceQuestAndIncrementRerolls(original.instanceId(), first, 5);
+        CompletableFuture<QuestRepository.RerollOutcome> secondSubmit = repository.replaceQuestAndIncrementRerolls(original.instanceId(), second, 5);
+
+        assertEquals(new QuestRepository.RerollOutcome.Rerolled(1), firstSubmit.join());
+        assertEquals(new QuestRepository.RerollOutcome.QuestMissing(), secondSubmit.join());
+        assertEquals(List.of(first.instanceId()), repository.loadQuests(playerId, "daily").join().stream().map(GeneratedQuest::instanceId).toList());
+        assertEquals(1, repository.loadRerollsUsed(playerId, "daily").join());
+    }
+
+    @Test
+    public void rerollAtTheLimitIsRejectedWithoutChangingAnything() {
+        UUID playerId = UUID.randomUUID();
+        GeneratedQuest original = quest(playerId, "daily", "original", 0, false, 0, false);
+        GeneratedQuest otherSlot = quest(playerId, "daily", "other-slot", 1, false, 0, false);
+        GeneratedQuest replacement = quest(playerId, "daily", "replacement", 0, false, 0, false);
+        GeneratedQuest otherReplacement = quest(playerId, "daily", "other-replacement", 1, false, 0, false);
+        repository.saveGeneratedQuests(List.of(original, otherSlot)).join();
+
+        CompletableFuture<QuestRepository.RerollOutcome> firstSubmit = repository.replaceQuestAndIncrementRerolls(original.instanceId(), replacement, 1);
+        CompletableFuture<QuestRepository.RerollOutcome> overLimit = repository.replaceQuestAndIncrementRerolls(otherSlot.instanceId(), otherReplacement, 1);
+
+        assertEquals(new QuestRepository.RerollOutcome.Rerolled(1), firstSubmit.join());
+        assertEquals(new QuestRepository.RerollOutcome.LimitReached(1), overLimit.join());
+        assertEquals(List.of(replacement.instanceId(), otherSlot.instanceId()), repository.loadQuests(playerId, "daily").join().stream().map(GeneratedQuest::instanceId).toList());
+        assertEquals(1, repository.loadRerollsUsed(playerId, "daily").join());
+        assertEquals(new QuestRepository.RerollOutcome.LimitReached(1), repository.replaceQuestAndIncrementRerolls(replacement.instanceId(), otherReplacement, 0).join());
     }
 
     @Test

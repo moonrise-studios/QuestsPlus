@@ -444,15 +444,46 @@ public class QuestService {
                         }
                     }
 
-                    return questRepository.replaceQuestAndIncrementRerolls(existing.instanceId(), generated)
-                            .thenApply(updatedUsed -> {
-                                synchronized (state) {
-                                    state.replaceQuestAtSlot(slotIndex, generated);
-                                }
-                                rerollUsageCache.put(new RerollUsageKey(playerId, resetKey), updatedUsed);
-                                return new QuestSelectionResult(state, QuestSelectionStatus.REROLLED, updatedUsed, limit);
-                            });
+                    // The cached count above can be stale (e.g. a double click submits two rerolls before either
+                    // finishes), so the repository re-checks the limit and the old row inside its transaction.
+                    return questRepository.replaceQuestAndIncrementRerolls(existing.instanceId(), generated, limit)
+                            .thenCompose(outcome -> applyRerollOutcome(player, resetKey, state, slotIndex, existing, generated, limit, outcome));
                 }));
+    }
+
+    private CompletableFuture<QuestSelectionResult> applyRerollOutcome(Player player, String resetKey, PlayerQuestState state, int slotIndex,
+                                                                       GeneratedQuest existing, GeneratedQuest generated, int limit,
+                                                                       QuestRepository.RerollOutcome outcome) {
+        RerollUsageKey usageKey = new RerollUsageKey(player.getUniqueId(), resetKey);
+        return switch (outcome) {
+            case QuestRepository.RerollOutcome.Rerolled rerolled -> {
+                synchronized (state) {
+                    state.replaceQuestAtSlot(slotIndex, generated);
+                }
+                rerollUsageCache.put(usageKey, rerolled.used());
+                yield CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.REROLLED, rerolled.used(), limit));
+            }
+            case QuestRepository.RerollOutcome.LimitReached limitReached -> {
+                rerollUsageCache.put(usageKey, limitReached.used());
+                yield CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.NO_REROLLS, limitReached.used(), limit));
+            }
+            case QuestRepository.RerollOutcome.QuestMissing missing -> {
+                int used = cachedRerollsUsed(player.getUniqueId(), resetKey);
+                boolean stale;
+                synchronized (state) {
+                    GeneratedQuest current = state.questAtSlot(slotIndex);
+                    stale = current != null && current.instanceId().equals(existing.instanceId());
+                }
+                if (!stale) {
+                    // Another request already replaced this quest; the cached state shows its result.
+                    yield CompletableFuture.completedFuture(new QuestSelectionResult(state, QuestSelectionStatus.INVALID, used, limit));
+                }
+                // The row disappeared behind the cache's back, so reload before showing the menu again.
+                invalidateState(player.getUniqueId());
+                yield ensurePlayerStateAsync(player, resetKey)
+                        .thenApply(fresh -> new QuestSelectionResult(fresh, QuestSelectionStatus.INVALID, used, limit));
+            }
+        };
     }
 
     public void clearOnlineDailyStates() {

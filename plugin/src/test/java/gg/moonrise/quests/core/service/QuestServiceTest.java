@@ -2,6 +2,8 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.model.QuestSelectionResult;
+import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -23,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -148,6 +151,67 @@ class QuestServiceTest {
         assertSame(first.join(), second.join());
         assertSame(first.join(), service.cachedState(playerId, RESET_KEY));
         verify(repository, times(1)).loadQuests(playerId, RESET_KEY);
+    }
+
+    @Test
+    public void rerollRejectedByRepositoryLimitReportsNoRerollsAndKeepsQuest() {
+        GeneratedQuest existing = quest(0, 2, false);
+        stubLoad(List.of(existing));
+        stubReroll(new QuestRepository.RerollOutcome.LimitReached(1));
+
+        QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+
+        assertEquals(QuestSelectionStatus.NO_REROLLS, result.status());
+        assertEquals(1, result.rerollsUsed());
+        assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
+        assertEquals(existing.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+    }
+
+    @Test
+    public void rerollOfQuestAlreadyReplacedReportsInvalidAndKeepsCurrentQuest() {
+        GeneratedQuest existing = quest(0, 2, false);
+        stubLoad(List.of(existing));
+        GeneratedQuest firstReplacement = quest(0, 0, false);
+        PlayerQuestState state = service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
+        stubReroll(new QuestRepository.RerollOutcome.QuestMissing());
+        // The first of two double-submitted rerolls has already replaced the quest by the time the second one fails.
+        when(repository.replaceQuestAndIncrementRerolls(any(), any(), anyInt())).thenAnswer(invocation -> {
+            synchronized (state) {
+                state.replaceQuestAtSlot(0, firstReplacement);
+            }
+            return CompletableFuture.completedFuture(new QuestRepository.RerollOutcome.QuestMissing());
+        });
+
+        QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+
+        assertEquals(QuestSelectionStatus.INVALID, result.status());
+        assertEquals(firstReplacement.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+        verify(repository, times(1)).loadQuests(playerId, RESET_KEY);
+    }
+
+    @Test
+    public void rerollAcceptedByRepositoryReplacesQuestAndRecordsUsage() {
+        GeneratedQuest existing = quest(0, 2, false);
+        stubLoad(List.of(existing));
+        GeneratedQuest replacement = stubReroll(new QuestRepository.RerollOutcome.Rerolled(1));
+
+        QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+
+        assertEquals(QuestSelectionStatus.REROLLED, result.status());
+        assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
+        assertEquals(replacement.instanceId(), service.cachedState(playerId, RESET_KEY).questAtSlot(0).instanceId());
+    }
+
+    private GeneratedQuest stubReroll(QuestRepository.RerollOutcome outcome) {
+        when(player.hasPermission("questsplus.reroll.vip")).thenReturn(true);
+        when(repository.loadRerollsUsed(playerId, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(0));
+        GeneratedQuest replacement = quest(0, 0, false);
+        GoalHandler handler = mock(GoalHandler.class);
+        when(definitionService.enabledDefinitions()).thenReturn(List.of(definition("zombies"), definition("skeletons")));
+        when(definitionService.handler(QuestTypes.KILL_MOB)).thenReturn(handler);
+        when(handler.createGeneratedQuest(any(), any(), anyString(), anyMap())).thenReturn(replacement);
+        when(repository.replaceQuestAndIncrementRerolls(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(outcome));
+        return replacement;
     }
 
     private void stubLoad(List<GeneratedQuest> quests) {
