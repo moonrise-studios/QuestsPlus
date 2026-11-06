@@ -29,22 +29,22 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void highestConfiguredPremiumLimitControlsVisibleSlots() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
                 Map.of()
         ));
         Player player = mock(Player.class);
 
-        assertEquals(3, service.visiblePremiumSlotLimit());
-        assertEquals(6, service.totalVisibleQuestSlots());
-        assertEquals(0, service.premiumSlotLimit(player));
-        assertEquals(3, service.totalQuestSlots(player));
+        assertEquals(3, service.slots().visiblePremiumSlotLimit());
+        assertEquals(6, service.slots().totalVisibleQuestSlots());
+        assertEquals(0, service.slots().premiumSlotLimit(player));
+        assertEquals(3, service.slots().totalQuestSlots(player));
     }
 
     @Test
     public void playerPermissionLimitControlsUsablePremiumSlots() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
                 Map.of()
@@ -52,15 +52,15 @@ class QuestPremiumSlotAccessTest {
         Player player = mock(Player.class);
         when(player.hasPermission("questsplus.premium.vipplus")).thenReturn(true);
 
-        assertEquals(2, service.premiumSlotLimit(player));
-        assertTrue(service.canAccessSlot(player, 3));
-        assertTrue(service.canAccessSlot(player, 4));
-        assertFalse(service.canAccessSlot(player, 5));
+        assertEquals(2, service.slots().premiumSlotLimit(player));
+        assertTrue(service.slots().canAccessSlot(player, 3));
+        assertTrue(service.slots().canAccessSlot(player, 4));
+        assertFalse(service.slots().canAccessSlot(player, 5));
     }
 
     @Test
     public void premiumQuestsBeyondPermissionLimitRemainInaccessible() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2, "mvp", 3),
                 Map.of()
@@ -68,9 +68,9 @@ class QuestPremiumSlotAccessTest {
         Player player = mock(Player.class);
         when(player.hasPermission("questsplus.premium.vip")).thenReturn(true);
 
-        assertTrue(service.canAccessQuest(player, premiumQuest(3)));
-        assertFalse(service.canAccessQuest(player, premiumQuest(4)));
-        assertFalse(service.canAccessSlot(player, 4));
+        assertTrue(service.slots().canAccessQuest(player, premiumQuest(3)));
+        assertFalse(service.slots().canAccessQuest(player, premiumQuest(4)));
+        assertFalse(service.slots().canAccessSlot(player, 4));
     }
 
     @Test
@@ -82,7 +82,7 @@ class QuestPremiumSlotAccessTest {
         );
         ConfigProvider configProvider = mock(ConfigProvider.class);
         QuestRepository repository = mock(QuestRepository.class);
-        QuestService service = questService(configProvider, repository);
+        QuestServices service = questServices(configProvider, repository);
         UUID playerId = UUID.randomUUID();
         Player player = mock(Player.class);
         when(configProvider.get()).thenReturn(config);
@@ -92,8 +92,8 @@ class QuestPremiumSlotAccessTest {
         when(repository.loadDifficultyCompletedCounts(playerId)).thenReturn(CompletableFuture.completedFuture(Map.of()));
         when(repository.loadExecutedMilestones(playerId)).thenReturn(CompletableFuture.completedFuture(Set.of()));
 
-        assertEquals(QuestSelectionStatus.INVALID, service.selectQuestDifficulty(player, "daily", 4, "easy").join().status());
-        assertEquals(QuestSelectionStatus.INVALID, service.rerollQuestDifficulty(player, "daily", 4, "easy").join().status());
+        assertEquals(QuestSelectionStatus.INVALID, service.selection().selectQuestDifficulty(player, "daily", 4, "easy").join().status());
+        assertEquals(QuestSelectionStatus.INVALID, service.selection().rerollQuestDifficulty(player, "daily", 4, "easy").join().status());
     }
 
     @Test
@@ -114,7 +114,7 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questResetRequiresEveryNormalSlotComplete() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
                 Map.of()
@@ -126,7 +126,7 @@ class QuestPremiumSlotAccessTest {
                 normalQuest(2, false)
         ));
 
-        QuestResetEligibility eligibility = service.resetEligibility(player, state);
+        QuestResetEligibility eligibility = service.slots().resetEligibility(player, state);
 
         assertEquals(2, eligibility.completed());
         assertEquals(3, eligibility.required());
@@ -135,7 +135,7 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questResetIncludesAccessiblePremiumSlots() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
                 Map.of()
@@ -150,7 +150,7 @@ class QuestPremiumSlotAccessTest {
                 premiumQuest(4, false)
         ));
 
-        QuestResetEligibility eligibility = service.resetEligibility(player, state);
+        QuestResetEligibility eligibility = service.slots().resetEligibility(player, state);
 
         assertEquals(4, eligibility.completed());
         assertEquals(4, eligibility.required());
@@ -159,7 +159,7 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questResetRequiresUnlockedPremiumSlotToBeComplete() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
                 Map.of()
@@ -174,7 +174,7 @@ class QuestPremiumSlotAccessTest {
                 premiumQuest(4, false)
         ));
 
-        QuestResetEligibility eligibility = service.resetEligibility(player, state);
+        QuestResetEligibility eligibility = service.slots().resetEligibility(player, state);
 
         assertEquals(4, eligibility.completed());
         assertEquals(5, eligibility.required());
@@ -183,13 +183,13 @@ class QuestPremiumSlotAccessTest {
 
     @Test
     public void questResetPurchaseLimitDefaultsToOne() throws Exception {
-        QuestService service = questService(config(
+        QuestServices service = questServices(config(
                 3,
                 premiumLimits("vip", 1, "vipplus", 2),
                 Map.of()
         ));
 
-        assertEquals(1, service.questResetDailyLimit());
+        assertEquals(1, service.usage().questResetDailyLimit());
     }
 
     @Test
@@ -200,9 +200,9 @@ class QuestPremiumSlotAccessTest {
                 Map.of(),
                 new Config.QuestResetMenu(-1)
         );
-        QuestService service = questService(config);
+        QuestServices service = questServices(config);
 
-        assertEquals(0, service.questResetDailyLimit());
+        assertEquals(0, service.usage().questResetDailyLimit());
     }
 
     @Test
@@ -228,13 +228,13 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         );
         QuestRepository repository = mock(QuestRepository.class);
-        QuestService service = questService(configProvider(config), repository);
+        QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
         when(repository.loadQuestResetsUsed(playerId, "daily")).thenReturn(CompletableFuture.completedFuture(1));
 
-        service.ensureQuestResetPurchaseUsageAsync(playerId, "daily").join();
+        service.usage().ensureQuestResetPurchaseUsageAsync(playerId, "daily").join();
 
-        assertEquals(0, service.questResetPurchasesRemaining(playerId, "daily"));
+        assertEquals(0, service.usage().questResetPurchasesRemaining(playerId, "daily"));
         verify(repository, never()).recordQuestResetPurchaseAndReset(playerId, "daily", 1);
     }
 
@@ -246,13 +246,13 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         );
         QuestRepository repository = mock(QuestRepository.class);
-        QuestService service = questService(configProvider(config), repository);
+        QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
         when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
 
-        assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), service.recordQuestResetPurchaseAndReset(playerId, "daily").join());
-        assertEquals(1, service.cachedQuestResetPurchasesUsed(playerId, "daily"));
-        assertEquals(0, service.questResetPurchasesRemaining(playerId, "daily"));
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), service.usage().recordQuestResetPurchaseAndReset(playerId, "daily").join());
+        assertEquals(1, service.usage().cachedQuestResetPurchasesUsed(playerId, "daily"));
+        assertEquals(0, service.usage().questResetPurchasesRemaining(playerId, "daily"));
         verify(repository).recordQuestResetPurchaseAndReset(playerId, "daily", 1);
     }
 
@@ -264,14 +264,14 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         );
         QuestRepository repository = mock(QuestRepository.class);
-        QuestService service = questService(configProvider(config), repository);
+        QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
         when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1))
                 .thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
 
-        assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), service.recordQuestResetPurchaseAndReset(playerId, "daily").join());
-        assertEquals(0, service.cachedQuestResetPurchasesUsed(playerId, "daily"));
-        assertEquals(1, service.questResetPurchasesRemaining(playerId, "daily"));
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), service.usage().recordQuestResetPurchaseAndReset(playerId, "daily").join());
+        assertEquals(0, service.usage().cachedQuestResetPurchasesUsed(playerId, "daily"));
+        assertEquals(1, service.usage().questResetPurchasesRemaining(playerId, "daily"));
     }
 
     @Test
@@ -282,16 +282,16 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         );
         QuestRepository repository = mock(QuestRepository.class);
-        QuestService service = questService(configProvider(config), repository);
+        QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
         when(repository.loadQuestResetsUsed(playerId, "daily-1")).thenReturn(CompletableFuture.completedFuture(1));
         when(repository.loadQuestResetsUsed(playerId, "daily-2")).thenReturn(CompletableFuture.completedFuture(0));
 
-        service.ensureQuestResetPurchaseUsageAsync(playerId, "daily-1").join();
-        service.ensureQuestResetPurchaseUsageAsync(playerId, "daily-2").join();
+        service.usage().ensureQuestResetPurchaseUsageAsync(playerId, "daily-1").join();
+        service.usage().ensureQuestResetPurchaseUsageAsync(playerId, "daily-2").join();
 
-        assertEquals(0, service.questResetPurchasesRemaining(playerId, "daily-1"));
-        assertEquals(1, service.questResetPurchasesRemaining(playerId, "daily-2"));
+        assertEquals(0, service.usage().questResetPurchasesRemaining(playerId, "daily-1"));
+        assertEquals(1, service.usage().questResetPurchasesRemaining(playerId, "daily-2"));
     }
 
     @Test
@@ -302,11 +302,11 @@ class QuestPremiumSlotAccessTest {
                 Map.of()
         );
         QuestRepository repository = mock(QuestRepository.class);
-        QuestService service = questService(configProvider(config), repository);
+        QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
         when(repository.resetDailyQuests(playerId, "daily")).thenReturn(CompletableFuture.completedFuture(null));
 
-        service.resetDaily(playerId, "daily").join();
+        service.state().resetDaily(playerId, "daily").join();
 
         verify(repository).resetDailyQuests(playerId, "daily");
         verify(repository, never()).recordQuestResetPurchaseAndReset(playerId, "daily", 1);
@@ -357,14 +357,14 @@ class QuestPremiumSlotAccessTest {
         assertEquals("Modular", config.getMenu().getResetMenu().getStatusReady());
     }
 
-    private static QuestService questService(Config config) {
+    private static QuestServices questServices(Config config) {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);
-        return questService(configProvider, mock(QuestRepository.class));
+        return questServices(configProvider, mock(QuestRepository.class));
     }
 
-    private static QuestService questService(ConfigProvider configProvider, QuestRepository questRepository) {
-        return new QuestService(
+    private static QuestServices questServices(ConfigProvider configProvider, QuestRepository questRepository) {
+        return QuestServices.create(
                 configProvider,
                 mock(QuestDefinitionService.class),
                 questRepository,
@@ -386,7 +386,9 @@ class QuestPremiumSlotAccessTest {
         return new QuestMenuItems(
                 configProvider,
                 mock(QuestDefinitionService.class),
-                questService(config),
+                new QuestSlotService(configProvider),
+                mock(QuestUsageService.class),
+                mock(QuestTextService.class),
                 mock(QuestResetService.class),
                 mock(QuestStreakService.class),
                 mock(GlobalQuestService.class),

@@ -81,7 +81,7 @@ class QuestApiServiceCurrencyTest {
         return new QuestApiService(
                 mock(QuestsPlusPlugin.class),
                 mock(QuestDefinitionService.class),
-                mock(QuestService.class),
+                mock(QuestProgressService.class),
                 mock(QuestResetService.class),
                 resetPurchaseService,
                 configProvider

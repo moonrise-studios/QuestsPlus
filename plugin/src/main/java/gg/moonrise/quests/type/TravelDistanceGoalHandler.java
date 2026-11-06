@@ -1,6 +1,7 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
@@ -26,6 +27,7 @@ public class TravelDistanceGoalHandler implements GoalHandler {
     public static final String GOAL_AMOUNT = QuestTypeSupport.GOAL_AMOUNT;
 
     private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
     @Override
@@ -67,10 +69,10 @@ public class TravelDistanceGoalHandler implements GoalHandler {
         boolean personalQuestActive = questService.cachedState(player.getUniqueId(), resetKey)
                 .filter(state -> state.hasActiveQuest(type()))
                 .isPresent();
-        if (!personalQuestActive && !questService.hasCachedGlobalQuest(type())) {
+        if (!personalQuestActive && !progressService.hasCachedGlobalQuest(type())) {
             return;
         }
 
-        questService.progressMatching(player, type(), resetKey, distance, quest -> true);
+        progressService.progressMatching(player, type(), resetKey, distance, quest -> true);
     }
 }

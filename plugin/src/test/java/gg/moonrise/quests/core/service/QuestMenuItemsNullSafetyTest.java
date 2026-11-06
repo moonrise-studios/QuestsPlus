@@ -34,7 +34,7 @@ class QuestMenuItemsNullSafetyTest {
 
     private Player player;
     private Config config;
-    private QuestService questService;
+    private QuestTextService textService;
     private QuestStreakService streakService;
     private QuestMenuItems menuItems;
 
@@ -45,18 +45,20 @@ class QuestMenuItemsNullSafetyTest {
         config = new Config();
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(config);
-        questService = mock(QuestService.class);
+        textService = mock(QuestTextService.class);
         streakService = mock(QuestStreakService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         when(resetService.currentResetKey()).thenReturn("daily");
         when(resetService.resetTimerPlaceholder()).thenReturn("");
-        when(questService.replaceQuestTokens(any(), any(), any())).thenAnswer(invocation -> Objects.requireNonNullElse(invocation.getArgument(0), ""));
-        when(questService.replaceRawVariableDisplayValues(any(), any())).thenAnswer(invocation -> Objects.requireNonNullElse(invocation.getArgument(0), ""));
+        when(textService.replaceQuestTokens(any(), any(), any())).thenAnswer(invocation -> Objects.requireNonNullElse(invocation.getArgument(0), ""));
+        when(textService.replaceRawVariableDisplayValues(any(), any())).thenAnswer(invocation -> Objects.requireNonNullElse(invocation.getArgument(0), ""));
 
         menuItems = new QuestMenuItems(
                 configProvider,
                 mock(QuestDefinitionService.class),
-                questService,
+                mock(QuestSlotService.class),
+                mock(QuestUsageService.class),
+                textService,
                 resetService,
                 streakService,
                 mock(GlobalQuestService.class),
@@ -71,7 +73,6 @@ class QuestMenuItemsNullSafetyTest {
 
     @Test
     public void nullMilestoneAndStreakButtonsAreTreatedAsDisabled() throws ReflectiveOperationException {
-        when(questService.questMilestonesEnabled()).thenReturn(true);
         when(streakService.isEnabled()).thenReturn(true);
         assertTrue(menuItems.canShowMilestoneButton());
         assertTrue(menuItems.canShowStreakButton());

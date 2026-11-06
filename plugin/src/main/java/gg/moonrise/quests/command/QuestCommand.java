@@ -16,10 +16,14 @@ import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.core.service.QuestDefinitionService;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestApiService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
+import gg.moonrise.quests.core.service.QuestSlotService;
 import gg.moonrise.quests.core.service.QuestStreakService;
+import gg.moonrise.quests.core.service.QuestTextService;
+import gg.moonrise.quests.core.service.QuestUsageService;
 import gg.moonrise.quests.core.service.SqlProvider;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
@@ -49,6 +53,10 @@ public class QuestCommand implements PaperCommand {
     private final ConfigProvider configProvider;
     private final QuestDefinitionService definitionService;
     private final QuestService questService;
+    private final QuestSlotService slotService;
+    private final QuestUsageService usageService;
+    private final QuestProgressService progressService;
+    private final QuestTextService textService;
     private final QuestMenuService menuService;
     private final QuestResetService resetService;
     private final QuestStreakService streakService;
@@ -82,10 +90,10 @@ public class QuestCommand implements PaperCommand {
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenAccept(state -> Scheduler.entity(player).run(task -> {
                     if (player.isOnline()) {
-                        if (questService.accessibleQuests(player, state).isEmpty()) {
+                        if (slotService.accessibleQuests(player, state).isEmpty()) {
                             configProvider.get().getMessages().getNoQuests().send(player);
                         } else {
-                            questService.sendProgress(player, state);
+                            textService.sendProgress(player, state);
                         }
                     }
                 }))
@@ -106,7 +114,7 @@ public class QuestCommand implements PaperCommand {
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenAccept(state -> Scheduler.entity(player).run(task -> {
                     if (player.isOnline()) {
-                        questService.sendCompletedCount(player, state);
+                        textService.sendCompletedCount(player, state);
                     }
                 }))
                 .exceptionally(throwable -> {
@@ -311,7 +319,7 @@ public class QuestCommand implements PaperCommand {
             configProvider.get().getMessages().getPlayerNotFound().send(source.getSender(), Placeholder.unparsed("player", playerName));
             return;
         }
-        questService.completeDailyQuests(target, resetService.currentResetKey())
+        progressService.completeDailyQuests(target, resetService.currentResetKey())
                 .thenAccept(completed -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getCompleteDailyPlayer().send(
                         source.getSender(),
                         Placeholder.unparsed("player", target.getName()),
@@ -350,7 +358,7 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        List<QuestProgressResult> results = questService.progressAdminGoal(target, resetService.currentResetKey(), amount, type);
+        List<QuestProgressResult> results = progressService.progressAdminGoal(target, resetService.currentResetKey(), amount, type);
         if (results.isEmpty()) {
             configProvider.get().getMessages().getAdminProgressNotActive().send(
                     source.getSender(),
@@ -434,7 +442,7 @@ public class QuestCommand implements PaperCommand {
             configProvider.get().getMessages().getPlayerNotFound().send(source.getSender(), Placeholder.unparsed("player", playerName));
             return;
         }
-        questService.resetRerolls(target.getUniqueId(), resetService.currentResetKey())
+        usageService.resetRerolls(target.getUniqueId(), resetService.currentResetKey())
                 .thenRun(() -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getRerollsReset().send(
                         source.getSender(),
                         Placeholder.unparsed("player", target.getName())

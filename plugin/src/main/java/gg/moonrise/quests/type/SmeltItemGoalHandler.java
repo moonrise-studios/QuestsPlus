@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -24,7 +24,7 @@ public class SmeltItemGoalHandler implements GoalHandler {
     public static final String ITEM_TYPE = QuestTypeSupport.ITEM_TYPE;
     public static final String GOAL_AMOUNT = QuestTypeSupport.GOAL_AMOUNT;
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
     @Override
@@ -60,7 +60,7 @@ public class SmeltItemGoalHandler implements GoalHandler {
         }
         String extractedItemKey = extractedItem.get();
 
-        questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), amount, quest ->
+        progressService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), amount, quest ->
                 extractedItemKey.equals(quest.variables().get(ITEM_TYPE))
         );
     }

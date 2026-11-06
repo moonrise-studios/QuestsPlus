@@ -34,7 +34,9 @@ class GlobalRewardPreviewItemTest {
         menuItems = new QuestMenuItems(
                 configProvider,
                 mock(QuestDefinitionService.class),
-                mock(QuestService.class),
+                mock(QuestSlotService.class),
+                mock(QuestUsageService.class),
+                mock(QuestTextService.class),
                 mock(QuestResetService.class),
                 mock(QuestStreakService.class),
                 mock(GlobalQuestService.class),

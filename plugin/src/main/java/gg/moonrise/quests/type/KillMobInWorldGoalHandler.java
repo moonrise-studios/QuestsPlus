@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -31,7 +31,7 @@ public class KillMobInWorldGoalHandler implements GoalHandler {
     public static final String WORLD = "world";
     public static final String GOAL_AMOUNT = QuestTypeSupport.GOAL_AMOUNT;
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
     @Override
@@ -90,7 +90,7 @@ public class KillMobInWorldGoalHandler implements GoalHandler {
         }
 
         String killedWorldName = event.getEntity().getWorld().getName();
-        questService.progressMatching(killer, type(), resetService.currentResetKey(), killMatcher(event.getEntityType(), killedWorldName));
+        progressService.progressMatching(killer, type(), resetService.currentResetKey(), killMatcher(event.getEntityType(), killedWorldName));
     }
 
     public static Predicate<GeneratedQuest> killMatcher(EntityType killedType, String killedWorldName) {

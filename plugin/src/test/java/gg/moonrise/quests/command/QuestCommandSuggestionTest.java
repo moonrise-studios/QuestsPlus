@@ -9,6 +9,10 @@ import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
+import gg.moonrise.quests.core.service.QuestProgressService;
+import gg.moonrise.quests.core.service.QuestSlotService;
+import gg.moonrise.quests.core.service.QuestTextService;
+import gg.moonrise.quests.core.service.QuestUsageService;
 import gg.moonrise.quests.core.service.QuestStreakService;
 import gg.moonrise.quests.core.service.SqlProvider;
 import gg.moonrise.quests.model.QuestDifficulty;
@@ -43,6 +47,10 @@ public class QuestCommandSuggestionTest {
                 mock(ConfigProvider.class),
                 definitionService,
                 mock(QuestService.class),
+                mock(QuestSlotService.class),
+                mock(QuestUsageService.class),
+                mock(QuestProgressService.class),
+                mock(QuestTextService.class),
                 mock(QuestMenuService.class),
                 mock(QuestResetService.class),
                 mock(QuestStreakService.class),

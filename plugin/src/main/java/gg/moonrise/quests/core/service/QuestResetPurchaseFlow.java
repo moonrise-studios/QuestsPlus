@@ -30,6 +30,8 @@ public class QuestResetPurchaseFlow {
 
     private final ConfigProvider configProvider;
     private final QuestService questService;
+    private final QuestSlotService slotService;
+    private final QuestUsageService usageService;
     private final QuestResetService resetService;
     private final QuestResetPurchaseService resetPurchaseService;
     private final QuestResetCurrencies currencies;
@@ -46,7 +48,7 @@ public class QuestResetPurchaseFlow {
 
         String resetKey = resetService.currentResetKey();
         questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> questService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
+                .thenCompose(state -> usageService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
                 .whenComplete((state, throwable) -> {
                     if (throwable != null) {
                         log.error("Failed to load QuestsPlus state before reset purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
@@ -69,9 +71,9 @@ public class QuestResetPurchaseFlow {
                 Placeholder.unparsed("amount", currencies.displayAmount(currency, player)),
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                 Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
-                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetService.currentResetKey()))),
-                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(questService.questResetDailyLimit())),
-                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(questService.questResetPurchasesRemaining(player.getUniqueId(), resetService.currentResetKey())))
+                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(usageService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetService.currentResetKey()))),
+                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(usageService.questResetDailyLimit())),
+                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(usageService.questResetPurchasesRemaining(player.getUniqueId(), resetService.currentResetKey())))
         );
     }
 
@@ -81,9 +83,9 @@ public class QuestResetPurchaseFlow {
                 player,
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                 Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
-                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
-                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(questService.questResetDailyLimit())),
-                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
+                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(usageService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
+                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(usageService.questResetDailyLimit())),
+                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(usageService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
         );
     }
 
@@ -93,7 +95,7 @@ public class QuestResetPurchaseFlow {
                 resetPurchaseService.finish(player);
                 return;
             }
-            QuestResetEligibility eligibility = questService.resetEligibility(player, state);
+            QuestResetEligibility eligibility = slotService.resetEligibility(player, state);
             if (!eligibility.eligible()) {
                 try {
                     config().getMessages().getQuestResetNotReady().send(
@@ -107,7 +109,7 @@ public class QuestResetPurchaseFlow {
                 }
                 return;
             }
-            if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
+            if (usageService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
                 try {
                     sendResetLimitReached(player, eligibility);
                     menus.openDailyQuests(player);
@@ -155,7 +157,7 @@ public class QuestResetPurchaseFlow {
     ) {
         CompletableFuture<QuestRepository.ResetPurchaseOutcome> reset;
         try {
-            reset = questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey);
+            reset = usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey);
         } catch (RuntimeException exception) {
             reset = CompletableFuture.failedFuture(exception);
         }
@@ -238,9 +240,9 @@ public class QuestResetPurchaseFlow {
                 Placeholder.unparsed("amount", currencies.displayAmount(currency, player)),
                 Placeholder.unparsed("completed", QuestNumberFormatter.format(eligibility.completed())),
                 Placeholder.unparsed("required", QuestNumberFormatter.format(eligibility.required())),
-                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(questService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
-                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(questService.questResetDailyLimit())),
-                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
+                Placeholder.unparsed("resets_used", QuestNumberFormatter.format(usageService.cachedQuestResetPurchasesUsed(player.getUniqueId(), resetKey))),
+                Placeholder.unparsed("resets_limit", QuestNumberFormatter.format(usageService.questResetDailyLimit())),
+                Placeholder.unparsed("resets_remaining", QuestNumberFormatter.format(usageService.questResetPurchasesRemaining(player.getUniqueId(), resetKey)))
         );
     }
 

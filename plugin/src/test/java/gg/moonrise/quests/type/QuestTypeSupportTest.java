@@ -1,5 +1,6 @@
 package gg.moonrise.quests.type;
 
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -23,7 +24,7 @@ class QuestTypeSupportTest {
 
     @Test
     public void goalOnlyHandlersRejectMissingExtraAndNonPositiveGoalAmounts() {
-        TravelDistanceGoalHandler handler = new TravelDistanceGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
+        TravelDistanceGoalHandler handler = new TravelDistanceGoalHandler(mock(QuestService.class), mock(QuestProgressService.class), mock(QuestResetService.class));
 
         assertMessage("walk is missing variable goal-amount", () -> handler.validateDefinition(definition("walk", QuestTypes.TRAVEL_DISTANCE, Map.of())));
         assertMessage("walk has no goal-amount values", () -> handler.validateDefinition(definition("walk", QuestTypes.TRAVEL_DISTANCE, Map.of(
@@ -43,7 +44,7 @@ class QuestTypeSupportTest {
 
     @Test
     public void goalOnlyHandlerCreatesQuestWithGoalAmount() {
-        KillAllMobsGoalHandler handler = new KillAllMobsGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
+        KillAllMobsGoalHandler handler = new KillAllMobsGoalHandler(mock(QuestProgressService.class), mock(QuestResetService.class));
         QuestDefinition definition = definition("slayer", QuestTypes.KILL_ALL_MOBS, Map.of("goal-amount", List.of("12")));
         UUID playerId = UUID.randomUUID();
 
@@ -58,7 +59,7 @@ class QuestTypeSupportTest {
 
     @Test
     public void killMobValidatesMobTypesBeforeGoalAmounts() {
-        KillMobGoalHandler handler = new KillMobGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
+        KillMobGoalHandler handler = new KillMobGoalHandler(mock(QuestProgressService.class), mock(QuestResetService.class));
 
         assertMessage("hunt is missing variable mob-type", () -> handler.validateDefinition(definition("hunt", QuestTypes.KILL_MOB, Map.of(
                 "goal-amount", List.of("5")
@@ -75,7 +76,7 @@ class QuestTypeSupportTest {
 
     @Test
     public void killMobCreatesQuestAndMobPlaceholders() {
-        KillMobGoalHandler handler = new KillMobGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
+        KillMobGoalHandler handler = new KillMobGoalHandler(mock(QuestProgressService.class), mock(QuestResetService.class));
         QuestDefinition definition = definition("hunt", QuestTypes.KILL_MOB, Map.of(
                 "mob-type", List.of("zombie"),
                 "goal-amount", List.of("3")
@@ -101,7 +102,7 @@ class QuestTypeSupportTest {
 
     @Test
     public void killMobInWorldTrimsWorldAndAddsWorldPlaceholders() {
-        KillMobInWorldGoalHandler handler = new KillMobInWorldGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
+        KillMobInWorldGoalHandler handler = new KillMobInWorldGoalHandler(mock(QuestProgressService.class), mock(QuestResetService.class));
         QuestDefinition definition = definition("nether-hunt", QuestTypes.KILL_MOB_IN_WORLD, Map.of(
                 "mob-type", List.of("blaze"),
                 "world", List.of("world_nether"),

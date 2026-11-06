@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  * The quest slot layout of the daily quest menu, derived from one {@link Config} instance. It is the single source
  * of truth for which inventory slots hold quests, used both for slot access rules and to render the menu.
- * Computing it walks the menu config, so it is built once per config (see {@link QuestService#menuLayout()})
+ * Computing it walks the menu config, so it is built once per config (see {@link QuestSlotService#menuLayout()})
  * instead of on every progress event.
  * <p>
  * A utility button's slot is reserved whenever the button is enabled in the config, even if the menu ends up not

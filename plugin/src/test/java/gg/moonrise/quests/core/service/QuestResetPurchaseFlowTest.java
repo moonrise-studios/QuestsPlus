@@ -46,6 +46,7 @@ class QuestResetPurchaseFlowTest {
     private Player player;
     private QuestCurrency currency;
     private QuestService questService;
+    private QuestUsageService usageService;
     private QuestResetPurchaseService resetPurchaseService;
     private QuestMenuService menus;
     private QuestResetPurchaseFlow purchaseFlow;
@@ -99,11 +100,13 @@ class QuestResetPurchaseFlowTest {
 
         PlayerQuestState state = new PlayerQuestState(playerId, RESET_KEY, List.of());
         questService = mock(QuestService.class);
+        usageService = mock(QuestUsageService.class);
+        QuestSlotService slotService = mock(QuestSlotService.class);
         when(questService.ensurePlayerStateAsync(player, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(state));
-        when(questService.refreshQuestResetPurchaseUsageAsync(playerId, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(0));
-        when(questService.resetEligibility(player, state)).thenReturn(new QuestResetEligibility(3, 3));
-        when(questService.questResetPurchasesRemaining(playerId, RESET_KEY)).thenReturn(1);
-        when(questService.questResetDailyLimit()).thenReturn(1);
+        when(usageService.refreshQuestResetPurchaseUsageAsync(playerId, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(0));
+        when(slotService.resetEligibility(player, state)).thenReturn(new QuestResetEligibility(3, 3));
+        when(usageService.questResetPurchasesRemaining(playerId, RESET_KEY)).thenReturn(1);
+        when(usageService.questResetDailyLimit()).thenReturn(1);
 
         QuestResetService resetService = mock(QuestResetService.class);
         when(resetService.currentResetKey()).thenReturn(RESET_KEY);
@@ -113,6 +116,8 @@ class QuestResetPurchaseFlowTest {
         purchaseFlow = new QuestResetPurchaseFlow(
                 configProvider,
                 questService,
+                slotService,
+                usageService,
                 resetService,
                 resetPurchaseService,
                 new QuestResetCurrencies(configProvider, resetPurchaseService)
@@ -127,7 +132,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void notAppliedResetRefundsWhenPlayerLoggedOutBeforeCompletion() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
@@ -141,7 +146,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void databaseFailureRefundsThroughRetiredCallback() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY))
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.RETIRED_BEFORE_RUN);
@@ -155,7 +160,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void databaseFailureRefundsOnceWhilePlayerIsOnline() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY))
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
 
         purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
@@ -167,7 +172,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void synchronousDatabaseExceptionStillRefunds() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenThrow(new IllegalStateException("pool closed"));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenThrow(new IllegalStateException("pool closed"));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
@@ -179,7 +184,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void appliedResetDoesNotRefundWhenPlayerLoggedOut() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 

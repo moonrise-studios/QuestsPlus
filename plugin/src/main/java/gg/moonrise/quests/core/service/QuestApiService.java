@@ -47,7 +47,7 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
 
     private final QuestsPlusPlugin plugin;
     private final QuestDefinitionService definitionService;
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
     private final QuestResetPurchaseService resetPurchaseService;
     private final ConfigProvider configProvider;
@@ -220,7 +220,7 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
         if (player == null || type == null || matcher == null) {
             return List.of();
         }
-        return new ArrayList<>(questService.progressMatching(player, type, resetService.currentResetKey(), amount, matcher, QuestProgressEvent.Cause.API));
+        return new ArrayList<>(progressService.progressMatching(player, type, resetService.currentResetKey(), amount, matcher, QuestProgressEvent.Cause.API));
     }
 
     private boolean isRegisteredOwner(Plugin owner) {

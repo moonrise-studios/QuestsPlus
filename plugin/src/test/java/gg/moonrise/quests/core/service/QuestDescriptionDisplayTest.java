@@ -17,7 +17,7 @@ class QuestDescriptionDisplayTest {
     @Test
     public void rawRegistryVariableValuesRenderAsDisplayNamesInDescriptions() {
         QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
-        QuestService service = new QuestService(
+        QuestServices service = QuestServices.create(
                 mock(ConfigProvider.class),
                 definitionService,
                 mock(QuestRepository.class),
@@ -33,7 +33,7 @@ class QuestDescriptionDisplayTest {
                 "item_type_key", "minecraft:carrot"
         ));
 
-        String rendered = service.replaceRawVariableDisplayValues("Harvest 175 minecraft:carrot.", quest);
+        String rendered = service.text().replaceRawVariableDisplayValues("Harvest 175 minecraft:carrot.", quest);
 
         assertEquals("Harvest 175 Carrots.", rendered);
     }

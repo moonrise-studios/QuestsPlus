@@ -60,6 +60,9 @@ class QuestMenuServiceMessagesTest {
                 configProvider,
                 mock(QuestDefinitionService.class),
                 questService,
+                mock(QuestSlotService.class),
+                mock(QuestUsageService.class),
+                mock(QuestSelectionService.class),
                 resetService,
                 streakService,
                 mock(GlobalQuestService.class),
@@ -97,8 +100,9 @@ class QuestMenuServiceMessagesTest {
         Config.SharedMessages shared = new Config.SharedMessages();
         setField(shared, "questMilestonesDisabled", Message.of("Milestones are off."));
         setField(shared, "questStreaksDisabled", Message.of("Streaks are off."));
-        when(configProvider.get()).thenReturn(configWith(shared));
-        when(questService.questMilestonesEnabled()).thenReturn(false);
+        Config config = configWith(shared);
+        setField(config, "questMilestonesEnabled", false);
+        when(configProvider.get()).thenReturn(config);
         when(streakService.isEnabled()).thenReturn(false);
 
         menuService.openMilestoneSelector(player);

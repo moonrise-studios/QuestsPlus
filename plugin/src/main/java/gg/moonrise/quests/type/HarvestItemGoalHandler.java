@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -22,7 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class HarvestItemGoalHandler implements GoalHandler {
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
     @Override
@@ -58,7 +58,7 @@ public class HarvestItemGoalHandler implements GoalHandler {
             if (amount <= 0) {
                 continue;
             }
-            questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), amount, quest ->
+            progressService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), amount, quest ->
                     entry.getKey().equals(quest.variables().get(QuestTypeSupport.ITEM_TYPE))
             );
         }

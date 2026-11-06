@@ -1,7 +1,7 @@
 package gg.moonrise.quests.integration;
 
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.entity.EntityType;
@@ -27,7 +27,7 @@ class RoseStackerMobKillListenerTest {
     @Test
     public void additionalKillCountExcludesVisibleEntityHandledByBukkitDeathEvent() {
         RoseStackerMobKillListener listener = new RoseStackerMobKillListener(
-                mock(QuestService.class),
+                mock(QuestProgressService.class),
                 mock(QuestResetService.class)
         );
 
@@ -40,10 +40,10 @@ class RoseStackerMobKillListenerTest {
     @Test
     @SuppressWarnings("unchecked")
     public void stackedKillsProgressMatchingMobQuestTypesWithExtraCount() {
-        QuestService questService = mock(QuestService.class);
+        QuestProgressService progressService = mock(QuestProgressService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);
-        RoseStackerMobKillListener listener = new RoseStackerMobKillListener(questService, resetService);
+        RoseStackerMobKillListener listener = new RoseStackerMobKillListener(progressService, resetService);
         ArgumentCaptor<Predicate<GeneratedQuest>> killMobMatcher = ArgumentCaptor.forClass(Predicate.class);
         ArgumentCaptor<Predicate<GeneratedQuest>> killMobInWorldMatcher = ArgumentCaptor.forClass(Predicate.class);
         ArgumentCaptor<Predicate<GeneratedQuest>> killAllMobsMatcher = ArgumentCaptor.forClass(Predicate.class);
@@ -52,9 +52,9 @@ class RoseStackerMobKillListenerTest {
 
         listener.progressStackedKills(player, EntityType.ZOMBIE, "world", 24);
 
-        verify(questService).progressMatching(eq(player), eq(QuestTypes.KILL_MOB), eq("daily"), eq(24), killMobMatcher.capture());
-        verify(questService).progressMatching(eq(player), eq(QuestTypes.KILL_MOB_IN_WORLD), eq("daily"), eq(24), killMobInWorldMatcher.capture());
-        verify(questService).progressMatching(eq(player), eq(QuestTypes.KILL_ALL_MOBS), eq("daily"), eq(24), killAllMobsMatcher.capture());
+        verify(progressService).progressMatching(eq(player), eq(QuestTypes.KILL_MOB), eq("daily"), eq(24), killMobMatcher.capture());
+        verify(progressService).progressMatching(eq(player), eq(QuestTypes.KILL_MOB_IN_WORLD), eq("daily"), eq(24), killMobInWorldMatcher.capture());
+        verify(progressService).progressMatching(eq(player), eq(QuestTypes.KILL_ALL_MOBS), eq("daily"), eq(24), killAllMobsMatcher.capture());
 
         assertTrue(killMobMatcher.getValue().test(quest(Map.of("mob-type", "ZOMBIE"))));
         assertFalse(killMobMatcher.getValue().test(quest(Map.of("mob-type", "SKELETON"))));

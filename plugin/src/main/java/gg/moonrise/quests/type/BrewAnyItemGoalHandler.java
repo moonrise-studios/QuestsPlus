@@ -2,8 +2,8 @@ package gg.moonrise.quests.type;
 
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -24,7 +24,7 @@ public class BrewAnyItemGoalHandler implements GoalHandler {
 
     public static final String GOAL_AMOUNT = QuestTypeSupport.GOAL_AMOUNT;
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
     private final BrewingStandOutputTracker outputTracker;
 
@@ -55,7 +55,7 @@ public class BrewAnyItemGoalHandler implements GoalHandler {
                 return;
             }
 
-            questService.progressMatching(player, type(), resetService.currentResetKey(), take.amount(), quest -> true);
+            progressService.progressMatching(player, type(), resetService.currentResetKey(), take.amount(), quest -> true);
         }));
     }
 }

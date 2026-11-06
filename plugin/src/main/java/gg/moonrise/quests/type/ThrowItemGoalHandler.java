@@ -2,8 +2,8 @@ package gg.moonrise.quests.type;
 
 import com.destroystokyo.paper.event.player.PlayerLaunchProjectileEvent;
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ThrowItemGoalHandler implements GoalHandler {
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
     @Override
@@ -52,7 +52,7 @@ public class ThrowItemGoalHandler implements GoalHandler {
         }
         String itemTypeKey = thrownItem.get();
 
-        questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
+        progressService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
                 itemTypeKey.equals(quest.variables().get(QuestTypeSupport.ITEM_TYPE))
         );
     }

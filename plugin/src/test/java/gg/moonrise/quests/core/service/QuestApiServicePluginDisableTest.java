@@ -44,7 +44,7 @@ class QuestApiServicePluginDisableTest {
         api = new QuestApiService(
                 mock(QuestsPlusPlugin.class),
                 definitionService,
-                mock(QuestService.class),
+                mock(QuestProgressService.class),
                 mock(QuestResetService.class),
                 resetPurchaseService,
                 mock(ConfigProvider.class)

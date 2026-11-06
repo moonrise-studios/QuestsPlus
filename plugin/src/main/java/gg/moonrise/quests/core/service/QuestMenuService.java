@@ -50,6 +50,9 @@ public class QuestMenuService {
     private final ConfigProvider configProvider;
     private final QuestDefinitionService definitionService;
     private final QuestService questService;
+    private final QuestSlotService slotService;
+    private final QuestUsageService usageService;
+    private final QuestSelectionService selectionService;
     private final QuestResetService resetService;
     private final QuestStreakService streakService;
     private final GlobalQuestService globalQuestService;
@@ -72,15 +75,15 @@ public class QuestMenuService {
     public void openDailyQuests(Player player) {
         String resetKey = resetService.currentResetKey();
         CompletableFuture<DailyMenuState> load = questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
-                .thenCompose(state -> questService.ensureQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
+                .thenCompose(state -> usageService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
+                .thenCompose(state -> usageService.ensureQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state))
                 .thenCompose(state -> globalQuestService.activeStateAsync().thenApply(globalState -> new DailyMenuState(state, globalState.orElse(null))));
         openWhenLoaded(player, load, "open QuestsPlus menu", Config.Messages::getMenuOpenFailed,
                 menuState -> new QuestMenuUI(player, this, menuState.questState(), menuState.globalState()).open());
     }
 
     public void openMilestoneSelector(Player player) {
-        if (!questService.questMilestonesEnabled()) {
+        if (!config().isQuestMilestonesEnabled()) {
             config().getMessages().getQuestMilestonesDisabled().send(player);
             return;
         }
@@ -90,7 +93,7 @@ public class QuestMenuService {
     }
 
     public void openMilestones(Player player, String difficultyId) {
-        if (!questService.questMilestonesEnabled()) {
+        if (!config().isQuestMilestonesEnabled()) {
             config().getMessages().getQuestMilestonesDisabled().send(player);
             return;
         }
@@ -130,9 +133,9 @@ public class QuestMenuService {
     public void openQuestResetPurchase(Player player) {
         String resetKey = resetService.currentResetKey();
         CompletableFuture<PlayerQuestState> load = questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> questService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state));
+                .thenCompose(state -> usageService.refreshQuestResetPurchaseUsageAsync(player.getUniqueId(), resetKey).thenApply(unused -> state));
         openWhenLoaded(player, load, "open QuestsPlus reset purchase menu", Config.Messages::getQuestResetPurchaseOpenFailed, state -> {
-            QuestResetEligibility eligibility = questService.resetEligibility(player, state);
+            QuestResetEligibility eligibility = slotService.resetEligibility(player, state);
             if (!eligibility.eligible()) {
                 config().getMessages().getQuestResetNotReady().send(
                         player,
@@ -142,7 +145,7 @@ public class QuestMenuService {
                 new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState().orElse(null)).open();
                 return;
             }
-            if (questService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
+            if (usageService.questResetPurchasesRemaining(player.getUniqueId(), resetKey) <= 0) {
                 resetPurchaseFlow.sendResetLimitReached(player, eligibility);
                 new QuestMenuUI(player, this, state, globalQuestService.cachedActiveState().orElse(null)).open();
                 return;
@@ -165,7 +168,7 @@ public class QuestMenuService {
     public void openRerollDifficultyPicker(Player player, int slotIndex) {
         String resetKey = resetService.currentResetKey();
         CompletableFuture<PlayerQuestState> load = questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(state -> questService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(used -> state));
+                .thenCompose(state -> usageService.ensureRerollUsageAsync(player.getUniqueId(), resetKey).thenApply(used -> state));
         openWhenLoaded(player, load, "open QuestsPlus reroll difficulty picker", Config.Messages::getRerollPickerOpenFailed, state -> {
             Optional<GeneratedQuest> slotQuest = state.questAtSlot(slotIndex);
             if (slotQuest.isEmpty()) {
@@ -173,7 +176,7 @@ public class QuestMenuService {
                 return;
             }
             GeneratedQuest quest = slotQuest.get();
-            if (!questService.canAccessQuest(player, quest)) {
+            if (!slotService.canAccessQuest(player, quest)) {
                 openDailyQuests(player);
                 return;
             }
@@ -181,7 +184,7 @@ public class QuestMenuService {
                 config().getMessages().getCompletedQuestCannotReroll().send(player);
                 return;
             }
-            if (questService.rerollsRemaining(player, resetKey) <= 0) {
+            if (usageService.rerollsRemaining(player, resetKey) <= 0) {
                 config().getMessages().getNoRerollsRemaining().send(player);
                 return;
             }
@@ -192,8 +195,8 @@ public class QuestMenuService {
     public void selectDifficultyForSlot(Player player, int slotIndex, String difficultyId, boolean reroll) {
         String resetKey = resetService.currentResetKey();
         CompletableFuture<QuestSelectionResult> selection = reroll
-                ? questService.rerollQuestDifficulty(player, resetKey, slotIndex, difficultyId)
-                : questService.selectQuestDifficulty(player, resetKey, slotIndex, difficultyId);
+                ? selectionService.rerollQuestDifficulty(player, resetKey, slotIndex, difficultyId)
+                : selectionService.selectQuestDifficulty(player, resetKey, slotIndex, difficultyId);
         openWhenLoaded(player, selection, "select QuestsPlus difficulty " + difficultyId, Config.Messages::getDifficultySelectFailed, result -> {
             if (result.status() == QuestSelectionStatus.NO_AVAILABLE_QUEST) {
                 String normalizedDifficulty = QuestNames.normalize(difficultyId);

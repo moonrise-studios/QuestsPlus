@@ -70,7 +70,7 @@ class QuestServiceTest {
     private GlobalQuestService globalQuestService;
     private QuestProgressIndicatorService indicatorService;
     private Player player;
-    private QuestService service;
+    private QuestServices service;
     private PluginManager pluginManager;
     private ConsoleCommandSender console;
     private EntityScheduler entityScheduler;
@@ -89,7 +89,7 @@ class QuestServiceTest {
         player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getName()).thenReturn("Steve");
-        service = new QuestService(configProvider, definitionService, repository, streakService, globalQuestService, indicatorService);
+        service = QuestServices.create(configProvider, definitionService, repository, streakService, globalQuestService, indicatorService);
 
         pluginManager = mock(PluginManager.class);
         console = mock(ConsoleCommandSender.class);
@@ -125,10 +125,10 @@ class QuestServiceTest {
         when(handler.createGeneratedQuest(any(), any(), anyString(), anyMap())).thenReturn(generated);
         when(repository.saveGeneratedQuests(any())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
 
-        CompletableFuture<?> selection = service.selectQuestDifficulty(player, RESET_KEY, 0, "easy");
+        CompletableFuture<?> selection = service.selection().selectQuestDifficulty(player, RESET_KEY, 0, "easy");
 
         assertThrows(CompletionException.class, selection::join);
-        PlayerQuestState state = service.cachedState(playerId, RESET_KEY).orElseThrow();
+        PlayerQuestState state = service.state().cachedState(playerId, RESET_KEY).orElseThrow();
         assertFalse(state.hasQuestAtSlot(0));
     }
 
@@ -143,9 +143,9 @@ class QuestServiceTest {
         when(handler.createGeneratedQuest(any(), any(), anyString(), anyMap())).thenReturn(generated);
         when(repository.saveGeneratedQuests(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-        service.selectQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+        service.selection().selectQuestDifficulty(player, RESET_KEY, 0, "easy").join();
 
-        assertEquals(generated.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
+        assertEquals(generated.instanceId(), service.state().cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
     }
 
     @Test
@@ -157,13 +157,13 @@ class QuestServiceTest {
         when(repository.loadExecutedMilestones(playerId)).thenReturn(CompletableFuture.completedFuture(Set.of()));
         when(repository.resetDailyQuests(playerId, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(null));
 
-        CompletableFuture<PlayerQuestState> loading = service.ensurePlayerStateAsync(playerId, RESET_KEY);
-        service.resetDaily(playerId, RESET_KEY).join();
+        CompletableFuture<PlayerQuestState> loading = service.state().ensurePlayerStateAsync(playerId, RESET_KEY);
+        service.state().resetDaily(playerId, RESET_KEY).join();
         staleLoad.complete(List.of(beforeReset));
 
         PlayerQuestState loaded = loading.join();
         assertTrue(loaded.quests().isEmpty());
-        assertTrue(service.cachedState(playerId, RESET_KEY).orElseThrow().quests().isEmpty());
+        assertTrue(service.state().cachedState(playerId, RESET_KEY).orElseThrow().quests().isEmpty());
         verify(repository, times(2)).loadQuests(playerId, RESET_KEY);
     }
 
@@ -176,16 +176,16 @@ class QuestServiceTest {
         when(repository.loadExecutedMilestones(playerId)).thenReturn(CompletableFuture.completedFuture(Set.of()));
         when(repository.resetDailyQuests(playerId, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(null));
 
-        service.ensurePlayerStateAsync(playerId, RESET_KEY);
-        service.resetDaily(playerId, RESET_KEY).join();
-        CompletableFuture<PlayerQuestState> afterReset = service.ensurePlayerStateAsync(playerId, RESET_KEY);
+        service.state().ensurePlayerStateAsync(playerId, RESET_KEY);
+        service.state().resetDaily(playerId, RESET_KEY).join();
+        CompletableFuture<PlayerQuestState> afterReset = service.state().ensurePlayerStateAsync(playerId, RESET_KEY);
 
         verify(repository, times(2)).loadQuests(playerId, RESET_KEY);
         GeneratedQuest fresh = quest(1, 0, false);
         freshLoad.complete(List.of(fresh));
         staleLoad.complete(List.of(quest(0, 4, false)));
         assertEquals(List.of(fresh), afterReset.join().quests());
-        assertEquals(List.of(fresh), service.cachedState(playerId, RESET_KEY).orElseThrow().quests());
+        assertEquals(List.of(fresh), service.state().cachedState(playerId, RESET_KEY).orElseThrow().quests());
     }
 
     @Test
@@ -195,13 +195,13 @@ class QuestServiceTest {
         when(repository.loadDifficultyCompletedCounts(playerId)).thenReturn(CompletableFuture.completedFuture(Map.of()));
         when(repository.loadExecutedMilestones(playerId)).thenReturn(CompletableFuture.completedFuture(Set.of()));
 
-        CompletableFuture<PlayerQuestState> first = service.ensurePlayerStateAsync(playerId, RESET_KEY);
-        CompletableFuture<PlayerQuestState> second = service.ensurePlayerStateAsync(playerId, RESET_KEY);
+        CompletableFuture<PlayerQuestState> first = service.state().ensurePlayerStateAsync(playerId, RESET_KEY);
+        CompletableFuture<PlayerQuestState> second = service.state().ensurePlayerStateAsync(playerId, RESET_KEY);
         GeneratedQuest quest = quest(0, 0, false);
         pending.complete(List.of(quest));
 
         assertSame(first.join(), second.join());
-        assertSame(first.join(), service.cachedState(playerId, RESET_KEY).orElseThrow());
+        assertSame(first.join(), service.state().cachedState(playerId, RESET_KEY).orElseThrow());
         verify(repository, times(1)).loadQuests(playerId, RESET_KEY);
     }
 
@@ -211,12 +211,12 @@ class QuestServiceTest {
         stubLoad(List.of(existing));
         stubReroll(new QuestRepository.RerollOutcome.LimitReached(1));
 
-        QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+        QuestSelectionResult result = service.selection().rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
 
         assertEquals(QuestSelectionStatus.NO_REROLLS, result.status());
         assertEquals(1, result.rerollsUsed());
-        assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
-        assertEquals(existing.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
+        assertEquals(1, service.usage().cachedRerollsUsed(playerId, RESET_KEY));
+        assertEquals(existing.instanceId(), service.state().cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
     }
 
     @Test
@@ -224,7 +224,7 @@ class QuestServiceTest {
         GeneratedQuest existing = quest(0, 2, false);
         stubLoad(List.of(existing));
         GeneratedQuest firstReplacement = quest(0, 0, false);
-        PlayerQuestState state = service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
+        PlayerQuestState state = service.state().ensurePlayerStateAsync(playerId, RESET_KEY).join();
         stubReroll(new QuestRepository.RerollOutcome.QuestMissing());
         // The first of two double-submitted rerolls has already replaced the quest by the time the second one fails.
         when(repository.replaceQuestAndIncrementRerolls(any(), any(), anyInt())).thenAnswer(invocation -> {
@@ -232,10 +232,10 @@ class QuestServiceTest {
             return CompletableFuture.completedFuture(new QuestRepository.RerollOutcome.QuestMissing());
         });
 
-        QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+        QuestSelectionResult result = service.selection().rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
 
         assertEquals(QuestSelectionStatus.INVALID, result.status());
-        assertEquals(firstReplacement.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
+        assertEquals(firstReplacement.instanceId(), service.state().cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
         verify(repository, times(1)).loadQuests(playerId, RESET_KEY);
     }
 
@@ -245,11 +245,11 @@ class QuestServiceTest {
         stubLoad(List.of(existing));
         GeneratedQuest replacement = stubReroll(new QuestRepository.RerollOutcome.Rerolled(1));
 
-        QuestSelectionResult result = service.rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
+        QuestSelectionResult result = service.selection().rerollQuestDifficulty(player, RESET_KEY, 0, "easy").join();
 
         assertEquals(QuestSelectionStatus.REROLLED, result.status());
-        assertEquals(1, service.cachedRerollsUsed(playerId, RESET_KEY));
-        assertEquals(replacement.instanceId(), service.cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
+        assertEquals(1, service.usage().cachedRerollsUsed(playerId, RESET_KEY));
+        assertEquals(replacement.instanceId(), service.state().cachedState(playerId, RESET_KEY).orElseThrow().questAtSlot(0).orElseThrow().instanceId());
     }
 
     @Test
@@ -263,12 +263,12 @@ class QuestServiceTest {
             return mock(ScheduledTask.class);
         });
 
-        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+        service.progress().progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
 
         verify(repository).incrementCompletionStats(eq(playerId), eq("easy"), any());
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
         verify(streakService, never()).evaluateQuestCompletion(any(), any(), any());
-        assertEquals(1, service.cachedState(playerId, RESET_KEY).orElseThrow().difficultyCompletions("easy"));
+        assertEquals(1, service.state().cachedState(playerId, RESET_KEY).orElseThrow().difficultyCompletions("easy"));
     }
 
     @Test
@@ -278,7 +278,7 @@ class QuestServiceTest {
         // Scheduling on an already removed entity returns null without calling the retired callback.
         when(entityScheduler.run(any(), any())).thenReturn(null);
 
-        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+        service.progress().progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
 
         verify(repository).incrementCompletionStats(eq(playerId), eq("easy"), any());
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
@@ -292,7 +292,7 @@ class QuestServiceTest {
         when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(withBonus));
         when(entityScheduler.run(any(), any())).thenReturn(null);
 
-        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+        service.progress().progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
 
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "bonus Steve"));
@@ -313,7 +313,7 @@ class QuestServiceTest {
             return mock(ScheduledTask.class);
         });
 
-        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+        service.progress().progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
 
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "give Steve diamond"));
         verify(streakService).evaluateQuestCompletion(eq(player), any(), any());
@@ -330,7 +330,7 @@ class QuestServiceTest {
         when(streakService.evaluateQuestCompletion(any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(new QuestStreakEvaluation(notYetAwarded, List.of())));
 
-        service.ensurePlayerStateAsync(player, RESET_KEY).join();
+        service.state().ensurePlayerStateAsync(player, RESET_KEY).join();
 
         verify(streakService).evaluateQuestCompletion(eq(player), any(), eq(List.of(completed)));
     }
@@ -342,7 +342,7 @@ class QuestServiceTest {
         QuestStreakState awarded = new QuestStreakState(playerId, 3, 3, RESET_KEY, RESET_KEY, 0, "", 0, 0, Set.of());
         when(streakService.ensureState(player, RESET_KEY)).thenReturn(CompletableFuture.completedFuture(awarded));
 
-        service.ensurePlayerStateAsync(player, RESET_KEY).join();
+        service.state().ensurePlayerStateAsync(player, RESET_KEY).join();
 
         verify(streakService, never()).evaluateQuestCompletion(any(), any(), any());
     }
@@ -358,11 +358,11 @@ class QuestServiceTest {
         // The message task is dropped because the player's entity is gone.
         when(entityScheduler.run(any())).thenReturn(null);
 
-        service.progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
+        service.progress().progressAdminGoal(player, RESET_KEY, 1, QuestTypes.KILL_MOB);
 
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 100"));
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "notify " + playerId + " 1"));
-        assertTrue(service.cachedState(playerId, RESET_KEY).orElseThrow().hasExecutedMilestone("easy", 1));
+        assertTrue(service.state().cachedState(playerId, RESET_KEY).orElseThrow().hasExecutedMilestone("easy", 1));
     }
 
     @Test
@@ -375,7 +375,7 @@ class QuestServiceTest {
                 .thenReturn(CompletableFuture.completedFuture(List.of(new QuestMilestoneClaim("easy", "Easy", 5, milestone))));
         when(entityScheduler.run(any())).thenReturn(null);
 
-        service.ensurePlayerStateAsync(player, RESET_KEY).join();
+        service.state().ensurePlayerStateAsync(player, RESET_KEY).join();
 
         bukkit.verify(() -> Bukkit.dispatchCommand(console, "eco give Steve 500"));
         verify(player, never()).isOnline();
@@ -393,7 +393,7 @@ class QuestServiceTest {
             return null;
         }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
 
-        List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
+        List<QuestProgressResult> results = service.progress().progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
 
         assertTrue(otherThreadUpdated.get());
         assertTrue(state.hasExecutedMilestone("easy", 1));
@@ -411,7 +411,7 @@ class QuestServiceTest {
             return null;
         }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
 
-        List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
+        List<QuestProgressResult> results = service.progress().progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
 
         assertEquals(10, state.questAtSlot(0).orElseThrow().progress());
         assertTrue(results.getFirst().completedNow());
@@ -428,7 +428,7 @@ class QuestServiceTest {
             return null;
         }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
 
-        List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
+        List<QuestProgressResult> results = service.progress().progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
 
         assertTrue(results.isEmpty());
         assertEquals(0, state.questAtSlot(0).orElseThrow().progress());
@@ -437,7 +437,7 @@ class QuestServiceTest {
 
     private PlayerQuestState stubProgress(GeneratedQuest quest) {
         stubLoad(List.of(quest));
-        PlayerQuestState state = service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
+        PlayerQuestState state = service.state().ensurePlayerStateAsync(playerId, RESET_KEY).join();
         when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
         when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ProgressUpdateOutcome.Updated()));
         when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
@@ -447,7 +447,7 @@ class QuestServiceTest {
 
     private void stubCompletion(GeneratedQuest quest) {
         stubLoad(List.of(quest));
-        service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
+        service.state().ensurePlayerStateAsync(playerId, RESET_KEY).join();
         when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
         when(definitionService.difficulty("easy")).thenReturn(Optional.of(new QuestDifficulty("easy", "Easy", 0, 0, Map.of(), List.of("give <player> diamond"), List.of(), List.of())));
         when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ProgressUpdateOutcome.Updated()));
@@ -498,14 +498,14 @@ class QuestServiceTest {
         );
         when(definitionService.variablePlaceholders(quest)).thenReturn(Map.of("entity", "Zombie"));
 
-        String rendered = service.replaceQuestTokens(
+        String rendered = service.text().replaceQuestTokens(
                 "<player>|<uuid>|<quest_id>|<quest_display_name>|<quest_difficulty>|<quest_difficulty_id>|<progress>/<goal_amount>/<goal-amount>|<entity>|<unknown>",
                 quest,
                 player
         );
 
         assertEquals("Steve|" + playerId + "|zombies|Kill zombies|<gold>Easy|easy|1,500/12,000/12,000|Zombie|<unknown>", rendered);
-        assertEquals("", service.replaceQuestTokens(null, quest, player));
+        assertEquals("", service.text().replaceQuestTokens(null, quest, player));
     }
 
     private GeneratedQuest quest(int slotIndex, int progress, boolean completed) {

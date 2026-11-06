@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import com.destroystokyo.paper.event.player.PlayerLaunchProjectileEvent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestTypes;
@@ -36,7 +36,7 @@ class NewQuestTypeHandlerTest {
 
     @Test
     public void milkMobGeneratesCanonicalMilkableMobQuest() {
-        MilkMobGoalHandler handler = new MilkMobGoalHandler(mock(QuestService.class), mock(QuestResetService.class));
+        MilkMobGoalHandler handler = new MilkMobGoalHandler(mock(QuestProgressService.class), mock(QuestResetService.class));
         QuestDefinition definition = definition("milk-run", QuestTypes.MILK_MOB, Map.of(
                 "mob-type", List.of("cow", "GOAT", "MOOSHROOM"),
                 "goal-amount", List.of("5")
@@ -59,13 +59,13 @@ class NewQuestTypeHandlerTest {
     @Test
     @SuppressWarnings("unchecked")
     public void milkMobEventProgressesMatchingMilkableMobType() {
-        QuestService questService = mock(QuestService.class);
+        QuestProgressService progressService = mock(QuestProgressService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);
         PlayerInventory inventory = mock(PlayerInventory.class);
         Entity cow = mock(Entity.class);
         PlayerInteractEntityEvent event = mock(PlayerInteractEntityEvent.class);
-        MilkMobGoalHandler handler = new MilkMobGoalHandler(questService, resetService);
+        MilkMobGoalHandler handler = new MilkMobGoalHandler(progressService, resetService);
         ArgumentCaptor<Predicate<GeneratedQuest>> matcher = ArgumentCaptor.forClass(Predicate.class);
 
         when(resetService.currentResetKey()).thenReturn("daily");
@@ -78,7 +78,7 @@ class NewQuestTypeHandlerTest {
 
         handler.onPlayerInteractEntity(event);
 
-        verify(questService).progressMatching(eq(player), eq(QuestTypes.MILK_MOB), eq("daily"), matcher.capture());
+        verify(progressService).progressMatching(eq(player), eq(QuestTypes.MILK_MOB), eq("daily"), matcher.capture());
         assertTrue(matcher.getValue().test(quest(QuestTypes.MILK_MOB, Map.of("mob-type", "COW"))));
         assertFalse(matcher.getValue().test(quest(QuestTypes.MILK_MOB, Map.of("mob-type", "GOAT"))));
     }
@@ -86,11 +86,11 @@ class NewQuestTypeHandlerTest {
     @Test
     @SuppressWarnings("unchecked")
     public void throwItemEventProgressesMatchingThrownItemType() {
-        QuestService questService = mock(QuestService.class);
+        QuestProgressService progressService = mock(QuestProgressService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);
         PlayerLaunchProjectileEvent event = mock(PlayerLaunchProjectileEvent.class);
-        ThrowItemGoalHandler handler = new ThrowItemGoalHandler(questService, resetService);
+        ThrowItemGoalHandler handler = new ThrowItemGoalHandler(progressService, resetService);
         ArgumentCaptor<Predicate<GeneratedQuest>> matcher = ArgumentCaptor.forClass(Predicate.class);
 
         when(resetService.currentResetKey()).thenReturn("daily");
@@ -99,7 +99,7 @@ class NewQuestTypeHandlerTest {
 
         handler.onPlayerLaunchProjectile(event);
 
-        verify(questService).progressMatching(eq(player), eq(QuestTypes.THROW_ITEM), eq("daily"), matcher.capture());
+        verify(progressService).progressMatching(eq(player), eq(QuestTypes.THROW_ITEM), eq("daily"), matcher.capture());
         assertTrue(matcher.getValue().test(quest(QuestTypes.THROW_ITEM, Map.of("item-type", "minecraft:ender_pearl"))));
         assertFalse(matcher.getValue().test(quest(QuestTypes.THROW_ITEM, Map.of("item-type", "minecraft:snowball"))));
     }
@@ -107,11 +107,11 @@ class NewQuestTypeHandlerTest {
     @Test
     @SuppressWarnings("unchecked")
     public void villagerTradeEventProgressesGenericTradeQuest() {
-        QuestService questService = mock(QuestService.class);
+        QuestProgressService progressService = mock(QuestProgressService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         Player player = mock(Player.class);
         PlayerTradeEvent event = mock(PlayerTradeEvent.class);
-        VillagerTradeGoalHandler handler = new VillagerTradeGoalHandler(questService, resetService);
+        VillagerTradeGoalHandler handler = new VillagerTradeGoalHandler(progressService, resetService);
         ArgumentCaptor<Predicate<GeneratedQuest>> matcher = ArgumentCaptor.forClass(Predicate.class);
 
         when(resetService.currentResetKey()).thenReturn("daily");
@@ -119,7 +119,7 @@ class NewQuestTypeHandlerTest {
 
         handler.onPlayerTrade(event);
 
-        verify(questService).progressMatching(eq(player), eq(QuestTypes.VILLAGER_TRADE), eq("daily"), matcher.capture());
+        verify(progressService).progressMatching(eq(player), eq(QuestTypes.VILLAGER_TRADE), eq("daily"), matcher.capture());
         assertTrue(matcher.getValue().test(quest(QuestTypes.VILLAGER_TRADE, Map.of())));
     }
 

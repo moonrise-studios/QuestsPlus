@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PlaceBlockGoalHandler implements GoalHandler {
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
     @Override
@@ -56,7 +56,7 @@ public class PlaceBlockGoalHandler implements GoalHandler {
         }
         String placedBlockKey = placedBlock.get();
 
-        questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
+        progressService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
                 placedBlockKey.equals(quest.variables().get(QuestTypeSupport.BLOCK_TYPE))
         );
     }

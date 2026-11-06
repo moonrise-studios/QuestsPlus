@@ -2,8 +2,8 @@ package gg.moonrise.quests.integration;
 
 import dev.rosewood.rosestacker.event.EntityStackMultipleDeathEvent;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.type.KillAllMobsGoalHandler;
 import gg.moonrise.quests.type.KillMobGoalHandler;
@@ -17,11 +17,11 @@ import org.bukkit.event.Listener;
 
 public class RoseStackerMobKillListener implements Listener {
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
 
-    public RoseStackerMobKillListener(QuestService questService, QuestResetService resetService) {
-        this.questService = questService;
+    public RoseStackerMobKillListener(QuestProgressService progressService, QuestResetService resetService) {
+        this.progressService = progressService;
         this.resetService = resetService;
     }
 
@@ -55,8 +55,8 @@ public class RoseStackerMobKillListener implements Listener {
 
     public void progressStackedKills(Player killer, EntityType killedType, String killedWorldName, int amount) {
         String resetKey = resetService.currentResetKey();
-        questService.progressMatching(killer, QuestTypes.KILL_MOB, resetKey, amount, KillMobGoalHandler.killMatcher(killedType));
-        questService.progressMatching(killer, QuestTypes.KILL_MOB_IN_WORLD, resetKey, amount, KillMobInWorldGoalHandler.killMatcher(killedType, killedWorldName));
-        questService.progressMatching(killer, QuestTypes.KILL_ALL_MOBS, resetKey, amount, KillAllMobsGoalHandler.killMatcher());
+        progressService.progressMatching(killer, QuestTypes.KILL_MOB, resetKey, amount, KillMobGoalHandler.killMatcher(killedType));
+        progressService.progressMatching(killer, QuestTypes.KILL_MOB_IN_WORLD, resetKey, amount, KillMobInWorldGoalHandler.killMatcher(killedType, killedWorldName));
+        progressService.progressMatching(killer, QuestTypes.KILL_ALL_MOBS, resetKey, amount, KillAllMobsGoalHandler.killMatcher());
     }
 }

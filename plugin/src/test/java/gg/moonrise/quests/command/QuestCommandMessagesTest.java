@@ -13,6 +13,10 @@ import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
+import gg.moonrise.quests.core.service.QuestProgressService;
+import gg.moonrise.quests.core.service.QuestSlotService;
+import gg.moonrise.quests.core.service.QuestTextService;
+import gg.moonrise.quests.core.service.QuestUsageService;
 import gg.moonrise.quests.core.service.QuestStreakService;
 import gg.moonrise.quests.core.service.SqlProvider;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -48,6 +52,7 @@ public class QuestCommandMessagesTest {
     private MockedStatic<Scheduler> scheduler;
     private ConfigProvider configProvider;
     private QuestService questService;
+    private QuestUsageService usageService;
     private QuestStreakService streakService;
     private QuestCommand command;
 
@@ -71,6 +76,7 @@ public class QuestCommandMessagesTest {
         configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(new Config());
         questService = mock(QuestService.class);
+        usageService = mock(QuestUsageService.class);
         streakService = mock(QuestStreakService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         when(resetService.currentResetKey()).thenReturn("daily");
@@ -78,6 +84,10 @@ public class QuestCommandMessagesTest {
                 configProvider,
                 mock(QuestDefinitionService.class),
                 questService,
+                mock(QuestSlotService.class),
+                usageService,
+                mock(QuestProgressService.class),
+                mock(QuestTextService.class),
                 mock(QuestMenuService.class),
                 resetService,
                 streakService,
@@ -129,7 +139,7 @@ public class QuestCommandMessagesTest {
         setField(shared, "streakCurrencyUpdateFailed", Message.of("Currency broke."));
         when(configProvider.get()).thenReturn(configWith(shared));
         when(questService.resetDaily(any(), any())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
-        when(questService.resetRerolls(any(), any())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
+        when(usageService.resetRerolls(any(), any())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
         when(streakService.isEnabled()).thenReturn(true);
         when(streakService.adjustCurrency(any(), any(), anyInt())).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")));
 

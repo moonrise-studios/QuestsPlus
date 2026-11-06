@@ -131,7 +131,7 @@ class QuestMenuLayoutTest {
         Config reloaded = new Config();
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(first);
-        QuestService service = new QuestService(
+        QuestServices service = QuestServices.create(
                 configProvider,
                 mock(QuestDefinitionService.class),
                 mock(QuestRepository.class),
@@ -140,13 +140,13 @@ class QuestMenuLayoutTest {
                 mock(QuestProgressIndicatorService.class)
         );
 
-        QuestMenuLayout layout = service.menuLayout();
-        assertSame(layout, service.menuLayout());
+        QuestMenuLayout layout = service.slots().menuLayout();
+        assertSame(layout, service.slots().menuLayout());
 
         when(configProvider.get()).thenReturn(reloaded);
-        QuestMenuLayout reloadedLayout = service.menuLayout();
+        QuestMenuLayout reloadedLayout = service.slots().menuLayout();
         assertNotSame(layout, reloadedLayout);
-        assertSame(reloadedLayout, service.menuLayout());
+        assertSame(reloadedLayout, service.slots().menuLayout());
     }
 
     private static void setField(Object target, String name, Object value) throws ReflectiveOperationException {

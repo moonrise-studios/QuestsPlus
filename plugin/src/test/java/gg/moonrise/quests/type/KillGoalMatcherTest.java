@@ -1,7 +1,7 @@
 package gg.moonrise.quests.type;
 
+import gg.moonrise.quests.core.service.QuestProgressService;
 import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.World;
@@ -52,9 +52,9 @@ class KillGoalMatcherTest {
     @Test
     @SuppressWarnings("unchecked")
     public void killMobInWorldDeathEventUsesSharedMatcher() {
-        QuestService questService = mock(QuestService.class);
+        QuestProgressService progressService = mock(QuestProgressService.class);
         QuestResetService resetService = mock(QuestResetService.class);
-        KillMobInWorldGoalHandler handler = new KillMobInWorldGoalHandler(questService, resetService);
+        KillMobInWorldGoalHandler handler = new KillMobInWorldGoalHandler(progressService, resetService);
         Player killer = mock(Player.class);
         World world = mock(World.class);
         LivingEntity entity = mock(LivingEntity.class);
@@ -70,7 +70,7 @@ class KillGoalMatcherTest {
 
         handler.onMobDeath(event);
 
-        verify(questService).progressMatching(eq(killer), eq(QuestTypes.KILL_MOB_IN_WORLD), eq("daily"), matcher.capture());
+        verify(progressService).progressMatching(eq(killer), eq(QuestTypes.KILL_MOB_IN_WORLD), eq("daily"), matcher.capture());
         assertTrue(matcher.getValue().test(quest(Map.of("mob-type", "blaze", "world", "world_nether"))));
         assertFalse(matcher.getValue().test(quest(Map.of("mob-type", "blaze", "world", "world"))));
     }

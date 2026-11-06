@@ -48,7 +48,9 @@ public class QuestMenuItems {
 
     private final ConfigProvider configProvider;
     private final QuestDefinitionService definitionService;
-    private final QuestService questService;
+    private final QuestSlotService slotService;
+    private final QuestUsageService usageService;
+    private final QuestTextService textService;
     private final QuestResetService resetService;
     private final QuestStreakService streakService;
     private final GlobalQuestService globalQuestService;
@@ -60,11 +62,11 @@ public class QuestMenuItems {
     }
 
     public QuestMenuLayout menuLayout() {
-        return questService.menuLayout();
+        return slotService.menuLayout();
     }
 
     public boolean canAccessSlot(Player player, int slotIndex) {
-        return questService.canAccessSlot(player, slotIndex);
+        return slotService.canAccessSlot(player, slotIndex);
     }
 
     public ItemStack buildMenuItem(Config.MenuItem item) {
@@ -83,7 +85,7 @@ public class QuestMenuItems {
     }
 
     public ItemStack buildQuestResetButtonItem(Player viewer, PlayerQuestState state) {
-        QuestResetEligibility eligibility = questService.resetEligibility(viewer, state);
+        QuestResetEligibility eligibility = slotService.resetEligibility(viewer, state);
         Config.QuestResetButton button = config().getMenu().getResetButton();
         Config.MenuItem item = button == null || button.getItem() == null
                 ? new Config.MenuItem("AMETHYST_SHARD", "<gold>Reset Quests", List.of("<gray><completed>/<required> completed."))
@@ -108,7 +110,7 @@ public class QuestMenuItems {
 
     public boolean canShowMilestoneButton() {
         Config.MilestoneButton button = config().getMenu().getMilestoneButton();
-        return button != null && button.isEnabled() && questService.questMilestonesEnabled();
+        return button != null && button.isEnabled() && config().isQuestMilestonesEnabled();
     }
 
     public boolean canShowStreakButton() {
@@ -135,7 +137,7 @@ public class QuestMenuItems {
         for (String rawLine : template.getLore()) {
             String line = rawLine == null ? "" : rawLine;
             if (addDescriptionLore(lore, line, quest.description(), descriptionLine ->
-                    questService.replaceRawVariableDisplayValues(replaceMenuTokens(descriptionLine, quest, viewer), quest))) {
+                    textService.replaceRawVariableDisplayValues(replaceMenuTokens(descriptionLine, quest, viewer), quest))) {
                 continue;
             }
             if ("<difficulty_lore>".equalsIgnoreCase(line.trim())) {
@@ -212,7 +214,7 @@ public class QuestMenuItems {
     }
 
     public ItemStack buildLockedPremiumQuestSlotItem(int slotIndex) {
-        int premiumSlotIndex = slotIndex - questService.dailyQuestSlots();
+        int premiumSlotIndex = slotIndex - slotService.dailyQuestSlots();
         MenuTokens tokens = new MenuTokens()
                 .putNumber("slot", slotIndex + 1)
                 .putNumber("slot_index", slotIndex)
@@ -298,7 +300,7 @@ public class QuestMenuItems {
     }
 
     public MenuTokens streakTokens(Player viewer, PlayerQuestState questState, QuestStreakState streakState) {
-        List<GeneratedQuest> eligibleQuests = viewer == null ? questState.quests() : questService.accessibleQuests(viewer, questState);
+        List<GeneratedQuest> eligibleQuests = viewer == null ? questState.quests() : slotService.accessibleQuests(viewer, questState);
         int required = streakService.dailyRequiredCompletions(questState, eligibleQuests);
         return new MenuTokens()
                 .putNumber("streak", streakState.currentStreak())
@@ -313,8 +315,8 @@ public class QuestMenuItems {
 
     private MenuTokens resetTokens(Player viewer, QuestResetEligibility eligibility, QuestCurrency currency) {
         String resetKey = resetService.currentResetKey();
-        int used = viewer == null ? 0 : questService.cachedQuestResetPurchasesUsed(viewer.getUniqueId(), resetKey);
-        int limit = questService.questResetDailyLimit();
+        int used = viewer == null ? 0 : usageService.cachedQuestResetPurchasesUsed(viewer.getUniqueId(), resetKey);
+        int limit = usageService.questResetDailyLimit();
         int remaining = Math.max(0, limit - used);
         return new MenuTokens()
                 .putNumber("completed", eligibility.completed())
@@ -415,9 +417,9 @@ public class QuestMenuItems {
 
     private String replaceMenuTokens(String template, GeneratedQuest quest, Player viewer) {
         String resetKey = resetService.currentResetKey();
-        int rerollLimit = questService.rerollLimit(viewer);
-        int rerollsUsed = questService.cachedRerollsUsed(viewer.getUniqueId(), resetKey);
-        return questService.replaceQuestTokens(template, quest, viewer)
+        int rerollLimit = slotService.rerollLimit(viewer);
+        int rerollsUsed = usageService.cachedRerollsUsed(viewer.getUniqueId(), resetKey);
+        return textService.replaceQuestTokens(template, quest, viewer)
                 .replace("<quest_reset_timer>", resetService.resetTimerPlaceholder())
                 .replace("<rerolls_used>", QuestNumberFormatter.format(rerollsUsed))
                 .replace("<rerolls_limit>", QuestNumberFormatter.format(rerollLimit))
