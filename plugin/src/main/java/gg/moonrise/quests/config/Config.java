@@ -326,7 +326,7 @@ public class Config {
                 "",
                 "Maps each key to permission questsplus.reroll.<key>; the highest matching value is used."
         })
-        private Map<String, Integer> permissionLimits = defaultRerollLimits();
+        private Map<String, Integer> permissionLimits = defaultPermissionLimits();
     }
 
     @Getter
@@ -840,7 +840,7 @@ public class Config {
                 "",
                 "Maps each key to permission questsplus.premium.<key>; the highest matching value is used."
         })
-        private Map<String, Integer> permissionLimits = defaultPremiumLimits();
+        private Map<String, Integer> permissionLimits = defaultPermissionLimits();
         @Comment({
                 "",
                 "Premium bonus rewards keyed by quest difficulty id. These run after difficulty rewards and before quest-specific rewards."
@@ -3345,15 +3345,11 @@ public class Config {
         return config;
     }
 
-    private static Map<String, Integer> defaultRerollLimits() {
-        Map<String, Integer> limits = new LinkedHashMap<>();
-        limits.put("vip", 1);
-        limits.put("vipplus", 2);
-        limits.put("mvp", 3);
-        return limits;
-    }
-
-    private static Map<String, Integer> defaultPremiumLimits() {
+    /**
+     * Default rank-to-limit map shared by daily rerolls and premium quest slots. Returns a new
+     * mutable map on every call so each config instance owns its own copy.
+     */
+    private static Map<String, Integer> defaultPermissionLimits() {
         Map<String, Integer> limits = new LinkedHashMap<>();
         limits.put("vip", 1);
         limits.put("vipplus", 2);
