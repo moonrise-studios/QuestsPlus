@@ -36,7 +36,10 @@ import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.context.CommandContext;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -516,48 +519,48 @@ public class QuestCommand implements PaperCommand {
 
     @Suggestions("online-players")
     public Iterable<String> onlinePlayerSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        return matchingSuggestions(Bukkit.getOnlinePlayers().stream().map(Player::getName), input);
     }
 
     @Suggestions("quest-difficulties")
     public Iterable<String> questDifficultySuggestions(CommandContext<CommandSourceStack> context, String input) {
-        return definitionService.difficulties().stream().map(QuestDifficulty::id).toList();
+        return matchingSuggestions(definitionService.difficulties().stream().map(QuestDifficulty::id), input);
     }
 
     @Suggestions("quest-types")
     public Iterable<String> questTypeSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        String normalizedInput = normalizeSuggestionInput(input);
-        return definitionService.registeredTypes().stream()
-                .map(QuestType::key)
-                .sorted()
-                .filter(key -> normalizedInput.isBlank() || key.startsWith(normalizedInput))
-                .toList();
+        return matchingSuggestions(definitionService.registeredTypes().stream().map(QuestType::key).sorted(), input);
     }
 
     @Suggestions("quest-indicator-scopes")
     public Iterable<String> questIndicatorScopeSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        String normalizedInput = normalizeSuggestionInput(input);
-        return java.util.stream.Stream.of("Main", "Both", "Global")
-                .filter(scope -> normalizedInput.isBlank() || normalizeSuggestionInput(scope).startsWith(normalizedInput))
-                .toList();
+        return matchingSuggestions(Stream.of("Main", "Both", "Global"), input);
     }
 
     @Suggestions("quest-indicators")
     public Iterable<String> questIndicatorSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        String normalizedInput = normalizeSuggestionInput(input);
-        return java.util.stream.Stream.concat(
-                        java.util.stream.Stream.of(QuestIndicatorPreferenceService.DEFAULT, QuestIndicatorPreferenceService.OFF),
-                        progressIndicatorService.availableIndicatorTypes().stream()
-                )
-                .distinct()
-                .filter(key -> normalizedInput.isBlank() || key.startsWith(normalizedInput))
+        Stream<String> indicators = Stream.concat(
+                Stream.of(QuestIndicatorPreferenceService.DEFAULT, QuestIndicatorPreferenceService.OFF),
+                progressIndicatorService.availableIndicatorTypes().stream()
+        );
+        return matchingSuggestions(indicators.distinct(), input);
+    }
+
+    /**
+     * Keeps the candidates whose normalized form contains the normalized input anywhere, so matching
+     * ignores case, spaces, and dashes. Candidates are returned unchanged.
+     */
+    private List<String> matchingSuggestions(Stream<String> candidates, String input) {
+        String needle = normalizeSuggestionInput(input);
+        return candidates
+                .filter(candidate -> normalizeSuggestionInput(candidate).contains(needle))
                 .toList();
     }
 
     private String normalizeSuggestionInput(String input) {
-        return java.util.Objects.requireNonNullElse(input, "")
+        return Objects.requireNonNullElse(input, "")
                 .trim()
-                .toUpperCase(java.util.Locale.ROOT)
+                .toUpperCase(Locale.ROOT)
                 .replace('-', '_')
                 .replace(' ', '_')
                 .replaceAll("[^A-Z0-9_]", "");
