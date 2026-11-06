@@ -5,6 +5,7 @@ import de.exlll.configlib.Configuration;
 import de.exlll.configlib.Ignore;
 import gg.moonrise.engine.message.Message;
 import lombok.Getter;
+import lombok.experimental.Delegate;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -1968,342 +1969,40 @@ public class Config {
         }
     }
 
-    @Getter
-    @Configuration
+    /**
+     * Read-only view over every player and admin message, composed from the per-feature message
+     * sections (messages.yml, daily.yml, quest-milestones.yml and streaks.yml). Getters delegate to
+     * those sections, so a new message only needs to be declared once in its file class.
+     */
     public static class Messages {
-        @Comment({
-                "",
-                "Player command usage message."
-        })
-        private Message usage = Message.of("<yellow>/quests</yellow> <gray>or</gray> <yellow>/q</yellow> <gray>- Open daily quests\n<yellow>/quests progress</yellow> <gray>or</gray> <yellow>/q progress</yellow> <gray>- View progress\n<yellow>/quests completed</yellow> <gray>or</gray> <yellow>/q completed</yellow> <gray>- View completed quest totals\n<yellow>/quests milestones</yellow> <gray>or</gray> <yellow>/q milestones</yellow> <gray>- View completion milestones\n<yellow>/quests streaks</yellow> <gray>or</gray> <yellow>/q streaks</yellow> <gray>- View quest streaks\n<yellow>/quests indicator <main|global|both> <type|off|default></yellow> <gray>or</gray> <yellow>/q indicator <main|global|both> <type|off|default></yellow> <gray>- Set progress indicators</gray>");
-        @Comment({
-                "",
-                "Admin command usage message."
-        })
-        private Message adminUsage = Message.of("<yellow>/questsadmin reload</yellow> <gray>or</gray> <yellow>/qa reload</yellow>\n<yellow>/questsadmin listtypes</yellow> <gray>or</gray> <yellow>/qa listtypes</yellow>\n<yellow>/questsadmin reset <player></yellow> <gray>or</gray> <yellow>/qa reset <player></yellow>\n<yellow>/questsadmin complete <player></yellow> <gray>or</gray> <yellow>/qa complete <player></yellow>\n<yellow>/questsadmin dailyrerolls reset <player></yellow> <gray>or</gray> <yellow>/qa dailyrerolls reset <player></yellow>\n<yellow>/questsadmin add <amount> <quest-type> <player></yellow> <gray>or</gray> <yellow>/qa add <amount> <quest-type> <player></yellow>\n<yellow>/questsadmin global add <quest-type> <amount> <player></yellow> <gray>or</gray> <yellow>/qa global add <quest-type> <amount> <player></yellow>\n<yellow>/questsadmin global refresh</yellow> <gray>or</gray> <yellow>/qa global refresh</yellow>\n<yellow>/questsadmin shield give <amount> <player></yellow> <gray>or</gray> <yellow>/qa shield give <amount> <player></yellow>\n<yellow>/questsadmin shield take <amount> <player></yellow> <gray>or</gray> <yellow>/qa shield take <amount> <player></yellow>\n<yellow>/questsadmin recovery give <amount> <player></yellow> <gray>or</gray> <yellow>/qa recovery give <amount> <player></yellow>\n<yellow>/questsadmin recovery take <amount> <player></yellow> <gray>or</gray> <yellow>/qa recovery take <amount> <player></yellow>");
-        @Comment({
-                "",
-                "Message sent after a successful /questsadmin reload or /qa reload."
-        })
-        private Message reloadSuccess = Message.of("<green>QuestsPlus config reloaded.");
-        @Comment({
-                "",
-                "Message sent when /questsadmin reload or /qa reload fails."
-        })
-        private Message reloadFailed = Message.of("<red>QuestsPlus config reload failed. Check console for details.");
-        @Comment({
-                "",
-                "Message sent when a player-only command is used by console."
-        })
-        private Message playerOnly = Message.of("<red>Only players can use this command.");
-        @Comment({
-                "",
-                "Message sent when a player selects a quest progress indicator."
-        })
-        private Message indicatorSelected = Message.of("<green>Quest progress indicator set to <white><indicator></white>.");
-        @Comment({
-                "",
-                "Message sent when a player resets their quest progress indicator to the default BossBar."
-        })
-        private Message indicatorReset = Message.of("<green>Quest progress indicator reset to <white>BossBar</white>.");
-        @Comment({
-                "",
-                "Message sent when a requested quest progress indicator is unknown or unavailable."
-        })
-        private Message indicatorUnavailable = Message.of("<red>Unknown or unavailable quest progress indicator: <white><indicator></white>.");
-        @Comment({
-                "",
-                "Message sent when a player disables a quest progress indicator scope."
-        })
-        private Message indicatorDisabled = Message.of("<green><scope> quest progress indicator disabled.");
-        @Comment({
-                "",
-                "Message sent when a player has no selected daily quests."
-        })
-        private Message noQuests = Message.of("<red>No daily quests are selected.");
-        @Comment({
-                "",
-                "Message sent when a selected difficulty has no enabled quest definitions."
-        })
-        private Message noAvailableQuestForDifficulty = Message.of("<red>No quests are available for difficulty <difficulty><red>.");
-        @Comment({
-                "",
-                "Message sent when a player has not completed the configured requirements for a difficulty.",
-                "Supports <difficulty>, <difficulty_id>, and <requirements>."
-        })
-        private Message difficultyRequirementsNotMet = Message.of("<red>You need <requirements> before selecting <difficulty><red>.");
-        @Comment({
-                "",
-                "Message sent when a player tries to reroll without rerolls remaining."
-        })
-        private Message noRerollsRemaining = Message.of("<red>You do not have any daily quest rerolls remaining.");
-        @Comment({
-                "",
-                "Message sent when a player tries to reroll a completed quest."
-        })
-        private Message completedQuestCannotReroll = Message.of("<red>Completed quests cannot be rerolled.");
-        @Comment({
-                "",
-                "Message sent after a successful player quest reroll."
-        })
-        private Message questRerolled = Message.of("<green>Rerolled quest slot <white><slot></white>. Remaining rerolls: <white><rerolls_remaining></white>.");
-        @Comment({
-                "",
-                "Header sent by /quests progress."
-        })
-        private Message progressHeader = Message.of("<gold><bold>Daily Quests</bold></gold> <gray>- reset key <white><reset_key></white>");
-        @Comment({
-                "",
-                "Line template for each quest in /quests progress."
-        })
-        private Message progressLine = Message.of("<gray>- <yellow><quest_display_name></yellow>: <white><progress></white>/<white><goal_amount></white> <gray>(<status>)</gray>");
-        @Comment({
-                "",
-                "Total completed quest count message."
-        })
-        private Message completedCount = Message.of("<green>You have completed <white><quests_completed></white> quests across all difficulties.");
-        @Comment({
-                "",
-                "Per-difficulty completed quest summary line."
-        })
-        private Message completedDifficultyLine = Message.of("<gray>- <quest_difficulty><gray>: <white><quests_completed></white>");
-        @Comment({
-                "",
-                "Message sent when a quest completion unlocks a completion milestone.",
-                "Supports <quest_display_name>, <quest_difficulty>, <difficulty>, <difficulty_id>, <completed>, <milestone_completed>, and <milestone_display_name>."
-        })
-        private Message milestoneCompleted = Message.of("<green>Milestone complete: <white><milestone_display_name></white> <gray>(<quest_difficulty>, <milestone_completed> quests).");
-        @Comment({
-                "",
-                "Message sent when an existing completion milestone is rewarded retroactively.",
-                "Supports <quest_difficulty>, <difficulty>, <difficulty_id>, <completed>, <milestone_completed>, and <milestone_display_name>."
-        })
-        private Message milestoneClaimed = Message.of("<green>Milestone reward claimed: <white><milestone_display_name></white> <gray>(<quest_difficulty>, <milestone_completed> quests).");
-        @Comment({
-                "",
-                "Message sent to a player when a quest completes."
-        })
-        private Message questCompleted = Message.of("<green>Quest completed: <white><quest_display_name></white>.");
-        @Comment({
-                "",
-                "Server broadcast sent when the scheduled daily reset fires."
-        })
-        private Message questsResetBroadcast = Message.of("<green>Daily quests have reset.");
-        @Comment({
-                "",
-                "Admin confirmation after resetting a player's daily quest selections."
-        })
-        private Message resetPlayer = Message.of("<green>Reset daily quests for <white><player></white>.");
-        @Comment({
-                "",
-                "Admin confirmation after clearing a player's daily quest selections."
-        })
-        private Message rerollPlayer = Message.of("<green>Rerolled daily quests for <white><player></white>.");
-        @Comment({
-                "",
-                "Admin confirmation after force-completing a player's current accessible daily quests.",
-                "Supports <player> and <quests>."
-        })
-        private Message completeDailyPlayer = Message.of("<green>Completed <white><quests></white> daily quests for <white><player></white>.");
-        @Comment({
-                "",
-                "Message sent when a player has not completed every accessible quest slot for a manual reset.",
-                "Supports <completed> and <required>."
-        })
-        private Message questResetNotReady = Message.of("<red>Complete all available quests before resetting. <gray>(<completed>/<required>)");
-        @Comment({
-                "",
-                "Message sent when a player already has a quest reset in progress."
-        })
-        private Message questResetProcessing = Message.of("<yellow>Your quest reset is already being processed.");
-        @Comment({
-                "",
-                "Message sent after a player purchases a quest reset and their current quests are cleared.",
-                "Supports <payment>, <reward>, <amount>, <completed>, and <required>."
-        })
-        private Message questResetSuccess = Message.of("<green>Purchased a Quest Reset for <white><amount></white> <white><payment></white>. Your quests were reset.");
-        @Comment({
-                "",
-                "Message sent when the chosen reset purchase integration is unavailable or rejects the payment.",
-                "Supports <payment>, <reward>, <amount>, <completed>, and <required>."
-        })
-        private Message questResetPurchaseUnavailable = Message.of("<red>You cannot afford to purchase a Quest Reset.");
-        @Comment({
-                "",
-                "Message sent when a player has reached the configured reset purchase limit for the active reset window.",
-                "Supports <completed>, <required>, <resets_used>, <resets_limit>, and <resets_remaining>."
-        })
-        private Message questResetLimitReached = Message.of("<red>You have already used your Quest Reset for this reset window.");
-        @Comment({
-                "",
-                "Message sent when a completed-quest reset fails."
-        })
-        private Message questResetFailed = Message.of("<red>Failed to reset your quests right now.");
-        @Comment({
-                "",
-                "Admin confirmation when quest progress is applied."
-        })
-        private Message adminProgress = Message.of("<green>Added <white><amount></white> progress to <white><quest_id></white> for <white><player></white>.");
-        @Comment({
-                "",
-                "Admin message when quest progress does not apply to an active quest."
-        })
-        private Message adminProgressNotActive = Message.of("<yellow>No active quest <white><quest_id></white> was progressed for <white><player></white>.");
-        @Comment({
-                "",
-                "Message sent when an admin command amount is not positive."
-        })
-        private Message invalidAdminProgressAmount = Message.of("<red>Amount must be a positive integer.");
-        @Comment({
-                "",
-                "Message sent when an admin command quest type is unknown."
-        })
-        private Message invalidQuestType = Message.of("<red>Invalid quest type: <white><quest_type></white>.");
-        @Comment({
-                "",
-                "Message sent when an online player argument cannot be resolved."
-        })
-        private Message playerNotFound = Message.of("<red>Player not found: <white><player></white>.");
-        @Comment({
-                "",
-                "Admin confirmation after refreshing the active global quest."
-        })
-        private Message globalQuestRefreshed = Message.of("<green>Refreshed the active global quest.");
-        @Comment({
-                "",
-                "Admin confirmation after resetting a player's daily reroll usage."
-        })
-        private Message rerollsReset = Message.of("<green>Reset daily rerolls for <white><player></white>.");
-        @Comment({
-                "",
-                "Message sent when the daily quest menu cannot be opened."
-        })
-        private Message menuOpenFailed = Message.of("<red>Failed to open quests right now.");
-        @Comment({
-                "",
-                "Message sent when a player opens quest milestones while they are disabled."
-        })
-        private Message questMilestonesDisabled = Message.of("<red>Quest milestones are disabled.");
-        @Comment({
-                "",
-                "Message sent when the quest milestone selector or milestone page cannot be opened."
-        })
-        private Message milestonesOpenFailed = Message.of("<red>Failed to open quest milestones right now.");
-        @Comment({
-                "",
-                "Message sent when a requested quest difficulty does not exist."
-        })
-        private Message unknownQuestDifficulty = Message.of("<red>Unknown quest difficulty.");
-        @Comment({
-                "",
-                "Message sent when a player uses quest streaks while they are disabled."
-        })
-        private Message questStreaksDisabled = Message.of("<red>Quest streaks are disabled.");
-        @Comment({
-                "",
-                "Message sent when the quest streak menu cannot be opened."
-        })
-        private Message streaksOpenFailed = Message.of("<red>Failed to open quest streaks right now.");
-        @Comment({
-                "",
-                "Message sent when the quest streak confirmation menu cannot be opened."
-        })
-        private Message streakConfirmationOpenFailed = Message.of("<red>Failed to open quest streak confirmation right now.");
-        @Comment({
-                "",
-                "Message sent when the quest reset purchase menu cannot be opened."
-        })
-        private Message questResetPurchaseOpenFailed = Message.of("<red>Failed to open quest reset purchases right now.");
-        @Comment({
-                "",
-                "Message sent when the quest difficulty picker cannot be opened."
-        })
-        private Message difficultyPickerOpenFailed = Message.of("<red>Failed to open quest difficulty picker right now.");
-        @Comment({
-                "",
-                "Message sent when the quest reroll difficulty picker cannot be opened."
-        })
-        private Message rerollPickerOpenFailed = Message.of("<red>Failed to open quest reroll picker right now.");
-        @Comment({
-                "",
-                "Message sent when selecting or rerolling a quest difficulty fails."
-        })
-        private Message difficultySelectFailed = Message.of("<red>Failed to select that quest difficulty right now.");
-        @Comment({
-                "",
-                "Message sent when /quests progress cannot load the player's quests."
-        })
-        private Message progressLoadFailed = Message.of("<red>Failed to load quest progress right now.");
-        @Comment({
-                "",
-                "Message sent when /quests completed cannot load the player's completed quest count."
-        })
-        private Message completedCountLoadFailed = Message.of("<red>Failed to load completed quest count right now.");
-        @Comment({
-                "",
-                "Message sent when a progress indicator preference cannot be saved."
-        })
-        private Message indicatorUpdateFailed = Message.of("<red>Failed to update quest indicator preference.");
-        @Comment({
-                "",
-                "Admin message sent when resetting a player's daily quests fails."
-        })
-        private Message resetPlayerFailed = Message.of("<red>Failed to reset that player's quests.");
-        @Comment({
-                "",
-                "Admin message sent when completing a player's daily quests fails."
-        })
-        private Message completeDailyPlayerFailed = Message.of("<red>Failed to complete that player's daily quests.");
-        @Comment({
-                "",
-                "Admin message sent when refreshing the active global quest fails."
-        })
-        private Message globalQuestRefreshFailed = Message.of("<red>Failed to refresh the active global quest.");
-        @Comment({
-                "",
-                "Admin message sent when resetting a player's daily reroll usage fails."
-        })
-        private Message rerollsResetFailed = Message.of("<red>Failed to reset that player's rerolls.");
-        @Comment({
-                "",
-                "Admin message sent when changing shield or recovery currency balances fails."
-        })
-        private Message streakCurrencyUpdateFailed = Message.of("<red>Failed to update streak currency.");
-        @Comment({
-                "",
-                "Configurable streak milestone locked text."
-        })
-        private String streakMilestoneLocked = "<dark_gray>Locked";
-        @Comment({
-                "",
-                "Configurable streak milestone completed text."
-        })
-        private String streakMilestoneCompleted = "<green>Completed";
-        @Comment({
-                "",
-                "Configurable streak milestone progress text. Supports <streak> and <milestone_streak>."
-        })
-        private String streakMilestoneProgress = "<gray>Progress: <white><streak></white>/<white><milestone_streak></white>";
-        @Comment({
-                "",
-                "Message sent after a successful Streak Recovery."
-        })
-        private Message streakRecoveryApplied = Message.of("<green>Recovered your streak to <white><streak></white>.");
-        @Comment({
-                "",
-                "Message sent when no recoverable streak is available."
-        })
-        private Message streakRecoveryUnavailable = Message.of("<red>No recoverable streak is available.");
-        @Comment({
-                "",
-                "Admin confirmation after changing shield or recovery currency balances."
-        })
-        private Message streakCurrencyUpdated = Message.of("<green>Updated <white><player></white>'s <white><currency></white> balance to <white><amount></white>.");
-        @Comment({
-                "",
-                "Progress indicator UI settings used when personal or global quest progress is applied."
-        })
-        private ProgressIndicators progressIndicators = new ProgressIndicators();
+        @Delegate
+        private final SharedMessages shared;
+        @Delegate
+        private final DailyMessages daily;
+        @Delegate
+        private final MilestoneMessages milestone;
+        @Delegate
+        private final StreakMessages streak;
+        @Getter
+        private final ProgressIndicators progressIndicators;
+
+        public Messages() {
+            this(null, null, null, null, null);
+        }
+
+        private Messages(
+                SharedMessages shared,
+                DailyMessages daily,
+                MilestoneMessages milestone,
+                StreakMessages streak,
+                ProgressIndicators progressIndicators
+        ) {
+            this.shared = shared == null ? new SharedMessages() : shared;
+            this.daily = daily == null ? new DailyMessages() : daily;
+            this.milestone = milestone == null ? new MilestoneMessages() : milestone;
+            this.streak = streak == null ? new StreakMessages() : streak;
+            this.progressIndicators = progressIndicators == null ? new ProgressIndicators() : progressIndicators;
+        }
     }
 
     @Getter
@@ -3433,81 +3132,7 @@ public class Config {
             MilestoneMessages milestoneMessages,
             StreakMessages streakMessages
     ) {
-        Messages messages = new Messages();
         SharedMessagesFile sharedFile = sharedMessagesFile == null ? new SharedMessagesFile() : sharedMessagesFile;
-        SharedMessages shared = sharedFile.messages == null ? new SharedMessages() : sharedFile.messages;
-        DailyMessages daily = dailyMessages == null ? new DailyMessages() : dailyMessages;
-        MilestoneMessages milestone = milestoneMessages == null ? new MilestoneMessages() : milestoneMessages;
-        StreakMessages streak = streakMessages == null ? new StreakMessages() : streakMessages;
-
-        messages.usage = shared.usage;
-        messages.adminUsage = shared.adminUsage;
-        messages.reloadSuccess = shared.reloadSuccess;
-        messages.reloadFailed = shared.reloadFailed;
-        messages.playerOnly = shared.playerOnly;
-        messages.indicatorSelected = shared.indicatorSelected;
-        messages.indicatorReset = shared.indicatorReset;
-        messages.indicatorUnavailable = shared.indicatorUnavailable;
-        messages.indicatorDisabled = shared.indicatorDisabled;
-        messages.adminProgress = shared.adminProgress;
-        messages.adminProgressNotActive = shared.adminProgressNotActive;
-        messages.invalidAdminProgressAmount = shared.invalidAdminProgressAmount;
-        messages.invalidQuestType = shared.invalidQuestType;
-        messages.playerNotFound = shared.playerNotFound;
-        messages.globalQuestRefreshed = shared.globalQuestRefreshed;
-        messages.rerollsReset = shared.rerollsReset;
-        messages.menuOpenFailed = shared.menuOpenFailed;
-        messages.questMilestonesDisabled = shared.questMilestonesDisabled;
-        messages.milestonesOpenFailed = shared.milestonesOpenFailed;
-        messages.unknownQuestDifficulty = shared.unknownQuestDifficulty;
-        messages.questStreaksDisabled = shared.questStreaksDisabled;
-        messages.streaksOpenFailed = shared.streaksOpenFailed;
-        messages.streakConfirmationOpenFailed = shared.streakConfirmationOpenFailed;
-        messages.questResetPurchaseOpenFailed = shared.questResetPurchaseOpenFailed;
-        messages.difficultyPickerOpenFailed = shared.difficultyPickerOpenFailed;
-        messages.rerollPickerOpenFailed = shared.rerollPickerOpenFailed;
-        messages.difficultySelectFailed = shared.difficultySelectFailed;
-        messages.progressLoadFailed = shared.progressLoadFailed;
-        messages.completedCountLoadFailed = shared.completedCountLoadFailed;
-        messages.indicatorUpdateFailed = shared.indicatorUpdateFailed;
-        messages.resetPlayerFailed = shared.resetPlayerFailed;
-        messages.completeDailyPlayerFailed = shared.completeDailyPlayerFailed;
-        messages.globalQuestRefreshFailed = shared.globalQuestRefreshFailed;
-        messages.rerollsResetFailed = shared.rerollsResetFailed;
-        messages.streakCurrencyUpdateFailed = shared.streakCurrencyUpdateFailed;
-        messages.streakMilestoneLocked = shared.streakMilestoneLocked;
-        messages.streakMilestoneCompleted = shared.streakMilestoneCompleted;
-        messages.streakMilestoneProgress = shared.streakMilestoneProgress;
-
-        messages.noQuests = daily.noQuests;
-        messages.noAvailableQuestForDifficulty = daily.noAvailableQuestForDifficulty;
-        messages.difficultyRequirementsNotMet = daily.difficultyRequirementsNotMet;
-        messages.noRerollsRemaining = daily.noRerollsRemaining;
-        messages.completedQuestCannotReroll = daily.completedQuestCannotReroll;
-        messages.questRerolled = daily.questRerolled;
-        messages.progressHeader = daily.progressHeader;
-        messages.progressLine = daily.progressLine;
-        messages.questCompleted = daily.questCompleted;
-        messages.questsResetBroadcast = daily.questsResetBroadcast;
-        messages.resetPlayer = daily.resetPlayer;
-        messages.rerollPlayer = daily.rerollPlayer;
-        messages.completeDailyPlayer = daily.completeDailyPlayer;
-        messages.questResetNotReady = daily.questResetNotReady;
-        messages.questResetProcessing = daily.questResetProcessing;
-        messages.questResetSuccess = daily.questResetSuccess;
-        messages.questResetPurchaseUnavailable = daily.questResetPurchaseUnavailable;
-        messages.questResetLimitReached = daily.questResetLimitReached;
-        messages.questResetFailed = daily.questResetFailed;
-
-        messages.completedCount = milestone.completedCount;
-        messages.completedDifficultyLine = milestone.completedDifficultyLine;
-        messages.milestoneCompleted = milestone.milestoneCompleted;
-        messages.milestoneClaimed = milestone.milestoneClaimed;
-
-        messages.streakRecoveryApplied = streak.streakRecoveryApplied;
-        messages.streakRecoveryUnavailable = streak.streakRecoveryUnavailable;
-        messages.streakCurrencyUpdated = streak.streakCurrencyUpdated;
-        messages.progressIndicators = sharedFile.progressIndicators == null ? new ProgressIndicators() : sharedFile.progressIndicators;
-        return messages;
+        return new Messages(sharedFile.messages, dailyMessages, milestoneMessages, streakMessages, sharedFile.progressIndicators);
     }
 }
