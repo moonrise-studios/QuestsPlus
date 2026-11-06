@@ -26,11 +26,13 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -74,6 +76,34 @@ class GlobalQuestServiceTest {
         assertEquals(5, updatedState.contribution(player.getUniqueId()));
         verify(progressIndicatorService).showGlobal(eq(player), any(GlobalQuestState.class), eq(0));
         verify(repository).updateProgressAndContribution(any(GlobalQuestState.class), eq(player.getUniqueId()), eq(5));
+    }
+
+    @Test
+    public void missingGlobalQuestIsCachedForThePeriodInsteadOfQueryingOnEveryEvent() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
+        GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
+        Player player = server.addPlayer("NoGlobalQuest");
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        when(configProvider.get()).thenReturn(new Config());
+        when(definitionService.globalDefinitions()).thenReturn(List.of());
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.deletePeriod(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        for (int i = 0; i < 5; i++) {
+            assertTrue(service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 1).isEmpty());
+        }
+        assertNull(service.activeStateAsync().join());
+        verify(repository, times(1)).loadActive(any());
+
+        when(definitionService.revision()).thenReturn(1L);
+        service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 1);
+        service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 1);
+        verify(repository, times(2)).loadActive(any());
+
+        service.refreshActiveQuest().join();
+        service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 1);
+        verify(repository, times(3)).loadActive(any());
     }
 
     @Test

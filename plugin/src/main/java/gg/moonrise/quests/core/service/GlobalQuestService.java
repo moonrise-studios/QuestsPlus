@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -56,6 +57,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private volatile LocalTime startTime = LocalTime.of(5, 0);
     private volatile GlobalQuestState activeState;
     private volatile CompletableFuture<GlobalQuestState> activeStateLoad;
+    private volatile UnavailablePeriod unavailablePeriod;
     private volatile ScheduledTask rolloverTask;
 
     @Override
@@ -68,6 +70,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         Config.GlobalSchedule schedule = configProvider.get().getGlobalQuests().getSchedule();
         this.startDay = parseDay(schedule == null ? null : schedule.getDayOfWeek());
         this.startTime = parseTime(schedule == null ? null : schedule.getTime());
+        this.unavailablePeriod = null;
         repository.loadExpiredUnrewarded(LocalDateTime.now())
                 .thenCompose(this::finalizeExpiredStates)
                 .thenCompose(unused -> ensureActiveStateAsync())
@@ -108,6 +111,7 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     public CompletableFuture<GlobalQuestState> refreshActiveQuest() {
         Period period = currentPeriod();
         activeState = null;
+        unavailablePeriod = null;
         return repository.deletePeriod(period.key())
                 .thenCompose(unused -> ensureActiveStateAsync())
                 .thenApply(state -> {
@@ -231,6 +235,9 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         if (cached != null && cached.periodKey().equals(period.key())) {
             return CompletableFuture.completedFuture(cached);
         }
+        if (isUnavailable(period)) {
+            return CompletableFuture.completedFuture(null);
+        }
         CompletableFuture<GlobalQuestState> loading = activeStateLoad;
         if (loading != null) {
             return loading;
@@ -264,19 +271,40 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                         activeState = loaded;
                         return CompletableFuture.completedFuture(loaded);
                     }
-                    GlobalQuestState generated = generate(period);
-                    if (generated == null) {
+                    long definitionsRevision = definitionService.revision();
+                    Optional<GlobalQuestState> generated = generate(period);
+                    if (generated.isEmpty()) {
                         activeState = null;
+                        markUnavailable(period, definitionsRevision);
                         return CompletableFuture.completedFuture(null);
                     }
-                    return repository.save(generated).thenApply(saved -> {
+                    return repository.save(generated.get()).thenApply(saved -> {
                         activeState = saved;
                         return saved;
                     });
                 });
     }
 
-    private GlobalQuestState generate(Period period) {
+    /**
+     * True when this period already found no global quest to generate and nothing that could change
+     * that (reload, refresh, definition changes or a new period) has happened since.
+     */
+    private boolean isUnavailable(Period period) {
+        UnavailablePeriod unavailable = unavailablePeriod;
+        return unavailable != null
+                && unavailable.periodKey().equals(period.key())
+                && unavailable.definitionsRevision() == definitionService.revision();
+    }
+
+    private void markUnavailable(Period period, long definitionsRevision) {
+        UnavailablePeriod previous = unavailablePeriod;
+        unavailablePeriod = new UnavailablePeriod(period.key(), definitionsRevision);
+        if (previous == null || !previous.periodKey().equals(period.key())) {
+            log.warn("No enabled QuestsPlus global quest definitions are available for period {}.", period.key());
+        }
+    }
+
+    private Optional<GlobalQuestState> generate(Period period) {
         List<QuestDefinition> definitions = definitionService.globalDefinitions();
         Instant now = Instant.now();
         List<QuestDefinition> enabled = definitions.stream()
@@ -284,14 +312,13 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                 .filter(definition -> definition.activeAt(now))
                 .toList();
         if (enabled.isEmpty()) {
-            log.warn("No enabled QuestsPlus global quest definitions are available.");
-            return null;
+            return Optional.empty();
         }
         QuestDefinition definition = enabled.get(ThreadLocalRandom.current().nextInt(enabled.size()));
         Map<String, String> variables = resolveVariables(definition);
         GeneratedQuest quest = definitionService.handler(definition.type())
                 .createGeneratedQuest(definition, GLOBAL_PLAYER_ID, period.key(), variables);
-        return new GlobalQuestState(quest, period.key(), period.startsAt(), period.endsAt(), Map.of(), false);
+        return Optional.of(new GlobalQuestState(quest, period.key(), period.startsAt(), period.endsAt(), Map.of(), false));
     }
 
     private Map<String, String> resolveVariables(QuestDefinition definition) {
@@ -549,5 +576,8 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     }
 
     private record Rank(int rank, int participants) {
+    }
+
+    private record UnavailablePeriod(String periodKey, long definitionsRevision) {
     }
 }
