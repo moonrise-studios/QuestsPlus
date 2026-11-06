@@ -36,7 +36,7 @@ public class SqlProvider implements Disableable {
     private final ConfigProvider configProvider;
 
     private final AtomicReference<HikariDataSource> dataSource = new AtomicReference<>();
-    private ExecutorService executor;
+    private volatile ExecutorService executor;
     private volatile SQLDatabase database;
 
     @PostConstruct
@@ -178,26 +178,42 @@ public class SqlProvider implements Disableable {
         Config.Storage storage = configProvider.get().getStorage();
         SQLDatabase newDatabase = database(storage);
         HikariDataSource newDataSource = null;
-        ExecutorService newExecutor = null;
         try {
             HikariConfig hikariConfig = newDatabase.hikariConfig(plugin, storage);
             newDataSource = new HikariDataSource(hikariConfig);
             newDatabase.createTables(newDataSource);
-            newExecutor = Executors.newSingleThreadExecutor(sqlThreadFactory());
-
-            HikariDataSource oldDataSource = dataSource.getAndSet(newDataSource);
-            ExecutorService oldExecutor = executor;
-            executor = newExecutor;
-            database = newDatabase;
-            closeExecutor(oldExecutor);
-            closeDataSource(oldDataSource);
+            activate(newDatabase, newDataSource);
             log.info("Connected to QuestsPlus {} database.", newDatabase.displayName());
             return true;
         } catch (SQLException | RuntimeException exception) {
             log.error("Failed to initialize QuestsPlus {} database.", newDatabase.displayName(), exception);
-            closeExecutor(newExecutor);
-            closeDataSource(newDataSource);
+            if (dataSource.get() != newDataSource) {
+                closeDataSource(newDataSource);
+            }
             return false;
+        }
+    }
+
+    private void activate(SQLDatabase newDatabase, HikariDataSource newDataSource) {
+        ExecutorService currentExecutor = executor;
+        if (currentExecutor == null) {
+            swapDataSource(newDatabase, newDataSource);
+            executor = Executors.newSingleThreadExecutor(sqlThreadFactory());
+            return;
+        }
+        // The swap runs as a task on the single SQL thread: work queued before the reload finishes on
+        // the old pool before it closes, work queued after runs on the new pool, and SQL work never
+        // runs on two threads at once.
+        CompletableFuture.runAsync(() -> swapDataSource(newDatabase, newDataSource), currentExecutor).join();
+    }
+
+    private void swapDataSource(SQLDatabase newDatabase, HikariDataSource newDataSource) {
+        HikariDataSource oldDataSource = dataSource.getAndSet(newDataSource);
+        database = newDatabase;
+        try {
+            closeDataSource(oldDataSource);
+        } catch (RuntimeException exception) {
+            log.warn("Failed to close the previous QuestsPlus SQL data source.", exception);
         }
     }
 
@@ -242,12 +258,6 @@ public class SqlProvider implements Disableable {
             int dropped = executorService.shutdownNow().size();
             log.warn("Interrupted while waiting for QuestsPlus SQL tasks to finish; {} queued task(s) were dropped.", dropped);
             Thread.currentThread().interrupt();
-        }
-    }
-
-    private void closeExecutor(ExecutorService executorService) {
-        if (executorService != null) {
-            executorService.shutdown();
         }
     }
 
