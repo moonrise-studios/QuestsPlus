@@ -22,7 +22,11 @@ import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 
@@ -39,7 +43,7 @@ import java.util.function.Supplier;
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
 @RequiredArgsConstructor
-public class QuestApiService implements QuestApi, Enableable, Reloadable, Disableable {
+public class QuestApiService implements QuestApi, Enableable, Reloadable, Disableable, Listener {
 
     private final QuestsPlusPlugin plugin;
     private final QuestDefinitionService definitionService;
@@ -67,7 +71,7 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
     }
 
     @Override
-    public void onDisable() {
+    public synchronized void onDisable() {
         Set<Plugin> owners = new LinkedHashSet<>();
         owners.addAll(externalHandlers.keySet());
         owners.addAll(externalSelectors.keySet());
@@ -76,6 +80,16 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
             unregisterAll(owner);
         }
         Bukkit.getServicesManager().unregister(QuestApi.class, this);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public synchronized void onPluginDisable(PluginDisableEvent event) {
+        Plugin owner = event.getPlugin();
+        if (!isRegisteredOwner(owner)) {
+            return;
+        }
+        unregisterAll(owner);
+        log.info("Unregistered external QuestsPlus extensions from disabled plugin {}.", owner.getName());
     }
 
     @Override
@@ -207,6 +221,12 @@ public class QuestApiService implements QuestApi, Enableable, Reloadable, Disabl
             return List.of();
         }
         return new ArrayList<>(questService.progressMatching(player, type, resetService.currentResetKey(), amount, matcher, QuestProgressEvent.Cause.API));
+    }
+
+    private boolean isRegisteredOwner(Plugin owner) {
+        return externalHandlers.containsKey(owner)
+                || externalSelectors.containsKey(owner)
+                || externalCurrencies.containsKey(owner);
     }
 
     private void registerBuiltInCurrencies() {
