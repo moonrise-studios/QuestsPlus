@@ -110,18 +110,9 @@ public class QuestStreakService {
                         return CompletableFuture.completedFuture(new StreakRecoveryResult(false, new QuestStreakEvaluation(state, List.of())));
                     }
                     int restored = Math.max(state.currentStreak(), state.lastLostStreak());
-                    QuestStreakState recovered = new QuestStreakState(
-                            state.playerId(),
-                            restored,
-                            Math.max(state.highestStreak(), restored),
-                            state.lastCompletedResetKey(),
-                            state.lastEvaluatedResetKey(),
-                            0,
-                            "",
-                            state.shieldBalance(),
-                            state.recoveryBalance() - 1,
-                            state.claimedMilestones()
-                    );
+                    QuestStreakState recovered = state.withStreak(restored)
+                            .withLostStreak(0, "")
+                            .withRecoveryBalance(state.recoveryBalance() - 1);
                     return saveState(recovered)
                             .thenCompose(unused -> claimStreakMilestones(recovered))
                             .thenApply(evaluation -> new StreakRecoveryResult(true, evaluation));
@@ -139,25 +130,9 @@ public class QuestStreakService {
         }
         return loadState(playerId)
                 .thenCompose(state -> {
-                    int shieldBalance = state.shieldBalance();
-                    int recoveryBalance = state.recoveryBalance();
-                    if (currency == StreakCurrency.SHIELD) {
-                        shieldBalance = Math.max(0, shieldBalance + delta);
-                    } else {
-                        recoveryBalance = Math.max(0, recoveryBalance + delta);
-                    }
-                    QuestStreakState updated = new QuestStreakState(
-                            state.playerId(),
-                            state.currentStreak(),
-                            state.highestStreak(),
-                            state.lastCompletedResetKey(),
-                            state.lastEvaluatedResetKey(),
-                            state.lastLostStreak(),
-                            state.lostResetKey(),
-                            shieldBalance,
-                            recoveryBalance,
-                            state.claimedMilestones()
-                    );
+                    QuestStreakState updated = currency == StreakCurrency.SHIELD
+                            ? state.withShieldBalance(Math.max(0, state.shieldBalance() + delta))
+                            : state.withRecoveryBalance(Math.max(0, state.recoveryBalance() + delta));
                     return saveState(updated).thenApply(unused -> {
                         cache.put(playerId, updated);
                         return currency == StreakCurrency.SHIELD ? updated.shieldBalance() : updated.recoveryBalance();
@@ -243,7 +218,7 @@ public class QuestStreakService {
             return CompletableFuture.completedFuture(state);
         }
         if (state.lastEvaluatedResetKey() == null || state.lastEvaluatedResetKey().isBlank()) {
-            QuestStreakState initialized = withLastEvaluated(state, current.minusDays(resetStepDays()).toString());
+            QuestStreakState initialized = state.withLastEvaluatedResetKey(current.minusDays(resetStepDays()).toString());
             return saveState(initialized).thenApply(unused -> initialized);
         }
 
@@ -260,7 +235,7 @@ public class QuestStreakService {
             if (!window.equals(updated.lastCompletedResetKey())) {
                 updated = applyMissedWindow(updated, window);
             }
-            updated = withLastEvaluated(updated, window);
+            updated = updated.withLastEvaluatedResetKey(window);
             cursor = cursor.plusDays(stepDays);
         }
         QuestStreakState finalState = updated;
@@ -276,46 +251,15 @@ public class QuestStreakService {
             return state;
         }
         if (state.shieldBalance() > 0) {
-            return new QuestStreakState(
-                    state.playerId(),
-                    state.currentStreak(),
-                    state.highestStreak(),
-                    state.lastCompletedResetKey(),
-                    state.lastEvaluatedResetKey(),
-                    state.lastLostStreak(),
-                    state.lostResetKey(),
-                    state.shieldBalance() - 1,
-                    state.recoveryBalance(),
-                    state.claimedMilestones()
-            );
+            return state.withShieldBalance(state.shieldBalance() - 1);
         }
-        return new QuestStreakState(
-                state.playerId(),
-                0,
-                state.highestStreak(),
-                state.lastCompletedResetKey(),
-                state.lastEvaluatedResetKey(),
-                state.currentStreak(),
-                missedResetKey,
-                state.shieldBalance(),
-                state.recoveryBalance(),
-                state.claimedMilestones()
-        );
+        return state.withCurrentStreak(0).withLostStreak(state.currentStreak(), missedResetKey);
     }
 
     private CompletableFuture<QuestStreakEvaluation> awardStreak(UUID playerId, QuestStreakState state, String resetKey) {
-        QuestStreakState awarded = new QuestStreakState(
-                playerId,
-                state.currentStreak() + 1,
-                Math.max(state.highestStreak(), state.currentStreak() + 1),
-                resetKey,
-                resetKey,
-                state.lastLostStreak(),
-                state.lostResetKey(),
-                state.shieldBalance(),
-                state.recoveryBalance(),
-                state.claimedMilestones()
-        );
+        QuestStreakState awarded = state.withStreak(state.currentStreak() + 1)
+                .withLastCompletedResetKey(resetKey)
+                .withLastEvaluatedResetKey(resetKey);
         return saveState(awarded).thenCompose(unused -> claimStreakMilestones(awarded));
     }
 
@@ -418,21 +362,6 @@ public class QuestStreakService {
         statement.setString(7, safe(state.lostResetKey()));
         statement.setInt(8, state.shieldBalance());
         statement.setInt(9, state.recoveryBalance());
-    }
-
-    private QuestStreakState withLastEvaluated(QuestStreakState state, String resetKey) {
-        return new QuestStreakState(
-                state.playerId(),
-                state.currentStreak(),
-                state.highestStreak(),
-                state.lastCompletedResetKey(),
-                resetKey,
-                state.lastLostStreak(),
-                state.lostResetKey(),
-                state.shieldBalance(),
-                state.recoveryBalance(),
-                state.claimedMilestones()
-        );
     }
 
     private QuestStreakState cachedOrEmpty(UUID playerId) {
