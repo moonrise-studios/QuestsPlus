@@ -1,6 +1,5 @@
 package gg.moonrise.quests.model;
 
-import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,10 +22,6 @@ public record QuestStreakState(
 
     public static QuestStreakState empty(UUID playerId) {
         return new QuestStreakState(playerId, 0, 0, "", "", 0, "", 0, 0, Set.of());
-    }
-
-    public boolean hasClaimedMilestone(int streak) {
-        return claimedMilestones.contains(streak);
     }
 
     public QuestStreakState withCurrentStreak(int streak) {
@@ -69,11 +64,5 @@ public record QuestStreakState(
 
     public QuestStreakState withClaimedMilestones(Set<Integer> milestones) {
         return new QuestStreakState(playerId, currentStreak, highestStreak, lastCompletedResetKey, lastEvaluatedResetKey, lastLostStreak, lostResetKey, shieldBalance, recoveryBalance, milestones);
-    }
-
-    public QuestStreakState markMilestonesClaimed(Set<Integer> milestones) {
-        LinkedHashSet<Integer> claimed = new LinkedHashSet<>(claimedMilestones);
-        claimed.addAll(milestones);
-        return withClaimedMilestones(claimed);
     }
 }

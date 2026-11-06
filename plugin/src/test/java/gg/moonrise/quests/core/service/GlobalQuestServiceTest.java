@@ -135,7 +135,8 @@ class GlobalQuestServiceTest {
         when(configProvider.get()).thenReturn(config);
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         when(repository.updateProgressAndContribution(any(), eq(player.getUniqueId()), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
-        service.cachedActiveState(activeState);
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(activeState));
+        assertSame(activeState, service.activeStateAsync().join());
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 5);
 
@@ -162,14 +163,21 @@ class GlobalQuestServiceTest {
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
         when(repository.updateProgressAndContribution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(null));
-        service.cachedActiveState(initial);
+        when(repository.loadActive(any()))
+                .thenReturn(CompletableFuture.completedFuture(initial))
+                .thenReturn(CompletableFuture.completedFuture(advancedByOtherThread));
+        CompletableFuture<Void> deletion = new CompletableFuture<>();
+        when(repository.deletePeriod(any())).thenReturn(deletion);
+        assertSame(initial, service.activeStateAsync().join());
         AtomicBoolean otherThreadBlocked = new AtomicBoolean();
         registerProgressListener(event -> {
             // Another thread touching the global state while the listener runs must not block.
-            Thread writer = new Thread(() -> service.cachedActiveState(advancedByOtherThread));
+            Thread writer = new Thread(service::refreshActiveQuest);
             writer.start();
             joinQuietly(writer);
             otherThreadBlocked.set(writer.isAlive());
+            // Finishing the refresh here publishes the advanced state before the credit is applied.
+            deletion.complete(null);
         });
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 8);
@@ -193,8 +201,13 @@ class GlobalQuestServiceTest {
         GlobalQuestState replacement = activeGlobalState(player.getUniqueId());
         when(configProvider.get()).thenReturn(new Config());
         when(definitionService.globalDefinition("global-kill-all-mobs")).thenReturn(Optional.of(globalDefinition()));
-        service.cachedActiveState(activeGlobalState(player.getUniqueId()));
-        registerProgressListener(event -> service.cachedActiveState(replacement));
+        GlobalQuestState initial = activeGlobalState(player.getUniqueId());
+        when(repository.loadActive(any()))
+                .thenReturn(CompletableFuture.completedFuture(initial))
+                .thenReturn(CompletableFuture.completedFuture(replacement));
+        when(repository.deletePeriod(any())).thenReturn(CompletableFuture.completedFuture(null));
+        assertSame(initial, service.activeStateAsync().join());
+        registerProgressListener(event -> service.refreshActiveQuest().join());
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, QuestTypes.KILL_ALL_MOBS, 5);
 

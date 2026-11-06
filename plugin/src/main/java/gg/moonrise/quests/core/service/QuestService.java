@@ -200,14 +200,6 @@ public class QuestService {
                 }));
     }
 
-    public CompletableFuture<PlayerQuestState> rerollDaily(UUID playerId, String resetKey) {
-        return resetDaily(playerId, resetKey).thenCompose(unused -> ensurePlayerStateAsync(playerId, resetKey));
-    }
-
-    public CompletableFuture<PlayerQuestState> rerollDaily(Player player, String resetKey) {
-        return resetDaily(player.getUniqueId(), resetKey).thenCompose(unused -> ensurePlayerStateAsync(player, resetKey));
-    }
-
     public CompletableFuture<Void> resetRerolls(UUID playerId, String resetKey) {
         rerollUsageCache.invalidate(new RerollUsageKey(playerId, resetKey));
         return questRepository.resetRerolls(playerId, resetKey);

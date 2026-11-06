@@ -113,14 +113,6 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
         return cached != null && cached.periodKey().equals(period.key()) ? cached : null;
     }
 
-    public void cachedActiveState(GlobalQuestState state) {
-        synchronized (stateLock) {
-            stateGeneration++;
-            activeState = state;
-            activeStateLoad = null;
-        }
-    }
-
     public CompletableFuture<GlobalQuestState> refreshActiveQuest() {
         Period period = currentPeriod();
         synchronized (stateLock) {

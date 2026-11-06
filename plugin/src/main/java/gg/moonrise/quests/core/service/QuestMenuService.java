@@ -182,10 +182,6 @@ public class QuestMenuService {
         });
     }
 
-    public void selectDifficultyForSlot(Player player, int slotIndex, String difficultyId) {
-        selectDifficultyForSlot(player, slotIndex, difficultyId, false);
-    }
-
     public void selectDifficultyForSlot(Player player, int slotIndex, String difficultyId, boolean reroll) {
         String resetKey = resetService.currentResetKey();
         CompletableFuture<QuestSelectionResult> selection = reroll
@@ -231,7 +227,7 @@ public class QuestMenuService {
     private CompletableFuture<StreakMenuState> streakMenuState(Player player) {
         String resetKey = resetService.currentResetKey();
         return questService.ensurePlayerStateAsync(player, resetKey)
-                .thenCompose(questState -> streakService.stateForMenu(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)));
+                .thenCompose(questState -> streakService.ensureState(player, resetKey).thenApply(streakState -> new StreakMenuState(questState, streakState)));
     }
 
     /**
@@ -556,10 +552,6 @@ public class QuestMenuService {
                 .put("streak_completed", tokens.apply(config().getMessages().getStreakMilestoneCompleted()))
                 .put("streak_progress", tokens.apply(config().getMessages().getStreakMilestoneProgress()));
         return buildTokenItem(template, tokens, reached ? Material.EMERALD : Material.GRAY_DYE, milestone.lore());
-    }
-
-    public MapTokens streakTokens(PlayerQuestState questState, QuestStreakState streakState) {
-        return streakTokens(null, questState, streakState);
     }
 
     public MapTokens streakTokens(Player viewer, PlayerQuestState questState, QuestStreakState streakState) {

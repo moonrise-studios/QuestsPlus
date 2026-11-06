@@ -7,7 +7,6 @@ import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,17 +66,6 @@ public class QuestResetPurchaseService {
         CurrencyRegistration registration = currencies.get(key);
         if (registration != null && !registration.builtIn() && registration.owner().equals(owner)) {
             currencies.remove(key);
-        }
-    }
-
-    public synchronized void unregisterCurrencies(Plugin owner) {
-        Objects.requireNonNull(owner, "owner");
-        Iterator<Map.Entry<QuestCurrencyKey, CurrencyRegistration>> iterator = currencies.entrySet().iterator();
-        while (iterator.hasNext()) {
-            CurrencyRegistration registration = iterator.next().getValue();
-            if (!registration.builtIn() && registration.owner().equals(owner)) {
-                iterator.remove();
-            }
         }
     }
 

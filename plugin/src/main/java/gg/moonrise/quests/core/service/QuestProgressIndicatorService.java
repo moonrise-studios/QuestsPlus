@@ -35,10 +35,6 @@ public class QuestProgressIndicatorService {
     private final List<QuestProgressIndicator> indicators;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public void showPersonal(Player player, GeneratedQuest quest) {
-        showPersonal(player, quest, quest.progress());
-    }
-
     public void showPersonal(Player player, GeneratedQuest quest, int previousProgress) {
         Config.ProgressIndicators config = config();
         if (!enabled(config)) {
@@ -47,10 +43,6 @@ public class QuestProgressIndicatorService {
 
         Map<String, String> values = personalPlaceholders(player, quest);
         showConfigured(player, QuestProgressIndicatorContext.Scope.PERSONAL, quest, null, previousProgress, values, progress(quest), config);
-    }
-
-    public void showGlobal(Player player, GlobalQuestState state) {
-        showGlobal(player, state, state.quest().progress());
     }
 
     public void showGlobal(Player player, GlobalQuestState state, int previousProgress) {

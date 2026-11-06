@@ -80,14 +80,6 @@ public class QuestStreakService {
         return serialized(playerId, () -> cachedOrRefreshedState(playerId, currentResetKey));
     }
 
-    public CompletableFuture<QuestStreakState> stateForMenu(Player player, String currentResetKey) {
-        return ensureState(player, currentResetKey);
-    }
-
-    public CompletableFuture<QuestStreakEvaluation> evaluateQuestCompletion(Player player, PlayerQuestState questState) {
-        return evaluateQuestCompletion(player, questState, questState.quests());
-    }
-
     public CompletableFuture<QuestStreakEvaluation> evaluateQuestCompletion(Player player, PlayerQuestState questState, List<GeneratedQuest> eligibleQuests) {
         if (!isEnabled()) {
             return CompletableFuture.completedFuture(new QuestStreakEvaluation(cachedOrEmpty(player.getUniqueId()), List.of()));
@@ -161,10 +153,6 @@ public class QuestStreakService {
                 }));
     }
 
-    public int dailyRequiredCompletions(PlayerQuestState state) {
-        return dailyRequiredCompletions(state, state.quests());
-    }
-
     public int dailyRequiredCompletions(PlayerQuestState state, List<GeneratedQuest> eligibleQuests) {
         if (!isEnabled()) {
             return 0;
@@ -174,10 +162,6 @@ public class QuestStreakService {
             return configured;
         }
         return eligibleQuests.size();
-    }
-
-    public int dailyCompleted(PlayerQuestState state) {
-        return dailyCompleted(state.quests());
     }
 
     public int dailyCompleted(List<GeneratedQuest> eligibleQuests) {
