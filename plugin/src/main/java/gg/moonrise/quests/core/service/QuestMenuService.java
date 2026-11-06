@@ -794,7 +794,7 @@ public class QuestMenuService {
     }
 
     public void applyQuestResetPurchase(Player player, QuestCurrencyKey currencyKey) {
-        if (resetPurchaseService.isProcessing(player) || !resetPurchaseService.begin(player)) {
+        if (!resetPurchaseService.begin(player)) {
             config().getMessages().getQuestResetProcessing().send(player);
             return;
         }
