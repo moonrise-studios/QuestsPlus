@@ -400,26 +400,28 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
     private CompletableFuture<Void> dispatchTierRewards(GlobalQuestState state, List<GlobalQuestContribution> contributions, List<Config.GlobalRewardTierConfig> tiers) {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (GlobalQuestContribution contribution : contributions) {
-            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(contribution.playerId());
-            String playerName = offlinePlayer.getName() == null ? contribution.playerId().toString() : offlinePlayer.getName();
             for (Config.GlobalRewardTierConfig tier : tiers) {
                 if (!qualifies(contribution.rank(), contribution.participants(), tier.getPercentile())) {
                     continue;
                 }
+                // The insert completes on the SQL thread; everything touching the Bukkit API runs on the global region.
                 futures.add(repository.insertRewardExecution(state.quest().instanceId(), contribution.playerId(), tier.getPercentile())
                         .thenAccept(inserted -> {
-                            if (!inserted) {
-                                return;
+                            if (inserted) {
+                                Scheduler.sync().run(task -> dispatchTierCommands(state, contribution, tier));
                             }
-                            Scheduler.sync().run(task -> {
-                                for (String command : safeList(tier.getCommands())) {
-                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceRewardTokens(command, state, contribution, playerName));
-                                }
-                            });
                         }));
             }
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    }
+
+    private void dispatchTierCommands(GlobalQuestState state, GlobalQuestContribution contribution, Config.GlobalRewardTierConfig tier) {
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(contribution.playerId());
+        String playerName = offlinePlayer.getName() == null ? contribution.playerId().toString() : offlinePlayer.getName();
+        for (String command : safeList(tier.getCommands())) {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), replaceRewardTokens(command, state, contribution, playerName));
+        }
     }
 
     public List<Config.GlobalRewardTierConfig> rewardTiersForProgress(GeneratedQuest quest) {

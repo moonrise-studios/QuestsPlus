@@ -3,6 +3,7 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.model.GlobalQuestContribution;
 import gg.moonrise.quests.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
@@ -11,6 +12,8 @@ import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
+import org.mockbukkit.mockbukkit.entity.PlayerMock;
 import org.mockito.MockedStatic;
 
 import java.time.DayOfWeek;
@@ -215,6 +219,42 @@ class GlobalQuestServiceTest {
     }
 
     @Test
+    public void tierRewardsResolvePlayerNamesAndDispatchOnTheGlobalScheduler() {
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        QuestDefinitionService definitionService = mock(QuestDefinitionService.class);
+        GlobalQuestRepository repository = mock(GlobalQuestRepository.class);
+        GlobalQuestService service = new GlobalQuestService(configProvider, definitionService, repository, mock(QuestProgressIndicatorService.class));
+        UUID winnerId = UUID.randomUUID();
+        GlobalQuestState expired = activeGlobalState(winnerId);
+        expired = expired.withQuest(expired.quest().withProgress(10, true), Map.of(winnerId, 10));
+        List<String> dispatched = new ArrayList<>();
+        server.getCommandMap().register("questsplustest", new Command("eco") {
+            @Override
+            public boolean execute(CommandSender sender, String label, String[] args) {
+                dispatched.add(String.join(" ", args));
+                return true;
+            }
+        });
+        when(configProvider.get()).thenReturn(configWithRewardTiers());
+        when(definitionService.globalDefinitions()).thenReturn(List.of());
+        when(repository.loadExpiredUnrewarded(any())).thenReturn(CompletableFuture.completedFuture(List.of(expired)));
+        when(repository.loadRankedContributions(expired.quest().instanceId()))
+                .thenReturn(CompletableFuture.completedFuture(List.of(new GlobalQuestContribution(winnerId, 10, 1, 1))));
+        when(repository.insertRewardExecution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.markRewardsExecuted(any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        service.reload();
+        assertTrue(dispatched.isEmpty());
+        // The winner only becomes known to the server once the global task runs, so a name resolved on the
+        // SQL completion thread would fall back to the UUID.
+        server.addPlayer(new PlayerMock(server, "Winner", winnerId));
+        runSyncTasks();
+
+        assertEquals(List.of("give Winner 100"), dispatched);
+    }
+
+    @Test
     public void incompleteGlobalQuestBelowHalfGetsNoRewards() throws Exception {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         GlobalQuestService service = serviceWithConfig(configProvider);
@@ -266,6 +306,13 @@ class GlobalQuestServiceTest {
         LocalDateTime startsAt = currentPeriodStart();
         GeneratedQuest quest = globalQuest(0, 10, false);
         return new GlobalQuestState(quest, startsAt.toLocalDate().toString(), startsAt, startsAt.plusDays(7), Map.of(playerId, 0), false);
+    }
+
+    private void runSyncTasks() {
+        for (int i = 0; i < syncTasks.size(); i++) {
+            syncTasks.get(i).accept(mock(ScheduledTask.class));
+        }
+        syncTasks.clear();
     }
 
     private void registerProgressListener(Consumer<QuestProgressEvent> handler) {
