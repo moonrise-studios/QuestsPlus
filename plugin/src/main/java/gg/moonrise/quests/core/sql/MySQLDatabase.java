@@ -51,15 +51,6 @@ public class MySQLDatabase extends SQLiteDatabase {
     }
 
     @Override
-    public String incrementQuestResetSql() {
-        return """
-                INSERT INTO player_quest_resets (player_uuid, reset_key, used_count)
-                VALUES (?, ?, 1)
-                ON DUPLICATE KEY UPDATE used_count = used_count + 1
-                """;
-    }
-
-    @Override
     public String insertQuestResetUsageIfAbsentSql() {
         return """
                 INSERT IGNORE INTO player_quest_resets (player_uuid, reset_key, used_count)

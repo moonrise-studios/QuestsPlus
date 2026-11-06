@@ -17,8 +17,6 @@ public interface SQLDatabase {
 
     public String upsertPlayerQuestSql();
 
-    public String incrementQuestResetSql();
-
     public String insertQuestResetUsageIfAbsentSql();
 
     public String claimQuestResetUsageSql();

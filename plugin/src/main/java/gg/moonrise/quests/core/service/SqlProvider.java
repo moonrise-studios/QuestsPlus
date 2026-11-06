@@ -136,10 +136,6 @@ public class SqlProvider implements Disableable {
         return currentDatabase().upsertPlayerQuestSql();
     }
 
-    public String incrementQuestResetSql() {
-        return currentDatabase().incrementQuestResetSql();
-    }
-
     public String insertQuestResetUsageIfAbsentSql() {
         return currentDatabase().insertQuestResetUsageIfAbsentSql();
     }
