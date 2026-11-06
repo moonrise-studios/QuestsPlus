@@ -439,7 +439,7 @@ class QuestServiceTest {
         stubLoad(List.of(quest));
         PlayerQuestState state = service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
         when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
-        when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ProgressUpdateOutcome.Updated()));
         when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
                 .thenReturn(CompletableFuture.completedFuture(new QuestCompletionStats(1, 1, List.of())));
         return state;
@@ -450,7 +450,7 @@ class QuestServiceTest {
         service.ensurePlayerStateAsync(playerId, RESET_KEY).join();
         when(definitionService.definition(any(GeneratedQuest.class))).thenReturn(Optional.of(definition("zombies")));
         when(definitionService.difficulty("easy")).thenReturn(Optional.of(new QuestDifficulty("easy", "Easy", 0, 0, Map.of(), List.of("give <player> diamond"), List.of(), List.of())));
-        when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.updateProgress(any())).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ProgressUpdateOutcome.Updated()));
         when(repository.incrementCompletionStats(eq(playerId), eq("easy"), any()))
                 .thenReturn(CompletableFuture.completedFuture(new QuestCompletionStats(1, 1, List.of())));
     }

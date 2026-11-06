@@ -93,11 +93,11 @@ class QuestRepositoryDatabaseTest {
         UUID playerId = UUID.randomUUID();
         GeneratedQuest quest = quest(playerId, "daily", "tracked", 0, false, 0, false);
 
-        assertEquals(false, repository.updateProgress(quest.withProgress(5, false)).join());
+        assertEquals(new QuestRepository.ProgressUpdateOutcome.QuestMissing(), repository.updateProgress(quest.withProgress(5, false)).join());
 
         repository.saveGeneratedQuests(List.of(quest)).join();
 
-        assertEquals(true, repository.updateProgress(quest.withProgress(5, false)).join());
+        assertEquals(new QuestRepository.ProgressUpdateOutcome.Updated(), repository.updateProgress(quest.withProgress(5, false)).join());
         assertEquals(5, repository.loadQuests(playerId, "daily").join().getFirst().progress());
     }
 
@@ -112,15 +112,15 @@ class QuestRepositoryDatabaseTest {
                 quest(otherPlayerId, "daily", "other-player", 0, false, 2, false)
         )).join();
 
-        assertEquals(1, repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
 
         assertEquals(List.of(), repository.loadQuests(playerId, "daily").join());
         assertEquals(1, repository.loadQuests(playerId, "tomorrow").join().size());
         assertEquals(1, repository.loadQuests(otherPlayerId, "daily").join().size());
         assertEquals(1, repository.loadQuestResetsUsed(playerId, "daily").join());
 
-        assertEquals(-1, repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
-        assertEquals(-1, repository.recordQuestResetPurchaseAndReset(playerId, "daily", 0).join());
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 0).join());
         assertEquals(1, repository.loadQuestResetsUsed(playerId, "daily").join());
     }
 

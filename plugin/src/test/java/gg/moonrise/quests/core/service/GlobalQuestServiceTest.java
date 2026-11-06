@@ -265,7 +265,7 @@ class GlobalQuestServiceTest {
         when(repository.loadExpiredUnrewarded(any())).thenReturn(CompletableFuture.completedFuture(List.of(expired)));
         when(repository.loadRankedContributions(expired.quest().instanceId()))
                 .thenReturn(CompletableFuture.completedFuture(List.of(new GlobalQuestContribution(winnerId, 10, 1, 1))));
-        when(repository.insertRewardExecution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(true));
+        when(repository.insertRewardExecution(any(), any(), anyInt())).thenReturn(CompletableFuture.completedFuture(new GlobalQuestRepository.RewardClaim.Claimed()));
         when(repository.markRewardsExecuted(any())).thenReturn(CompletableFuture.completedFuture(true));
         when(repository.loadActive(any())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 

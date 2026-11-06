@@ -189,14 +189,18 @@ public class GlobalQuestRepository {
         });
     }
 
-    public CompletableFuture<Boolean> insertRewardExecution(UUID instanceId, UUID playerId, int percentile) {
+    /**
+     * Records that the player's reward tier for the quest is being executed. Only the first call per tier claims it,
+     * so rewards are dispatched once even when finalisation runs again after a restart.
+     */
+    public CompletableFuture<RewardClaim> insertRewardExecution(UUID instanceId, UUID playerId, int percentile) {
         return sqlProvider.supplyAsync(SQL_KEY, () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().insertRewardExecutionSql())) {
                 statement.setString(1, instanceId.toString());
                 statement.setString(2, playerId.toString());
                 statement.setInt(3, percentile);
-                return statement.executeUpdate() > 0;
+                return statement.executeUpdate() > 0 ? new RewardClaim.Claimed() : new RewardClaim.AlreadyExecuted();
             }
         });
     }
@@ -280,5 +284,23 @@ public class GlobalQuestRepository {
         statement.setInt(13, quest.progress());
         statement.setInt(14, quest.completed() ? 1 : 0);
         statement.setInt(15, state.rewardsExecuted() ? 1 : 0);
+    }
+
+    /**
+     * Result of {@link #insertRewardExecution(UUID, UUID, int)}.
+     */
+    public sealed interface RewardClaim {
+
+        /**
+         * This call recorded the execution, so the caller dispatches the tier's rewards.
+         */
+        record Claimed() implements RewardClaim {
+        }
+
+        /**
+         * The tier was already recorded for the player. Nothing was changed.
+         */
+        record AlreadyExecuted() implements RewardClaim {
+        }
     }
 }

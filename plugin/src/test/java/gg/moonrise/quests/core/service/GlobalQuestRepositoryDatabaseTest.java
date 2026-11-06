@@ -96,8 +96,8 @@ class GlobalQuestRepositoryDatabaseTest {
         assertEquals(List.of("week-newer"), repository.loadExpiredUnrewarded(now).join().stream().map(GlobalQuestState::periodKey).toList());
 
         UUID playerId = UUID.randomUUID();
-        assertTrue(repository.insertRewardExecution(newer.quest().instanceId(), playerId, 10).join());
-        assertFalse(repository.insertRewardExecution(newer.quest().instanceId(), playerId, 10).join());
+        assertEquals(new GlobalQuestRepository.RewardClaim.Claimed(), repository.insertRewardExecution(newer.quest().instanceId(), playerId, 10).join());
+        assertEquals(new GlobalQuestRepository.RewardClaim.AlreadyExecuted(), repository.insertRewardExecution(newer.quest().instanceId(), playerId, 10).join());
 
         repository.updateProgressAndContribution(withProgress(newer, 75, false), playerId, 25).join();
         assertEquals(1, repository.loadRankedContributions(newer.quest().instanceId()).join().size());

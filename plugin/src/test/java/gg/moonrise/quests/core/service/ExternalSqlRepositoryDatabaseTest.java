@@ -99,9 +99,9 @@ class ExternalSqlRepositoryDatabaseTest {
                     repository.loadExecutedMilestones(playerId).join().stream().sorted().toList()
             );
 
-            assertEquals(1, repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
+            assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
             assertEquals(List.of(), repository.loadQuests(playerId, "daily").join());
-            assertEquals(-1, repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
+            assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
         } finally {
             provider.onDisable();
         }
@@ -148,8 +148,8 @@ class ExternalSqlRepositoryDatabaseTest {
             assertFalse(repository.markRewardsExecuted(state.quest().instanceId()).join());
             assertTrue(repository.loadExpiredUnrewarded(now).join().isEmpty());
 
-            assertTrue(repository.insertRewardExecution(state.quest().instanceId(), playerA, 10).join());
-            assertFalse(repository.insertRewardExecution(state.quest().instanceId(), playerA, 10).join());
+            assertEquals(new GlobalQuestRepository.RewardClaim.Claimed(), repository.insertRewardExecution(state.quest().instanceId(), playerA, 10).join());
+            assertEquals(new GlobalQuestRepository.RewardClaim.AlreadyExecuted(), repository.insertRewardExecution(state.quest().instanceId(), playerA, 10).join());
 
             repository.deletePeriod(periodKey).join();
 

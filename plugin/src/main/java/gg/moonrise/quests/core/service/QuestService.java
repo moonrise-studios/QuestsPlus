@@ -163,19 +163,23 @@ public class QuestService {
                 .thenRun(() -> invalidateState(playerId));
     }
 
-    public CompletableFuture<Boolean> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey) {
+    public CompletableFuture<QuestRepository.ResetPurchaseOutcome> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey) {
         int limit = questResetDailyLimit();
         if (limit <= 0) {
-            return CompletableFuture.completedFuture(false);
+            return CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached());
         }
         return questRepository.recordQuestResetPurchaseAndReset(playerId, resetKey, limit)
-                .thenApply(updatedUsed -> {
-                    if (updatedUsed < 0) {
-                        return false;
+                .thenApply(outcome -> {
+                    switch (outcome) {
+                        case QuestRepository.ResetPurchaseOutcome.Applied applied -> {
+                            resetPurchaseUsageCache.put(new ResetPurchaseUsageKey(playerId, resetKey), applied.used());
+                            invalidateState(playerId);
+                        }
+                        case QuestRepository.ResetPurchaseOutcome.LimitReached limitReached -> {
+                            // Nothing was written, so the cached usage and quests stay valid.
+                        }
                     }
-                    resetPurchaseUsageCache.put(new ResetPurchaseUsageKey(playerId, resetKey), updatedUsed);
-                    invalidateState(playerId);
-                    return true;
+                    return outcome;
                 });
     }
 
@@ -584,27 +588,33 @@ public class QuestService {
 
     private CompletableFuture<Boolean> persistProgress(Player player, PlayerQuestState state, GeneratedQuest previous, GeneratedQuest updated, String context) {
         return questRepository.updateProgress(updated)
-                .thenApply(applied -> {
-                    if (!applied) {
+                .thenApply(outcome -> switch (outcome) {
+                    case QuestRepository.ProgressUpdateOutcome.Updated stored -> {
+                        runCompletionIfNewlyCompleted(player, state, previous, updated);
+                        yield true;
+                    }
+                    case QuestRepository.ProgressUpdateOutcome.QuestMissing missing -> {
                         state.replaceQuestIfPresent(previous);
                         log.warn("Skipped QuestsPlus {} side effects for quest {} because the progress row was not updated.", context, updated.instanceId());
-                        return false;
+                        yield false;
                     }
-                    if (updated.completed() && !previous.completed()) {
-                        try {
-                            completeQuest(player, state, updated);
-                        } catch (RuntimeException exception) {
-                            // The row is stored, so a failing side effect must not roll the cached quest back.
-                            log.error("Failed to run QuestsPlus completion side effects for quest {}.", updated.instanceId(), exception);
-                        }
-                    }
-                    return true;
                 })
                 .exceptionally(throwable -> {
                     state.replaceQuestIfPresent(previous);
                     log.error("Failed to persist QuestsPlus {} for quest {}.", context, updated.instanceId(), throwable);
                     return false;
                 });
+    }
+
+    private void runCompletionIfNewlyCompleted(Player player, PlayerQuestState state, GeneratedQuest previous, GeneratedQuest updated) {
+        if (updated.completed() && !previous.completed()) {
+            try {
+                completeQuest(player, state, updated);
+            } catch (RuntimeException exception) {
+                // The row is stored, so a failing side effect must not roll the cached quest back.
+                log.error("Failed to run QuestsPlus completion side effects for quest {}.", updated.instanceId(), exception);
+            }
+        }
     }
 
     private <T> CompletableFuture<T> runOnEntity(Player player, Supplier<CompletableFuture<T>> supplier) {

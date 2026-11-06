@@ -76,7 +76,11 @@ public class QuestRepository {
         });
     }
 
-    public CompletableFuture<Boolean> updateProgress(GeneratedQuest quest) {
+    /**
+     * Stores the quest's progress. Reports {@link ProgressUpdateOutcome.QuestMissing} when the row is gone, for
+     * example because the quest was rerolled or reset after the cached update was made.
+     */
+    public CompletableFuture<ProgressUpdateOutcome> updateProgress(GeneratedQuest quest) {
         return sqlProvider.supplyAsync(quest.playerId(), () -> {
             try (Connection connection = sqlProvider.getConnection();
                  PreparedStatement statement = connection.prepareStatement("""
@@ -87,7 +91,9 @@ public class QuestRepository {
                 statement.setInt(1, quest.progress());
                 statement.setInt(2, quest.completed() ? 1 : 0);
                 statement.setString(3, quest.instanceId().toString());
-                return statement.executeUpdate() == 1;
+                return statement.executeUpdate() == 1
+                        ? new ProgressUpdateOutcome.Updated()
+                        : new ProgressUpdateOutcome.QuestMissing();
             }
         });
     }
@@ -114,9 +120,13 @@ public class QuestRepository {
         });
     }
 
-    public CompletableFuture<Integer> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey, int limit) {
+    /**
+     * Counts a quest reset purchase and deletes the player's quests for the reset window, in one transaction.
+     * Nothing is written when the player has already used {@code limit} resets for the window.
+     */
+    public CompletableFuture<ResetPurchaseOutcome> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey, int limit) {
         if (limit <= 0) {
-            return CompletableFuture.completedFuture(-1);
+            return CompletableFuture.completedFuture(new ResetPurchaseOutcome.LimitReached());
         }
         return sqlProvider.supplyInTransaction(playerId, connection -> {
             try (PreparedStatement ensureUsage = connection.prepareStatement(sqlProvider.currentDatabase().insertQuestResetUsageIfAbsentSql())) {
@@ -129,7 +139,7 @@ public class QuestRepository {
                 resetUsage.setString(2, resetKey);
                 resetUsage.setInt(3, limit);
                 if (resetUsage.executeUpdate() != 1) {
-                    return -1;
+                    return new ResetPurchaseOutcome.LimitReached();
                 }
             }
             try (PreparedStatement deleteQuests = connection.prepareStatement("""
@@ -140,7 +150,7 @@ public class QuestRepository {
                 deleteQuests.setString(2, resetKey);
                 deleteQuests.executeUpdate();
             }
-            return readUsedCount(connection, RESETS_TABLE, playerId, resetKey);
+            return new ResetPurchaseOutcome.Applied(readUsedCount(connection, RESETS_TABLE, playerId, resetKey));
         });
     }
 
@@ -417,6 +427,42 @@ public class QuestRepository {
          * The quest being replaced no longer exists. Nothing was changed.
          */
         record QuestMissing() implements RerollOutcome {
+        }
+    }
+
+    /**
+     * Result of {@link #recordQuestResetPurchaseAndReset(UUID, String, int)}.
+     */
+    public sealed interface ResetPurchaseOutcome {
+
+        /**
+         * The purchase was counted and the quests were deleted; {@code used} is the updated reset count.
+         */
+        record Applied(int used) implements ResetPurchaseOutcome {
+        }
+
+        /**
+         * The player had no resets left for the window. Nothing was changed.
+         */
+        record LimitReached() implements ResetPurchaseOutcome {
+        }
+    }
+
+    /**
+     * Result of {@link #updateProgress(GeneratedQuest)}.
+     */
+    public sealed interface ProgressUpdateOutcome {
+
+        /**
+         * The progress row was updated.
+         */
+        record Updated() implements ProgressUpdateOutcome {
+        }
+
+        /**
+         * No row exists for the quest any more. Nothing was changed.
+         */
+        record QuestMissing() implements ProgressUpdateOutcome {
         }
     }
 }

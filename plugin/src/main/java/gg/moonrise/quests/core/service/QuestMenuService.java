@@ -806,23 +806,24 @@ public class QuestMenuService {
      * refunds the charge, including when the player logged out before the database answered.
      */
     private void resetAfterCharge(Player player, QuestCurrencyKey currencyKey, String resetKey, QuestCurrency currency, QuestResetEligibility eligibility) {
-        CompletableFuture<Boolean> reset;
+        CompletableFuture<QuestRepository.ResetPurchaseOutcome> reset;
         try {
             reset = questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey);
         } catch (RuntimeException exception) {
             reset = CompletableFuture.failedFuture(exception);
         }
-        reset.whenComplete((applied, throwable) -> {
-            if (throwable != null) {
+        reset.whenComplete((outcome, throwable) -> {
+            if (throwable != null || outcome == null) {
                 log.error("Failed to reset QuestsPlus after purchase choice {} for {}.", currencyKey, player.getUniqueId(), throwable);
                 settleResetPurchase(player, currency, online -> config().getMessages().getQuestResetFailed().send(online));
-            } else if (Boolean.TRUE.equals(applied)) {
-                settleResetPurchase(player, null, online -> {
+                return;
+            }
+            switch (outcome) {
+                case QuestRepository.ResetPurchaseOutcome.Applied applied -> settleResetPurchase(player, null, online -> {
                     sendResetSuccess(online, currency, eligibility, resetKey);
                     openDailyQuests(online);
                 });
-            } else {
-                settleResetPurchase(player, currency, online -> {
+                case QuestRepository.ResetPurchaseOutcome.LimitReached limitReached -> settleResetPurchase(player, currency, online -> {
                     sendResetLimitReached(online, eligibility);
                     openDailyQuests(online);
                 });

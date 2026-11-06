@@ -127,7 +127,7 @@ class QuestMenuServiceResetPurchaseTest {
 
     @Test
     public void notAppliedResetRefundsWhenPlayerLoggedOutBeforeCompletion() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(false));
+        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
@@ -179,7 +179,7 @@ class QuestMenuServiceResetPurchaseTest {
 
     @Test
     public void appliedResetDoesNotRefundWhenPlayerLoggedOut() {
-        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(true));
+        when(questService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 

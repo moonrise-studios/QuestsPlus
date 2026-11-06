@@ -372,9 +372,13 @@ public class GlobalQuestService implements Enableable, Reloadable, Disableable {
                 }
                 // The insert completes on the SQL thread; everything touching the Bukkit API runs on the global region.
                 futures.add(repository.insertRewardExecution(state.quest().instanceId(), contribution.playerId(), tier.getPercentile())
-                        .thenAccept(inserted -> {
-                            if (inserted) {
-                                Scheduler.sync().run(task -> dispatchTierCommands(state, contribution, tier));
+                        .thenAccept(claim -> {
+                            switch (claim) {
+                                case GlobalQuestRepository.RewardClaim.Claimed claimed ->
+                                        Scheduler.sync().run(task -> dispatchTierCommands(state, contribution, tier));
+                                case GlobalQuestRepository.RewardClaim.AlreadyExecuted alreadyExecuted -> {
+                                    // An earlier finalisation already dispatched this tier.
+                                }
                             }
                         }));
             }

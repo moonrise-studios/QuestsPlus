@@ -248,12 +248,30 @@ class QuestPremiumSlotAccessTest {
         QuestRepository repository = mock(QuestRepository.class);
         QuestService service = questService(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
-        when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1)).thenReturn(CompletableFuture.completedFuture(1));
+        when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
 
-        assertTrue(service.recordQuestResetPurchaseAndReset(playerId, "daily").join());
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), service.recordQuestResetPurchaseAndReset(playerId, "daily").join());
         assertEquals(1, service.cachedQuestResetPurchasesUsed(playerId, "daily"));
         assertEquals(0, service.questResetPurchasesRemaining(playerId, "daily"));
         verify(repository).recordQuestResetPurchaseAndReset(playerId, "daily", 1);
+    }
+
+    @Test
+    public void questResetPurchaseAtLimitLeavesCachedUsageUnchanged() throws Exception {
+        Config config = config(
+                3,
+                premiumLimits("vip", 1, "vipplus", 2),
+                Map.of()
+        );
+        QuestRepository repository = mock(QuestRepository.class);
+        QuestService service = questService(configProvider(config), repository);
+        UUID playerId = UUID.randomUUID();
+        when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1))
+                .thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
+
+        assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), service.recordQuestResetPurchaseAndReset(playerId, "daily").join());
+        assertEquals(0, service.cachedQuestResetPurchasesUsed(playerId, "daily"));
+        assertEquals(1, service.questResetPurchasesRemaining(playerId, "daily"));
     }
 
     @Test
