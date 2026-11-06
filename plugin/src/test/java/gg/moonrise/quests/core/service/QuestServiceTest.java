@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -227,9 +228,7 @@ class QuestServiceTest {
         stubReroll(new QuestRepository.RerollOutcome.QuestMissing());
         // The first of two double-submitted rerolls has already replaced the quest by the time the second one fails.
         when(repository.replaceQuestAndIncrementRerolls(any(), any(), anyInt())).thenAnswer(invocation -> {
-            synchronized (state) {
-                state.replaceQuestAtSlot(0, firstReplacement);
-            }
+            state.replaceQuestAtSlot(0, firstReplacement);
             return CompletableFuture.completedFuture(new QuestRepository.RerollOutcome.QuestMissing());
         });
 
@@ -386,15 +385,18 @@ class QuestServiceTest {
     public void progressEventIsFiredWithoutHoldingTheStateLock() {
         GeneratedQuest quest = quest(0, 2, false);
         PlayerQuestState state = stubProgress(quest);
-        AtomicBoolean lockHeld = new AtomicBoolean(true);
+        AtomicBoolean otherThreadUpdated = new AtomicBoolean();
+        // A listener that hands work to another thread which writes the state must not deadlock.
         doAnswer(invocation -> {
-            lockHeld.set(Thread.holdsLock(state));
+            CompletableFuture.runAsync(() -> state.markMilestoneExecuted("easy", 1)).get(5, TimeUnit.SECONDS);
+            otherThreadUpdated.set(true);
             return null;
         }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
 
         List<QuestProgressResult> results = service.progressAdminGoal(player, RESET_KEY, 3, QuestTypes.KILL_MOB);
 
-        assertFalse(lockHeld.get());
+        assertTrue(otherThreadUpdated.get());
+        assertTrue(state.hasExecutedMilestone("easy", 1));
         assertEquals(1, results.size());
         assertEquals(5, state.questAtSlot(0).progress());
     }
@@ -405,9 +407,7 @@ class QuestServiceTest {
         PlayerQuestState state = stubProgress(quest);
         // Another thread credits 6 while the listener runs.
         doAnswer(invocation -> {
-            synchronized (state) {
-                state.replaceQuest(quest.withProgress(8, false));
-            }
+            state.replaceQuest(quest.withProgress(8, false));
             return null;
         }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
 
@@ -424,9 +424,7 @@ class QuestServiceTest {
         PlayerQuestState state = stubProgress(quest);
         GeneratedQuest rerolled = quest(0, 0, false);
         doAnswer(invocation -> {
-            synchronized (state) {
-                state.replaceQuestAtSlot(0, rerolled);
-            }
+            state.replaceQuestAtSlot(0, rerolled);
             return null;
         }).when(pluginManager).callEvent(any(QuestProgressEvent.class));
 
