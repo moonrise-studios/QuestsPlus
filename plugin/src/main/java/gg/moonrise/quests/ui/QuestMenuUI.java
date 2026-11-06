@@ -2,7 +2,6 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.engine.paper.item.ItemBuilder;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
@@ -23,14 +22,14 @@ public class QuestMenuUI extends ChestMenu {
         super(player, menuService.config().getMenu().getTitle(), rows(menuService.config().getMenu()));
 
         Config.QuestMenu menu = menuService.config().getMenu();
-        int totalSlots = rows(menu) * 9;
+        int totalSlots = MenuSlots.totalSlots(rows(menu));
         int globalSlot = menuService.globalQuestSlot();
         Set<Integer> reservedSlots = reservedSlots(menuService, menu, totalSlots, globalSlot);
         List<Integer> contentSlots = sanitizeContentSlots(menu.getContentSlots(), totalSlots, reservedSlots);
-        Set<Integer> occupiedSlots = new HashSet<>();
+        MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
         if (globalSlot >= 0 && globalSlot < totalSlots) {
-            addTrackedButton(occupiedSlots, totalSlots, globalSlot, Button.builder()
+            menuSlots.add(globalSlot, Button.builder()
                     .item(viewer -> menuService.buildGlobalQuestItem(viewer, globalState))
                     .action((button, clicker, event) -> menuService.openGlobalRewardPreview(clicker))
                     .build());
@@ -42,19 +41,19 @@ public class QuestMenuUI extends ChestMenu {
             int inventorySlot = contentSlots.get(slotIndex);
             int dailySlot = slotIndex;
             if (!menuService.canAccessSlot(player, dailySlot)) {
-                addTrackedButton(occupiedSlots, totalSlots, inventorySlot, Button.builder()
+                menuSlots.add(inventorySlot, Button.builder()
                         .item(viewer -> menuService.buildLockedPremiumQuestSlotItem(dailySlot))
                         .build());
                 continue;
             }
             if (quest == null) {
-                addTrackedButton(occupiedSlots, totalSlots, inventorySlot, Button.builder()
+                menuSlots.add(inventorySlot, Button.builder()
                         .item(viewer -> menuService.buildEmptyQuestSlotItem(dailySlot))
                         .action((button, clicker, event) -> menuService.openDifficultyPicker(clicker, dailySlot))
                         .build());
                 continue;
             }
-            addTrackedButton(occupiedSlots, totalSlots, inventorySlot, Button.builder()
+            menuSlots.add(inventorySlot, Button.builder()
                     .item(viewer -> menuService.buildQuestItem(viewer, quest))
                     .action((button, clicker, event) -> menuService.openRerollDifficultyPicker(clicker, dailySlot))
                     .build());
@@ -63,7 +62,7 @@ public class QuestMenuUI extends ChestMenu {
         if (menuService.canShowMilestoneButton()) {
             int slot = menu.getMilestoneButton().getSlot();
             if (slot >= 0 && slot < totalSlots) {
-                addTrackedButton(occupiedSlots, totalSlots, slot, Button.builder()
+                menuSlots.add(slot, Button.builder()
                         .item(viewer -> menuService.buildMenuItem(menu.getMilestoneButton().getItem()))
                         .action((button, clicker, event) -> menuService.openMilestoneSelector(clicker))
                         .build());
@@ -73,7 +72,7 @@ public class QuestMenuUI extends ChestMenu {
         if (menuService.canShowStreakButton()) {
             int slot = menu.getStreakButton().getSlot();
             if (slot >= 0 && slot < totalSlots) {
-                addTrackedButton(occupiedSlots, totalSlots, slot, Button.builder()
+                menuSlots.add(slot, Button.builder()
                         .item(viewer -> menuService.buildMenuItem(menu.getStreakButton().getItem()))
                         .action((button, clicker, event) -> menuService.openStreaks(clicker))
                         .build());
@@ -83,18 +82,18 @@ public class QuestMenuUI extends ChestMenu {
         if (menuService.canShowQuestResetButton()) {
             int slot = menu.getResetButton().getSlot();
             if (slot >= 0 && slot < totalSlots) {
-                addTrackedButton(occupiedSlots, totalSlots, slot, Button.builder()
+                menuSlots.add(slot, Button.builder()
                         .item(viewer -> menuService.buildQuestResetButtonItem(viewer, state))
                         .action((button, clicker, event) -> menuService.openQuestResetPurchase(clicker))
                         .build());
             }
         }
 
-        addFillers(menuService, menu.getFiller(), totalSlots, occupiedSlots);
+        menuSlots.fill(menuService, menu.getFiller());
     }
 
     private static int rows(Config.QuestMenu menu) {
-        return Math.clamp(menu.getRows(), 1, 6);
+        return MenuSlots.clampRows(menu.getRows());
     }
 
     private static Set<Integer> reservedSlots(QuestMenuService menuService, Config.QuestMenu menu, int totalSlots, int globalSlot) {
@@ -132,25 +131,5 @@ public class QuestMenuUI extends ChestMenu {
                 .filter(slot -> !reservedSlots.contains(slot))
                 .boxed()
                 .toList();
-    }
-
-    private Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {
-        return Button.builder()
-                .item(player -> ItemBuilder.of(menuService.buildMenuItem(item)).hideToolTip(true).build())
-                .build();
-    }
-
-    private void addTrackedButton(Set<Integer> occupiedSlots, int totalSlots, int slot, Button button) {
-        if (slot < 0 || slot >= totalSlots) {
-            return;
-        }
-        addButton(slot, button);
-        occupiedSlots.add(slot);
-    }
-
-    private void addFillers(QuestMenuService menuService, Config.MenuItem item, int totalSlots, Set<Integer> occupiedSlots) {
-        IntStream.range(0, totalSlots)
-                .filter(slot -> !occupiedSlots.contains(slot))
-                .forEach(slot -> addButton(slot, fillerButton(menuService, item)));
     }
 }
