@@ -43,7 +43,7 @@ class QuestStreakServiceDatabaseTest {
         sqlProvider = SqliteTestHarness.open(tempDir);
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(new Config());
-        service = new QuestStreakService(configProvider, sqlProvider);
+        service = new QuestStreakService(configProvider, new QuestStreakRepository(sqlProvider));
         playerId = UUID.randomUUID();
         player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(playerId);

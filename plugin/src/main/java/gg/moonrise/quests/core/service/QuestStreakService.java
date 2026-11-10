@@ -19,10 +19,6 @@ import gg.moonrise.quests.util.QuestTokens;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -58,7 +54,7 @@ public class QuestStreakService {
     private static final Duration CACHE_FRESHNESS = Duration.ofMinutes(1);
 
     private final ConfigProvider configProvider;
-    private final SqlProvider sqlProvider;
+    private final QuestStreakRepository repository;
     private final Cache<UUID, QuestStreakState> cache = Caffeine.newBuilder()
             .maximumSize(10_000)
             .expireAfterWrite(CACHE_FRESHNESS)
@@ -327,104 +323,26 @@ public class QuestStreakService {
     }
 
     private CompletableFuture<QuestStreakEvaluation> claimStreakMilestones(QuestStreakState state) {
-        return sqlProvider.supplyInTransaction(state.playerId(), connection -> {
-            List<QuestStreakMilestone> newlyExecuted = new ArrayList<>();
+        List<QuestStreakMilestone> reached = milestones().stream()
+                .filter(milestone -> milestone.streak() <= state.currentStreak())
+                .toList();
+        List<Integer> streaks = reached.stream().map(QuestStreakMilestone::streak).toList();
+        return repository.claimMilestones(state.playerId(), streaks).thenApply(newlyClaimed -> {
+            List<QuestStreakMilestone> newlyExecuted = reached.stream()
+                    .filter(milestone -> newlyClaimed.contains(milestone.streak()))
+                    .toList();
             Set<Integer> claimed = new LinkedHashSet<>(state.claimedMilestones());
-            for (QuestStreakMilestone milestone : milestones()) {
-                if (milestone.streak() > state.currentStreak()) {
-                    continue;
-                }
-                if (insertStreakMilestone(connection, state.playerId(), milestone.streak())) {
-                    newlyExecuted.add(milestone);
-                    claimed.add(milestone.streak());
-                }
-            }
-            return new QuestStreakEvaluation(state.withClaimedMilestones(claimed), List.copyOf(newlyExecuted));
+            claimed.addAll(newlyClaimed);
+            return new QuestStreakEvaluation(state.withClaimedMilestones(claimed), newlyExecuted);
         });
     }
 
     private CompletableFuture<QuestStreakState> loadState(UUID playerId) {
-        return sqlProvider.supplyAsync(playerId, () -> {
-            QuestStreakState state = readState(playerId);
-            return state.withClaimedMilestones(readClaimedStreakMilestones(playerId));
-        });
+        return repository.load(playerId);
     }
 
     private CompletableFuture<Void> saveState(QuestStreakState state) {
-        return sqlProvider.runAsync(state.playerId(), () -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertStreakStateSql())) {
-                bindState(statement, state);
-                statement.executeUpdate();
-            }
-        });
-    }
-
-    private QuestStreakState readState(UUID playerId) throws SQLException {
-        try (Connection connection = sqlProvider.getConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     SELECT current_streak, highest_streak, last_completed_reset_key, last_evaluated_reset_key,
-                            last_lost_streak, lost_reset_key, shield_balance, recovery_balance
-                     FROM player_quest_streaks
-                     WHERE player_uuid = ?
-                     """)) {
-            statement.setString(1, playerId.toString());
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return QuestStreakState.empty(playerId);
-                }
-                return new QuestStreakState(
-                        playerId,
-                        resultSet.getInt("current_streak"),
-                        resultSet.getInt("highest_streak"),
-                        resultSet.getString("last_completed_reset_key"),
-                        resultSet.getString("last_evaluated_reset_key"),
-                        resultSet.getInt("last_lost_streak"),
-                        resultSet.getString("lost_reset_key"),
-                        resultSet.getInt("shield_balance"),
-                        resultSet.getInt("recovery_balance"),
-                        Set.of()
-                );
-            }
-        }
-    }
-
-    private Set<Integer> readClaimedStreakMilestones(UUID playerId) throws SQLException {
-        Set<Integer> claimed = new LinkedHashSet<>();
-        try (Connection connection = sqlProvider.getConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     SELECT streak
-                     FROM player_quest_streak_milestones
-                     WHERE player_uuid = ?
-                     """)) {
-            statement.setString(1, playerId.toString());
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    claimed.add(resultSet.getInt("streak"));
-                }
-            }
-        }
-        return claimed;
-    }
-
-    private boolean insertStreakMilestone(Connection connection, UUID playerId, int streak) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().insertStreakMilestoneSql())) {
-            statement.setString(1, playerId.toString());
-            statement.setInt(2, streak);
-            return statement.executeUpdate() > 0;
-        }
-    }
-
-    private void bindState(PreparedStatement statement, QuestStreakState state) throws SQLException {
-        statement.setString(1, state.playerId().toString());
-        statement.setInt(2, state.currentStreak());
-        statement.setInt(3, state.highestStreak());
-        statement.setString(4, safe(state.lastCompletedResetKey()));
-        statement.setString(5, safe(state.lastEvaluatedResetKey()));
-        statement.setInt(6, state.lastLostStreak());
-        statement.setString(7, safe(state.lostResetKey()));
-        statement.setInt(8, state.shieldBalance());
-        statement.setInt(9, state.recoveryBalance());
+        return repository.save(state);
     }
 
     private QuestStreakState cachedOrEmpty(UUID playerId) {
@@ -474,9 +392,5 @@ public class QuestStreakService {
         } catch (DateTimeParseException exception) {
             return Optional.empty();
         }
-    }
-
-    private String safe(String value) {
-        return value == null ? "" : value;
     }
 }

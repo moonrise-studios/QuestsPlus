@@ -3,8 +3,9 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.model.QuestStreakEvaluation;
-import gg.moonrise.quests.model.QuestStreakMilestone;
+import gg.moonrise.quests.config.StreakMenu;
+import gg.moonrise.quests.config.StreakMilestoneConfig;
+import gg.moonrise.quests.config.Streaks;
 import gg.moonrise.quests.model.QuestStreakState;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
@@ -22,10 +23,10 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,11 +79,11 @@ class QuestStreakServiceTest {
 
     @Test
     public void adminShieldAdjustmentStillUpdatesShieldBalance() {
-        SqlProvider sqlProvider = mock(SqlProvider.class);
-        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), sqlProvider);
+        QuestStreakRepository repository = mock(QuestStreakRepository.class);
+        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), repository);
         QuestStreakState state = state(3, 2);
-        when(sqlProvider.supplyAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(state));
-        when(sqlProvider.runAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.load(any())).thenReturn(CompletableFuture.completedFuture(state));
+        when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         int updatedBalance = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 3).join();
 
@@ -91,13 +92,13 @@ class QuestStreakServiceTest {
 
     @Test
     public void failedOperationDoesNotBlockLaterOperationsForThePlayer() {
-        SqlProvider sqlProvider = mock(SqlProvider.class);
-        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), sqlProvider);
+        QuestStreakRepository repository = mock(QuestStreakRepository.class);
+        QuestStreakService service = new QuestStreakService(mock(ConfigProvider.class), repository);
         QuestStreakState state = state(3, 2);
-        when(sqlProvider.supplyAsync(any(), any()))
+        when(repository.load(any()))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("database down")))
                 .thenReturn(CompletableFuture.completedFuture(state));
-        when(sqlProvider.runAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         CompletableFuture<Integer> failed = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 1);
         CompletableFuture<Integer> next = service.adjustCurrency(state.playerId(), QuestStreakService.StreakCurrency.SHIELD, 1);
@@ -108,29 +109,29 @@ class QuestStreakServiceTest {
 
     @Test
     public void ensureStateServesCachedStateAlreadyEvaluatedForCurrentWindow() {
-        SqlProvider sqlProvider = mock(SqlProvider.class);
-        QuestStreakService service = new QuestStreakService(enabledConfig(), sqlProvider);
+        QuestStreakRepository repository = mock(QuestStreakRepository.class);
+        QuestStreakService service = new QuestStreakService(enabledConfig(), repository);
         QuestStreakState state = state(3, 2);
         Player player = player(state.playerId());
-        when(sqlProvider.supplyAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(state));
+        when(repository.load(any())).thenReturn(CompletableFuture.completedFuture(state));
 
         QuestStreakState first = service.ensureState(player, "2026-06-20").join();
         QuestStreakState second = service.ensureState(player, "2026-06-20").join();
 
         assertEquals(state, first);
         assertEquals(state, second);
-        verify(sqlProvider, times(1)).supplyAsync(any(), any());
-        verify(sqlProvider, never()).runAsync(any(), any());
+        verify(repository, times(1)).load(state.playerId());
+        verify(repository, never()).save(any());
     }
 
     @Test
     public void ensureStateReloadsAndSavesWhenANewWindowWasMissed() {
-        SqlProvider sqlProvider = mock(SqlProvider.class);
-        QuestStreakService service = new QuestStreakService(enabledConfig(), sqlProvider);
+        QuestStreakRepository repository = mock(QuestStreakRepository.class);
+        QuestStreakService service = new QuestStreakService(enabledConfig(), repository);
         QuestStreakState state = state(3, 2);
         Player player = player(state.playerId());
-        when(sqlProvider.supplyAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(state));
-        when(sqlProvider.runAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.load(any())).thenReturn(CompletableFuture.completedFuture(state));
+        when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         service.ensureState(player, "2026-06-20").join();
         QuestStreakState updated = service.ensureState(player, "2026-06-22").join();
@@ -138,23 +139,21 @@ class QuestStreakServiceTest {
         assertEquals(3, updated.currentStreak());
         assertEquals(0, updated.shieldBalance());
         assertEquals("2026-06-21", updated.lastEvaluatedResetKey());
-        verify(sqlProvider, times(2)).supplyAsync(any(), any());
-        verify(sqlProvider, times(1)).runAsync(any(), any());
+        verify(repository, times(2)).load(state.playerId());
+        verify(repository, times(1)).save(any());
     }
 
     @Test
     public void claimedStreakMilestoneCommandsRunOnGlobalSchedulerWhenPlayerIsOffline() {
-        SqlProvider sqlProvider = mock(SqlProvider.class);
-        QuestStreakService service = new QuestStreakService(enabledConfig(), sqlProvider);
+        QuestStreakRepository repository = mock(QuestStreakRepository.class);
+        QuestStreakService service = new QuestStreakService(configWithMilestone(new StreakMilestoneConfig(3, "3 Day Streak", List.of("eco give <player> 500", "notify <uuid> <milestone_streak>"))), repository);
         QuestStreakState lost = new QuestStreakState(UUID.randomUUID(), 0, 5, "2026-06-18", "2026-06-19", 3, "2026-06-19", 0, 1, Set.of());
         Player player = player(lost.playerId());
         when(player.getName()).thenReturn("Steve");
         when(player.isOnline()).thenReturn(false);
-        QuestStreakMilestone milestone = new QuestStreakMilestone(3, "3 Day Streak", List.of(), List.of("eco give <player> 500", "notify <uuid> <milestone_streak>"));
-        when(sqlProvider.supplyAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(lost));
-        when(sqlProvider.runAsync(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
-        doAnswer(invocation -> CompletableFuture.completedFuture(new QuestStreakEvaluation(lost.withStreak(3), List.of(milestone))))
-                .when(sqlProvider).supplyInTransaction(any(), any());
+        when(repository.load(any())).thenReturn(CompletableFuture.completedFuture(lost));
+        when(repository.save(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.claimMilestones(lost.playerId(), List.of(3))).thenReturn(CompletableFuture.completedFuture(Set.of(3)));
         SyncScheduler syncScheduler = mock(SyncScheduler.class);
         when(syncScheduler.run(any())).thenAnswer(invocation -> {
             Consumer<ScheduledTask> task = invocation.getArgument(0);
@@ -178,12 +177,20 @@ class QuestStreakServiceTest {
     }
 
     private static QuestStreakService service() {
-        return new QuestStreakService(mock(ConfigProvider.class), mock(SqlProvider.class));
+        return new QuestStreakService(mock(ConfigProvider.class), mock(QuestStreakRepository.class));
     }
 
     private static ConfigProvider enabledConfig() {
         ConfigProvider configProvider = mock(ConfigProvider.class);
         when(configProvider.get()).thenReturn(new Config());
+        return configProvider;
+    }
+
+    private static ConfigProvider configWithMilestone(StreakMilestoneConfig milestone) {
+        Config config = spy(new Config());
+        when(config.getStreaks()).thenReturn(new Streaks(true, -1, 3, List.of(milestone), new StreakMenu()));
+        ConfigProvider configProvider = mock(ConfigProvider.class);
+        when(configProvider.get()).thenReturn(config);
         return configProvider;
     }
 
