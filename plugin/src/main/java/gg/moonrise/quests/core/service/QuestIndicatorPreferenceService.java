@@ -1,13 +1,10 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
+import gg.moonrise.quests.core.service.QuestIndicatorPreferenceRepository.StoredPreferences;
 import gg.moonrise.quests.util.QuestNames;
 import lombok.RequiredArgsConstructor;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -22,7 +19,7 @@ public class QuestIndicatorPreferenceService {
     public static final String OFF = "OFF";
     public static final String DEFAULT_INDICATOR = "BOSS_BAR";
 
-    private final SqlProvider sqlProvider;
+    private final QuestIndicatorPreferenceRepository repository;
     private final ConcurrentMap<UUID, Preferences> cache = new ConcurrentHashMap<>();
     /**
      * Token of the newest in-flight load per player. Writes and evictions remove it (while holding the cache
@@ -48,32 +45,20 @@ public class QuestIndicatorPreferenceService {
     public CompletableFuture<Preferences> loadPreference(UUID playerId) {
         Object loadToken = new Object();
         pendingLoads.put(playerId, loadToken);
-        return sqlProvider.supplyAsync(playerId, () -> readPreference(playerId))
+        return repository.load(playerId)
+                .thenApply(stored -> stored.map(this::toPreferences))
                 .thenApply(loaded -> applyLoaded(playerId, loadToken, loaded))
                 .whenComplete((ignored, throwable) -> pendingLoads.remove(playerId, loadToken));
     }
 
-    private Optional<Preferences> readPreference(UUID playerId) throws SQLException {
-        try (Connection connection = sqlProvider.getConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     SELECT indicator_type, personal_indicator_type, global_indicator_type
-                     FROM player_quest_indicator_preferences
-                     WHERE player_uuid = ?
-                     """)) {
-            statement.setString(1, playerId.toString());
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return Optional.empty();
-                }
-                String legacy = QuestNames.constantKey(resultSet.getString("indicator_type"));
-                String personal = normalizeNullable(resultSet.getString("personal_indicator_type"));
-                String global = normalizeNullable(resultSet.getString("global_indicator_type"));
-                return Optional.of(new Preferences(
-                        personal == null ? legacy : personal,
-                        global == null ? legacy : global
-                ));
-            }
-        }
+    private Preferences toPreferences(StoredPreferences stored) {
+        String legacy = QuestNames.constantKey(stored.indicatorType());
+        String personal = normalizeNullable(stored.personalIndicatorType());
+        String global = normalizeNullable(stored.globalIndicatorType());
+        return new Preferences(
+                personal == null ? legacy : personal,
+                global == null ? legacy : global
+        );
     }
 
     private Preferences applyLoaded(UUID playerId, Object loadToken, Optional<Preferences> loaded) {
@@ -96,16 +81,7 @@ public class QuestIndicatorPreferenceService {
             pendingLoads.remove(id);
             return (current == null ? Preferences.empty() : current).with(scope, normalized);
         });
-        return sqlProvider.runAsync(playerId, () -> {
-            try (Connection connection = sqlProvider.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertIndicatorPreferenceSql())) {
-                statement.setString(1, playerId.toString());
-                statement.setString(2, fallbackLegacy(updated));
-                statement.setString(3, updated.personal());
-                statement.setString(4, updated.global());
-                statement.executeUpdate();
-            }
-        });
+        return repository.save(playerId, toStored(updated));
     }
 
     public CompletableFuture<Void> clearPreference(UUID playerId, Scope scope) {
@@ -115,27 +91,11 @@ public class QuestIndicatorPreferenceService {
             Preferences next = base.with(scope, null);
             return next.isEmpty() ? null : next;
         });
-        return sqlProvider.runAsync(playerId, () -> {
-            try (Connection connection = sqlProvider.getConnection()) {
-                if (updated == null) {
-                    try (PreparedStatement statement = connection.prepareStatement("""
-                            DELETE FROM player_quest_indicator_preferences
-                            WHERE player_uuid = ?
-                            """)) {
-                        statement.setString(1, playerId.toString());
-                        statement.executeUpdate();
-                    }
-                    return;
-                }
-                try (PreparedStatement statement = connection.prepareStatement(sqlProvider.currentDatabase().upsertIndicatorPreferenceSql())) {
-                    statement.setString(1, playerId.toString());
-                    statement.setString(2, fallbackLegacy(updated));
-                    statement.setString(3, updated.personal());
-                    statement.setString(4, updated.global());
-                    statement.executeUpdate();
-                }
-            }
-        });
+        return updated == null ? repository.delete(playerId) : repository.save(playerId, toStored(updated));
+    }
+
+    private StoredPreferences toStored(Preferences preferences) {
+        return new StoredPreferences(fallbackLegacy(preferences), preferences.personal(), preferences.global());
     }
 
     private String normalizeNullable(String input) {
