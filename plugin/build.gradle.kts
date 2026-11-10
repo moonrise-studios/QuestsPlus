@@ -98,7 +98,7 @@ val generateRuntimeLibraries by tasks.registering {
     doLast {
         // Clear the directory so a list generated for an older package path never ends up in the jar.
         outputDirectory.get().asFile.deleteRecursively()
-        val file = outputDirectory.get().file("gg/moonrise/quests/bootstrap/runtime-libraries.txt").asFile
+        val file = outputDirectory.get().file("gg/moonrise/quests/loader/runtime-libraries.txt").asFile
         file.parentFile.mkdirs()
         file.writeText(coordinates.joinToString(separator = "\n", postfix = "\n"))
     }
@@ -153,7 +153,7 @@ configure<PaperPluginDescription> {
     apiVersion = "1.21"
     version = pluginVersion
     main = "$location.QuestsPlusPlugin"
-    loader = "$location.bootstrap.QuestsPlusPluginLoader"
+    loader = "$location.loader.QuestsPlusPluginLoader"
     load = BukkitPluginDescription.PluginLoadOrder.POSTWORLD
 
     serverDependencies {
