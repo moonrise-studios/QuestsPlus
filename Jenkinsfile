@@ -62,7 +62,10 @@ pipeline {
 
     post {
         always {
-            junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
+            // Only this build's modules. The checkout does not remove untracked files, so a `**` glob would also
+            // record stale results left in the workspace by other projects (build #2 picked up another
+            // project's test XML and turned UNSTABLE on its failure).
+            junit allowEmptyResults: true, testResults: 'sdk/build/test-results/test/*.xml, plugin/build/test-results/test/*.xml'
         }
     }
 }
