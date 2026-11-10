@@ -1,9 +1,9 @@
 package gg.moonrise.quests.application.quest;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.DailyFile;
-import gg.moonrise.quests.config.PremiumQuestMenu;
-import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.config.file.DailyFile;
+import gg.moonrise.quests.config.menu.PremiumQuestMenu;
+import gg.moonrise.quests.config.file.PremiumQuestsFile;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 

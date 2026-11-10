@@ -2,7 +2,7 @@ package gg.moonrise.quests.infrastructure.persistence.sql;
 
 import com.zaxxer.hikari.HikariConfig;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Storage;
+import gg.moonrise.quests.config.feature.Storage;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;

@@ -1,7 +1,7 @@
 package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.MilestoneMenu;
+import gg.moonrise.quests.config.menu.MilestoneMenu;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;

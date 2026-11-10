@@ -9,6 +9,35 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import gg.moonrise.quests.config.currency.Currencies;
+import gg.moonrise.quests.config.currency.PlayerPointsCurrencyConfig;
+import gg.moonrise.quests.config.currency.VaultCurrencyConfig;
+import gg.moonrise.quests.config.feature.Daily;
+import gg.moonrise.quests.config.feature.Storage;
+import gg.moonrise.quests.config.feature.Streaks;
+import gg.moonrise.quests.config.file.DailyFile;
+import gg.moonrise.quests.config.file.DifficultyDirectory;
+import gg.moonrise.quests.config.file.DifficultyMilestonesFile;
+import gg.moonrise.quests.config.file.GlobalQuestsFile;
+import gg.moonrise.quests.config.file.PremiumQuestsFile;
+import gg.moonrise.quests.config.file.ProgressIndicatorsFile;
+import gg.moonrise.quests.config.file.QuestMenuFile;
+import gg.moonrise.quests.config.file.QuestMilestonesFile;
+import gg.moonrise.quests.config.file.QuestResetsFile;
+import gg.moonrise.quests.config.file.QuestsFile;
+import gg.moonrise.quests.config.file.SharedMessagesFile;
+import gg.moonrise.quests.config.file.StreaksFile;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
+import gg.moonrise.quests.config.menu.MilestoneMenu;
+import gg.moonrise.quests.config.menu.QuestMenu;
+import gg.moonrise.quests.config.message.DailyMessages;
+import gg.moonrise.quests.config.message.Messages;
+import gg.moonrise.quests.config.message.MilestoneMessages;
+import gg.moonrise.quests.config.message.StreakMessages;
+import gg.moonrise.quests.config.quest.DifficultyConfig;
+import gg.moonrise.quests.config.quest.QuestDefinitionConfig;
+import gg.moonrise.quests.config.quest.QuestDifficultyConfig;
+import gg.moonrise.quests.config.quest.Rewards;
 
 @Getter
 @Configuration

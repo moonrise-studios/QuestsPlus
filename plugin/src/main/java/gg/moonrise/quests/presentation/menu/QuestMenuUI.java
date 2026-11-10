@@ -2,7 +2,7 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.QuestMenu;
+import gg.moonrise.quests.config.menu.QuestMenu;
 import gg.moonrise.quests.application.quest.QuestMenuLayout;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.domain.model.GlobalQuestState;

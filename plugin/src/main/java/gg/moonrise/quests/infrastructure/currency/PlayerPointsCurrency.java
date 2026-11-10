@@ -1,11 +1,11 @@
 package gg.moonrise.quests.infrastructure.currency;
 
 import gg.moonrise.moss.spring.Enableable;
-import gg.moonrise.quests.config.Currencies;
-import gg.moonrise.quests.config.MenuButton;
-import gg.moonrise.quests.config.MenuItem;
-import gg.moonrise.quests.config.PlayerPointsCurrencyConfig;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.currency.Currencies;
+import gg.moonrise.quests.config.menu.MenuButton;
+import gg.moonrise.quests.config.menu.MenuItem;
+import gg.moonrise.quests.config.currency.PlayerPointsCurrencyConfig;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;

@@ -1,8 +1,8 @@
 package gg.moonrise.quests.application.reset;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.PlayerPointsCurrencyConfig;
-import gg.moonrise.quests.config.VaultCurrencyConfig;
+import gg.moonrise.quests.config.currency.PlayerPointsCurrencyConfig;
+import gg.moonrise.quests.config.currency.VaultCurrencyConfig;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;

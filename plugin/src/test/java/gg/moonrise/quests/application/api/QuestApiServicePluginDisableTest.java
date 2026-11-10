@@ -10,7 +10,7 @@ import gg.moonrise.quests.application.quest.QuestDefinitionService;
 import gg.moonrise.quests.application.quest.QuestProgressService;
 import gg.moonrise.quests.application.reset.QuestResetPurchaseService;
 import gg.moonrise.quests.application.reset.QuestResetService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import java.util.Optional;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;

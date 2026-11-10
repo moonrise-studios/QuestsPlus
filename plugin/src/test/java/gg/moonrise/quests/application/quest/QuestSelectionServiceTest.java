@@ -1,7 +1,7 @@
 package gg.moonrise.quests.application.quest;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.DailyFile;
+import gg.moonrise.quests.config.file.DailyFile;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.domain.model.QuestDifficulty;
 import gg.moonrise.quests.domain.model.QuestSelectionResult;
@@ -14,7 +14,7 @@ import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import gg.moonrise.quests.application.global.GlobalQuestService;
 import gg.moonrise.quests.application.indicator.QuestProgressIndicatorService;
 import gg.moonrise.quests.application.streak.QuestStreakService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

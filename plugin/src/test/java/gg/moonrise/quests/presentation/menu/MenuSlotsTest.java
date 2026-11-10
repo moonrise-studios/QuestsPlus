@@ -2,7 +2,7 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.MenuItem;
+import gg.moonrise.quests.config.menu.MenuItem;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;

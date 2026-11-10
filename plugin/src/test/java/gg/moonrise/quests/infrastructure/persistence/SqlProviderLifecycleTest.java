@@ -1,6 +1,6 @@
 package gg.moonrise.quests.infrastructure.persistence;
 
-import gg.moonrise.quests.config.Storage;
+import gg.moonrise.quests.config.feature.Storage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -2,9 +2,9 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.BackButton;
-import gg.moonrise.quests.config.GlobalRewardPreviewMenu;
-import gg.moonrise.quests.config.GlobalRewardTierConfig;
+import gg.moonrise.quests.config.menu.BackButton;
+import gg.moonrise.quests.config.menu.GlobalRewardPreviewMenu;
+import gg.moonrise.quests.config.quest.GlobalRewardTierConfig;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 

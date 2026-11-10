@@ -4,7 +4,7 @@ import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import gg.moonrise.quests.application.global.GlobalQuestService;
 import gg.moonrise.quests.application.indicator.QuestProgressIndicatorService;
 import gg.moonrise.quests.application.streak.QuestStreakService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 
 /**
  * The player quest services wired together the way the Spring context wires them, for tests that exercise them

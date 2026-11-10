@@ -2,7 +2,7 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.engine.paper.item.ItemBuilder;
-import gg.moonrise.quests.config.MenuItem;
+import gg.moonrise.quests.config.menu.MenuItem;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;

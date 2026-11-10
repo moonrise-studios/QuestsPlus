@@ -4,13 +4,13 @@ import gg.moonrise.moss.spring.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import gg.moonrise.quests.config.ProgressIndicators;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
 import gg.moonrise.quests.domain.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.util.QuestSchedules;
 import gg.moonrise.quests.util.QuestTokens;
 import gg.moonrise.quests.application.quest.QuestDefinitionService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;

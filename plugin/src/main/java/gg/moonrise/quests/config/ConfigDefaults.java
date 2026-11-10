@@ -3,6 +3,11 @@ package gg.moonrise.quests.config;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import gg.moonrise.quests.config.menu.MenuItem;
+import gg.moonrise.quests.config.quest.MilestoneConfig;
+import gg.moonrise.quests.config.quest.QuestDefinitionConfig;
+import gg.moonrise.quests.config.quest.QuestDifficultyConfig;
+import gg.moonrise.quests.config.quest.Rewards;
 
 /**
  * Default values shared by the config types. Every call returns a new instance so each config owns its copy.

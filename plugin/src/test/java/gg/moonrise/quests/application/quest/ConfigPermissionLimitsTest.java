@@ -4,8 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import gg.moonrise.quests.config.PremiumQuestsFile;
-import gg.moonrise.quests.config.Rerolls;
+import gg.moonrise.quests.config.file.PremiumQuestsFile;
+import gg.moonrise.quests.config.feature.Rerolls;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;

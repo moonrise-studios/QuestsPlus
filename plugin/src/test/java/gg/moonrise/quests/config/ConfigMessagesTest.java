@@ -2,7 +2,16 @@ package gg.moonrise.quests.config;
 
 import gg.moonrise.engine.message.Message;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.file.DailyFile;
+import gg.moonrise.quests.config.file.QuestMilestonesFile;
+import gg.moonrise.quests.config.file.SharedMessagesFile;
+import gg.moonrise.quests.config.file.StreaksFile;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
+import gg.moonrise.quests.config.message.DailyMessages;
+import gg.moonrise.quests.config.message.Messages;
+import gg.moonrise.quests.config.message.MilestoneMessages;
+import gg.moonrise.quests.config.message.SharedMessages;
+import gg.moonrise.quests.config.message.StreakMessages;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

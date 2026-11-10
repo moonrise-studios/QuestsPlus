@@ -1,11 +1,11 @@
 package gg.moonrise.quests.presentation.indicator;
 
-import gg.moonrise.quests.config.ActionBarProgressIndicator;
-import gg.moonrise.quests.config.BossBarProgressIndicator;
-import gg.moonrise.quests.config.ChatProgressIndicator;
+import gg.moonrise.quests.config.indicator.ActionBarProgressIndicator;
+import gg.moonrise.quests.config.indicator.BossBarProgressIndicator;
+import gg.moonrise.quests.config.indicator.ChatProgressIndicator;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.ProgressIndicators;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

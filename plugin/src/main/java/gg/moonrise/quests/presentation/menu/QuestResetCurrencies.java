@@ -1,12 +1,12 @@
 package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.Currencies;
+import gg.moonrise.quests.config.currency.Currencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import gg.moonrise.quests.application.reset.QuestResetPurchaseService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bukkit.entity.Player;

@@ -2,7 +2,7 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.StreakMenu;
+import gg.moonrise.quests.config.menu.StreakMenu;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.domain.model.QuestStreakMilestone;
 import gg.moonrise.quests.domain.model.QuestStreakState;

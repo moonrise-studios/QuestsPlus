@@ -14,7 +14,7 @@ import gg.moonrise.quests.application.quest.QuestSlotService;
 import gg.moonrise.quests.application.quest.QuestUsageService;
 import gg.moonrise.quests.application.reset.QuestResetPurchaseService;
 import gg.moonrise.quests.application.reset.QuestResetService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

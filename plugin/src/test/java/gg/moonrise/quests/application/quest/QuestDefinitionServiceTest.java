@@ -1,16 +1,16 @@
 package gg.moonrise.quests.application.quest;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.GlobalQuestsFile;
-import gg.moonrise.quests.config.QuestDefinitionConfig;
-import gg.moonrise.quests.config.QuestDifficultyConfig;
-import gg.moonrise.quests.config.VariableConfig;
+import gg.moonrise.quests.config.file.GlobalQuestsFile;
+import gg.moonrise.quests.config.quest.QuestDefinitionConfig;
+import gg.moonrise.quests.config.quest.QuestDifficultyConfig;
+import gg.moonrise.quests.config.quest.VariableConfig;
 import gg.moonrise.quests.domain.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;

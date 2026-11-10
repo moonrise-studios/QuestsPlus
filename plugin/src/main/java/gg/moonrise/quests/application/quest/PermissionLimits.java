@@ -1,8 +1,8 @@
 package gg.moonrise.quests.application.quest;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.PremiumQuestsFile;
-import gg.moonrise.quests.config.Rerolls;
+import gg.moonrise.quests.config.file.PremiumQuestsFile;
+import gg.moonrise.quests.config.feature.Rerolls;
 import gg.moonrise.quests.util.QuestNames;
 import org.bukkit.permissions.Permissible;
 import org.jetbrains.annotations.NotNull;

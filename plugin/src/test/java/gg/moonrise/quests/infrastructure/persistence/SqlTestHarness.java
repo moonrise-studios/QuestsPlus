@@ -2,8 +2,8 @@ package gg.moonrise.quests.infrastructure.persistence;
 
 import gg.moonrise.quests.QuestsPlusPlugin;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.Storage;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.feature.Storage;
+import gg.moonrise.quests.config.ConfigProvider;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;

@@ -10,7 +10,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.application.global.GlobalQuestService;
 import gg.moonrise.quests.application.indicator.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.application.quest.QuestDefinitionService;

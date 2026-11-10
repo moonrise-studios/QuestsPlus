@@ -1,12 +1,12 @@
 package gg.moonrise.quests.application.quest;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.GlobalQuestMenu;
-import gg.moonrise.quests.config.MilestoneButton;
-import gg.moonrise.quests.config.QuestMenu;
-import gg.moonrise.quests.config.QuestResetButton;
-import gg.moonrise.quests.config.StreakButton;
-import gg.moonrise.quests.config.Streaks;
+import gg.moonrise.quests.config.menu.GlobalQuestMenu;
+import gg.moonrise.quests.config.menu.MilestoneButton;
+import gg.moonrise.quests.config.menu.QuestMenu;
+import gg.moonrise.quests.config.menu.QuestResetButton;
+import gg.moonrise.quests.config.menu.StreakButton;
+import gg.moonrise.quests.config.feature.Streaks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

@@ -8,12 +8,12 @@ import gg.moonrise.moss.spring.SpringComponent;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import gg.moonrise.quests.config.Daily;
-import gg.moonrise.quests.config.GlobalSchedule;
+import gg.moonrise.quests.config.feature.Daily;
+import gg.moonrise.quests.config.quest.GlobalSchedule;
 import gg.moonrise.quests.util.QuestSchedules;
 import gg.moonrise.quests.domain.time.QuestClock;
 import gg.moonrise.quests.application.quest.QuestService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.bukkit.Bukkit;
 
 import java.time.DayOfWeek;

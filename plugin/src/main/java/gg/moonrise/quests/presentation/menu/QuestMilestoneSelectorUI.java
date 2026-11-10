@@ -2,8 +2,8 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.BackButton;
-import gg.moonrise.quests.config.MilestoneMenu;
+import gg.moonrise.quests.config.menu.BackButton;
+import gg.moonrise.quests.config.menu.MilestoneMenu;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.domain.model.QuestDifficulty;
 import org.bukkit.Material;

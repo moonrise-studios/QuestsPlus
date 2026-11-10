@@ -1,6 +1,6 @@
 package gg.moonrise.quests.presentation.command;
 
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.application.global.GlobalQuestService;
 import gg.moonrise.quests.application.quest.QuestDefinitionService;
 import gg.moonrise.quests.application.indicator.QuestIndicatorPreferenceService;

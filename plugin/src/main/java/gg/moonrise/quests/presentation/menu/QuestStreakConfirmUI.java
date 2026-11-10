@@ -2,7 +2,7 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.ConfirmationMenu;
+import gg.moonrise.quests.config.menu.ConfirmationMenu;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.domain.model.QuestStreakState;
 import org.bukkit.Material;

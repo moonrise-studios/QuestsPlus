@@ -21,7 +21,7 @@ import gg.moonrise.quests.application.quest.QuestUsageService;
 import gg.moonrise.quests.application.reset.QuestResetPurchaseService;
 import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.application.streak.QuestStreakService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.presentation.menu.QuestMenuItems;
 import gg.moonrise.quests.presentation.menu.QuestMenuService;
 import gg.moonrise.quests.presentation.menu.QuestResetCurrencies;

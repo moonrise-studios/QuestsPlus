@@ -1,6 +1,6 @@
 package gg.moonrise.quests.application.indicator;
 
-import gg.moonrise.quests.config.ProgressIndicators;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
 
 import java.util.UUID;
 

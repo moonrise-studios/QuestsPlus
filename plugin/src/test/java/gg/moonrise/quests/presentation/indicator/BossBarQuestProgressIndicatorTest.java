@@ -3,7 +3,7 @@ package gg.moonrise.quests.presentation.indicator;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.EntityScheduler;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.application.indicator.QuestProgressIndicatorContext;

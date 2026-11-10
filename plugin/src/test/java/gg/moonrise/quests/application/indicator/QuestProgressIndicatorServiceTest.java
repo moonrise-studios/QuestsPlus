@@ -1,12 +1,12 @@
 package gg.moonrise.quests.application.indicator;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.ProgressIndicators;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
 import gg.moonrise.quests.domain.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.application.quest.QuestDefinitionService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

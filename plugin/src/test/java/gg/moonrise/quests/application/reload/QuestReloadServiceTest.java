@@ -9,7 +9,7 @@ import gg.moonrise.quests.application.global.GlobalQuestService;
 import gg.moonrise.quests.application.quest.QuestDefinitionService;
 import gg.moonrise.quests.application.quest.QuestService;
 import gg.moonrise.quests.application.reset.QuestResetService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

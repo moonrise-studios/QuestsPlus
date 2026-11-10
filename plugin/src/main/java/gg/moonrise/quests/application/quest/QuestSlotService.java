@@ -5,7 +5,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.domain.model.QuestResetEligibility;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;
 

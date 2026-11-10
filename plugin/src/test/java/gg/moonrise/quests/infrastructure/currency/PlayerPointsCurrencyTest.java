@@ -1,8 +1,8 @@
 package gg.moonrise.quests.infrastructure.currency;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.PlayerPointsCurrencyConfig;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.currency.PlayerPointsCurrencyConfig;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 

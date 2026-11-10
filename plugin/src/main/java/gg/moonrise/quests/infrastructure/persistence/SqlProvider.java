@@ -8,10 +8,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.QuestsPlusPlugin;
-import gg.moonrise.quests.config.Storage;
+import gg.moonrise.quests.config.feature.Storage;
 import gg.moonrise.quests.infrastructure.persistence.sql.KeyedSerialExecutor;
 import gg.moonrise.quests.infrastructure.persistence.sql.SQLDatabase;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;

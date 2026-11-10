@@ -2,8 +2,8 @@ package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.quests.config.BackButton;
-import gg.moonrise.quests.config.QuestResetMenu;
+import gg.moonrise.quests.config.menu.BackButton;
+import gg.moonrise.quests.config.menu.QuestResetMenu;
 import gg.moonrise.quests.domain.model.QuestResetEligibility;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;

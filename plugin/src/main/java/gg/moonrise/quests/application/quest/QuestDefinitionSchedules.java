@@ -1,7 +1,7 @@
 package gg.moonrise.quests.application.quest;
 
-import gg.moonrise.quests.config.QuestScheduleBoundConfig;
-import gg.moonrise.quests.config.QuestScheduleConfig;
+import gg.moonrise.quests.config.quest.QuestScheduleBoundConfig;
+import gg.moonrise.quests.config.quest.QuestScheduleConfig;
 import gg.moonrise.quests.sdk.model.QuestDefinitionSchedule;
 
 import java.time.Instant;

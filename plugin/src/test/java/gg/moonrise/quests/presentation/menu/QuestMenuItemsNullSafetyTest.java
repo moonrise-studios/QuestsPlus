@@ -1,7 +1,7 @@
 package gg.moonrise.quests.presentation.menu;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.config.MenuItem;
+import gg.moonrise.quests.config.menu.MenuItem;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.application.global.GlobalQuestService;
@@ -12,7 +12,7 @@ import gg.moonrise.quests.application.quest.QuestUsageService;
 import gg.moonrise.quests.application.reset.QuestResetPurchaseService;
 import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.application.streak.QuestStreakService;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;

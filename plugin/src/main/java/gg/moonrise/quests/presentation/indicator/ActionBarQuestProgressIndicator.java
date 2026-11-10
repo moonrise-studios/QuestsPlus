@@ -2,8 +2,8 @@ package gg.moonrise.quests.presentation.indicator;
 
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.config.ActionBarProgressIndicator;
-import gg.moonrise.quests.config.ProgressIndicators;
+import gg.moonrise.quests.config.indicator.ActionBarProgressIndicator;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
 import gg.moonrise.quests.application.indicator.QuestProgressIndicator;
 import gg.moonrise.quests.application.indicator.QuestProgressIndicatorContext;
 

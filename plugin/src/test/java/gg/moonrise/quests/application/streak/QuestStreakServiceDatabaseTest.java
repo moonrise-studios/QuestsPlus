@@ -5,7 +5,7 @@ import gg.moonrise.quests.domain.model.QuestStreakState;
 import gg.moonrise.quests.infrastructure.persistence.QuestStreakRepository;
 import gg.moonrise.quests.infrastructure.persistence.SqlProvider;
 import gg.moonrise.quests.infrastructure.persistence.SqliteTestHarness;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.ConfigProvider;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
