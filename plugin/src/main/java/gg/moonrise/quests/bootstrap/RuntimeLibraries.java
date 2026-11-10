@@ -1,4 +1,4 @@
-package gg.moonrise.quests.loader;
+package gg.moonrise.quests.bootstrap;
 
 import java.io.BufferedReader;
 import java.io.IOException;

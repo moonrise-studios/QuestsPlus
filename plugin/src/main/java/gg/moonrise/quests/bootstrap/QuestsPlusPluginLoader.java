@@ -1,4 +1,4 @@
-package gg.moonrise.quests.loader;
+package gg.moonrise.quests.bootstrap;
 
 import gg.moonrise.engine.paper.loader.PaperPluginLoader;
 import io.papermc.paper.plugin.loader.library.impl.MavenLibraryResolver;

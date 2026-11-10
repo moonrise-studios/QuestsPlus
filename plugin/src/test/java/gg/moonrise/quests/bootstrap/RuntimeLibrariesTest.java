@@ -1,4 +1,4 @@
-package gg.moonrise.quests.loader;
+package gg.moonrise.quests.bootstrap;
 
 import org.junit.jupiter.api.Test;
 
