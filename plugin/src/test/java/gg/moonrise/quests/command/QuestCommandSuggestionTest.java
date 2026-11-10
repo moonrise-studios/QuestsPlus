@@ -2,7 +2,6 @@ package gg.moonrise.quests.command;
 
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.core.service.GlobalQuestService;
-import gg.moonrise.quests.core.service.QuestApiService;
 import gg.moonrise.quests.core.service.QuestDefinitionService;
 import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.core.service.QuestMenuService;
@@ -14,7 +13,7 @@ import gg.moonrise.quests.core.service.QuestSlotService;
 import gg.moonrise.quests.core.service.QuestTextService;
 import gg.moonrise.quests.core.service.QuestUsageService;
 import gg.moonrise.quests.core.service.QuestStreakService;
-import gg.moonrise.quests.core.service.SqlProvider;
+import gg.moonrise.quests.core.service.QuestReloadService;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestType;
 import org.junit.jupiter.api.AfterEach;
@@ -54,11 +53,10 @@ public class QuestCommandSuggestionTest {
                 mock(QuestMenuService.class),
                 mock(QuestResetService.class),
                 mock(QuestStreakService.class),
-                mock(SqlProvider.class),
+                mock(QuestReloadService.class),
                 mock(GlobalQuestService.class),
                 progressIndicatorService,
-                mock(QuestIndicatorPreferenceService.class),
-                mock(QuestApiService.class)
+                mock(QuestIndicatorPreferenceService.class)
         );
     }
 

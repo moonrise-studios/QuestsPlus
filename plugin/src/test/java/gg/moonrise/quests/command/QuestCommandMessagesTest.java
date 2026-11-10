@@ -9,7 +9,6 @@ import gg.moonrise.quests.config.SharedMessages;
 import gg.moonrise.quests.config.SharedMessagesFile;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.core.service.GlobalQuestService;
-import gg.moonrise.quests.core.service.QuestApiService;
 import gg.moonrise.quests.core.service.QuestDefinitionService;
 import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.core.service.QuestMenuService;
@@ -21,7 +20,7 @@ import gg.moonrise.quests.core.service.QuestSlotService;
 import gg.moonrise.quests.core.service.QuestTextService;
 import gg.moonrise.quests.core.service.QuestUsageService;
 import gg.moonrise.quests.core.service.QuestStreakService;
-import gg.moonrise.quests.core.service.SqlProvider;
+import gg.moonrise.quests.core.service.QuestReloadService;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
@@ -57,6 +56,7 @@ public class QuestCommandMessagesTest {
     private QuestService questService;
     private QuestUsageService usageService;
     private QuestStreakService streakService;
+    private QuestReloadService reloadService;
     private QuestCommand command;
 
     @BeforeEach
@@ -81,6 +81,7 @@ public class QuestCommandMessagesTest {
         questService = mock(QuestService.class);
         usageService = mock(QuestUsageService.class);
         streakService = mock(QuestStreakService.class);
+        reloadService = mock(QuestReloadService.class);
         QuestResetService resetService = mock(QuestResetService.class);
         when(resetService.currentResetKey()).thenReturn("daily");
         command = new QuestCommand(
@@ -94,11 +95,10 @@ public class QuestCommandMessagesTest {
                 mock(QuestMenuService.class),
                 resetService,
                 streakService,
-                mock(SqlProvider.class),
+                reloadService,
                 mock(GlobalQuestService.class),
                 mock(QuestProgressIndicatorService.class),
-                mock(QuestIndicatorPreferenceService.class),
-                mock(QuestApiService.class)
+                mock(QuestIndicatorPreferenceService.class)
         );
     }
 
@@ -162,6 +162,24 @@ public class QuestCommandMessagesTest {
         command.progress(source);
 
         assertEquals("Failed to load quest progress right now.", nextMessage());
+    }
+
+    @Test
+    public void reloadSendsSuccessMessageOnceReloaded() {
+        when(reloadService.reload()).thenReturn(CompletableFuture.completedFuture(new QuestReloadService.ReloadOutcome.Reloaded()));
+
+        command.reload(source);
+
+        assertEquals("QuestsPlus config reloaded.", nextMessage());
+    }
+
+    @Test
+    public void reloadSendsFailureMessageWhenReloadFails() {
+        when(reloadService.reload()).thenReturn(CompletableFuture.completedFuture(new QuestReloadService.ReloadOutcome.Failed(new IllegalStateException("bad yaml"))));
+
+        command.reload(source);
+
+        assertEquals("QuestsPlus config reload failed. Check console for details.", nextMessage());
     }
 
     private String nextMessage() {

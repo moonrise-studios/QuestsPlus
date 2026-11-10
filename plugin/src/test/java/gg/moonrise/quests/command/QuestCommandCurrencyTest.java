@@ -5,7 +5,6 @@ import gg.moonrise.engine.paper.scheduler.impl.EntityScheduler;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.core.service.GlobalQuestService;
-import gg.moonrise.quests.core.service.QuestApiService;
 import gg.moonrise.quests.core.service.QuestDefinitionService;
 import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
 import gg.moonrise.quests.core.service.QuestMenuService;
@@ -18,7 +17,7 @@ import gg.moonrise.quests.core.service.QuestTextService;
 import gg.moonrise.quests.core.service.QuestUsageService;
 import gg.moonrise.quests.core.service.QuestStreakService;
 import gg.moonrise.quests.core.service.QuestStreakService.StreakCurrency;
-import gg.moonrise.quests.core.service.SqlProvider;
+import gg.moonrise.quests.core.service.QuestReloadService;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
@@ -89,11 +88,10 @@ public class QuestCommandCurrencyTest {
                 mock(QuestMenuService.class),
                 mock(QuestResetService.class),
                 streakService,
-                mock(SqlProvider.class),
+                mock(QuestReloadService.class),
                 mock(GlobalQuestService.class),
                 mock(QuestProgressIndicatorService.class),
-                mock(QuestIndicatorPreferenceService.class),
-                mock(QuestApiService.class)
+                mock(QuestIndicatorPreferenceService.class)
         );
     }
 

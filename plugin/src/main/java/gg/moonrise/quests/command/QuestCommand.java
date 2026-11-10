@@ -17,14 +17,13 @@ import gg.moonrise.quests.core.service.QuestDefinitionService;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
 import gg.moonrise.quests.core.service.QuestProgressService;
-import gg.moonrise.quests.core.service.QuestApiService;
+import gg.moonrise.quests.core.service.QuestReloadService;
 import gg.moonrise.quests.core.service.QuestResetService;
 import gg.moonrise.quests.core.service.QuestService;
 import gg.moonrise.quests.core.service.QuestSlotService;
 import gg.moonrise.quests.core.service.QuestStreakService;
 import gg.moonrise.quests.core.service.QuestTextService;
 import gg.moonrise.quests.core.service.QuestUsageService;
-import gg.moonrise.quests.core.service.SqlProvider;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
@@ -61,11 +60,10 @@ public class QuestCommand implements PaperCommand {
     private final QuestMenuService menuService;
     private final QuestResetService resetService;
     private final QuestStreakService streakService;
-    private final SqlProvider sqlProvider;
+    private final QuestReloadService reloadService;
     private final GlobalQuestService globalQuestService;
     private final QuestProgressIndicatorService progressIndicatorService;
     private final QuestIndicatorPreferenceService indicatorPreferenceService;
-    private final QuestApiService apiService;
 
     private enum CurrencyAdjustment {
         GIVE,
@@ -251,37 +249,12 @@ public class QuestCommand implements PaperCommand {
     @Permission("questsplus.admin")
     public void reload(CommandSourceStack source) {
         CommandSender sender = source.getSender();
-        try {
-            // Read the new config without applying it, reconnect storage off the command thread, and
-            // only apply the new config once storage is ready, so a failed reconnect changes nothing.
-            var candidate = configProvider.loadFromDisk();
-            sqlProvider.reload(candidate.getStorage()).whenComplete((result, error) -> Scheduler.sync().run(task -> {
-                Throwable failure = error;
-                if (result instanceof SqlProvider.ReloadResult.Failed failed) {
-                    failure = failed.cause();
-                }
-                if (failure != null) {
-                    log.error("Failed to reconnect QuestsPlus storage; the previous configuration is still active.", failure);
-                    runForSender(sender, () -> configProvider.get().getMessages().getReloadFailed().send(sender));
-                    return;
-                }
-                try {
-                    configProvider.apply(candidate);
-                    definitionService.reload();
-                    resetService.reload();
-                    apiService.reload();
-                    globalQuestService.reload();
-                    questService.claimRetroactiveMilestonesForOnlinePlayers();
-                    runForSender(sender, () -> configProvider.get().getMessages().getReloadSuccess().send(sender));
-                } catch (RuntimeException exception) {
-                    log.error("Failed to reload QuestsPlus.", exception);
-                    runForSender(sender, () -> configProvider.get().getMessages().getReloadFailed().send(sender));
-                }
-            }));
-        } catch (RuntimeException exception) {
-            log.error("Failed to load QuestsPlus configuration.", exception);
-            configProvider.get().getMessages().getReloadFailed().send(sender);
-        }
+        reloadService.reload().thenAccept(outcome -> runForSender(sender, () -> {
+            switch (outcome) {
+                case QuestReloadService.ReloadOutcome.Reloaded reloaded -> configProvider.get().getMessages().getReloadSuccess().send(sender);
+                case QuestReloadService.ReloadOutcome.Failed failed -> configProvider.get().getMessages().getReloadFailed().send(sender);
+            }
+        }));
     }
 
     @Command("qa|questsadmin listtypes")
