@@ -2,7 +2,7 @@ package gg.moonrise.quests.domain.model;
 
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
-import gg.moonrise.quests.command.QuestCommand;
+import gg.moonrise.quests.presentation.command.QuestCommand;
 import gg.moonrise.quests.util.QuestDisplayNames;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;

@@ -26,8 +26,8 @@ import gg.moonrise.quests.application.reset.QuestResetPurchaseService;
 import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.application.streak.QuestStreakService;
 import gg.moonrise.quests.core.service.ConfigProvider;
-import gg.moonrise.quests.core.service.QuestMenuItems;
-import gg.moonrise.quests.core.service.QuestResetCurrencies;
+import gg.moonrise.quests.presentation.menu.QuestMenuItems;
+import gg.moonrise.quests.presentation.menu.QuestResetCurrencies;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
