@@ -6,6 +6,7 @@ import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bukkit.Bukkit;

@@ -3,6 +3,8 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import gg.moonrise.quests.infrastructure.persistence.GlobalQuestRepository;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,7 @@
 package gg.moonrise.quests.core.service;
 
-import gg.moonrise.quests.core.service.QuestIndicatorPreferenceRepository.StoredPreferences;
+import gg.moonrise.quests.infrastructure.persistence.QuestIndicatorPreferenceRepository.StoredPreferences;
+import gg.moonrise.quests.infrastructure.persistence.QuestIndicatorPreferenceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

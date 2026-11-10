@@ -20,6 +20,7 @@ import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.util.QuestSchedules;
 import gg.moonrise.quests.util.QuestTokens;
+import gg.moonrise.quests.infrastructure.persistence.GlobalQuestRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;

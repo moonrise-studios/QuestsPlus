@@ -13,6 +13,7 @@ import gg.moonrise.quests.sdk.model.QuestDefinitionSchedule;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.sdk.event.QuestProgressEvent;
+import gg.moonrise.quests.infrastructure.persistence.GlobalQuestRepository;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;

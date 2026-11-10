@@ -1,8 +1,9 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.core.service.QuestIndicatorPreferenceRepository.StoredPreferences;
+import gg.moonrise.quests.infrastructure.persistence.QuestIndicatorPreferenceRepository.StoredPreferences;
 import gg.moonrise.quests.util.QuestNames;
+import gg.moonrise.quests.infrastructure.persistence.QuestIndicatorPreferenceRepository;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Optional;

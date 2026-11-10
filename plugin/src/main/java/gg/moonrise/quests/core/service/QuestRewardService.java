@@ -14,6 +14,7 @@ import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestTokens;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

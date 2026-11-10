@@ -2,6 +2,7 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

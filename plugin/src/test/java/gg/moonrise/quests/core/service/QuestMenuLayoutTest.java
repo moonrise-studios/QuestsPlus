@@ -4,6 +4,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.config.DailyFile;
 import gg.moonrise.quests.config.PremiumQuestMenu;
 import gg.moonrise.quests.config.PremiumQuestsFile;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;

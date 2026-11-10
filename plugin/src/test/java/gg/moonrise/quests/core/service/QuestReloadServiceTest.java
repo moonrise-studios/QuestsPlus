@@ -3,6 +3,7 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.infrastructure.persistence.SqlProvider;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

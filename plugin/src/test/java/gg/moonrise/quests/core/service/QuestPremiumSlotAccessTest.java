@@ -19,6 +19,7 @@ import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 

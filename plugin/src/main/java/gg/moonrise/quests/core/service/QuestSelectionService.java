@@ -7,6 +7,7 @@ import gg.moonrise.quests.model.QuestSelectionStatus;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.util.QuestNames;
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;

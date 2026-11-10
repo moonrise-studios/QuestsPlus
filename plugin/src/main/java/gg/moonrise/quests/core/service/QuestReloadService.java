@@ -3,6 +3,7 @@ package gg.moonrise.quests.core.service;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.Config;
+import gg.moonrise.quests.infrastructure.persistence.SqlProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

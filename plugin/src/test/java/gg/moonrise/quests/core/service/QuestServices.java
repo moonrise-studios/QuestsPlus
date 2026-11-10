@@ -1,5 +1,7 @@
 package gg.moonrise.quests.core.service;
 
+import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
+
 /**
  * The player quest services wired together the way the Spring context wires them, for tests that exercise them
  * against mocked repositories and collaborators.

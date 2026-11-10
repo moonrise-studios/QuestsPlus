@@ -16,6 +16,7 @@ import gg.moonrise.quests.model.QuestStreakState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestTokens;
+import gg.moonrise.quests.infrastructure.persistence.QuestStreakRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
