@@ -4,7 +4,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.config.DailyFile;
 import gg.moonrise.quests.config.PremiumQuestMenu;
 import gg.moonrise.quests.config.PremiumQuestsFile;
-import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.entity.Player;

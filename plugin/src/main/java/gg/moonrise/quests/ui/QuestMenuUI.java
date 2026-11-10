@@ -6,8 +6,8 @@ import gg.moonrise.quests.config.QuestMenu;
 import gg.moonrise.quests.core.service.QuestMenuLayout;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
-import gg.moonrise.quests.model.GlobalQuestState;
-import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.GlobalQuestState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 

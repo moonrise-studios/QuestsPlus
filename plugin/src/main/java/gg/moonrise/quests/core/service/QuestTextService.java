@@ -1,8 +1,8 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.util.QuestPlaceholders;
 import gg.moonrise.quests.util.QuestNumberFormatter;

@@ -1,6 +1,6 @@
 package gg.moonrise.quests.ui;
 
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
 
 import java.util.ArrayList;
 import java.util.HashSet;

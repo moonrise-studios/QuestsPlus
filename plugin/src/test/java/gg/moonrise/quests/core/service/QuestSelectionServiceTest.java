@@ -2,10 +2,10 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.config.DailyFile;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestDifficulty;
-import gg.moonrise.quests.model.QuestSelectionResult;
-import gg.moonrise.quests.model.QuestSelectionStatus;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.QuestSelectionResult;
+import gg.moonrise.quests.domain.model.QuestSelectionStatus;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;

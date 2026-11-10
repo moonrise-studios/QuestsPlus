@@ -4,7 +4,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.config.MilestoneMenu;
 import gg.moonrise.quests.core.service.QuestMenuItems;
 import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;

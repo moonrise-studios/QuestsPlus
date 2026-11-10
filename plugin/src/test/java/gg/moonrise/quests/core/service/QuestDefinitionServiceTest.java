@@ -5,7 +5,7 @@ import gg.moonrise.quests.config.GlobalQuestsFile;
 import gg.moonrise.quests.config.QuestDefinitionConfig;
 import gg.moonrise.quests.config.QuestDifficultyConfig;
 import gg.moonrise.quests.config.VariableConfig;
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.QuestVariableSelector;
 import gg.moonrise.quests.sdk.model.QuestDefinition;

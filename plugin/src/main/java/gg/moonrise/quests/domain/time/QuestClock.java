@@ -1,4 +1,4 @@
-package gg.moonrise.quests.core.service;
+package gg.moonrise.quests.domain.time;
 
 import java.time.Clock;
 import java.time.Instant;

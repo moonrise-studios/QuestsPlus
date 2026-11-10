@@ -6,7 +6,7 @@ import gg.moonrise.quests.config.BackButton;
 import gg.moonrise.quests.config.QuestResetMenu;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.QuestResetEligibility;
+import gg.moonrise.quests.domain.model.QuestResetEligibility;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import org.bukkit.Material;

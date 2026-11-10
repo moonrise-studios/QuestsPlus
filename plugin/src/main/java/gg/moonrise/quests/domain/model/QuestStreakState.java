@@ -1,4 +1,4 @@
-package gg.moonrise.quests.model;
+package gg.moonrise.quests.domain.model;
 
 import java.util.Set;
 import java.util.UUID;

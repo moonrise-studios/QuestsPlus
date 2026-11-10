@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.config.Daily;
 import gg.moonrise.quests.config.GlobalSchedule;
 import gg.moonrise.quests.util.QuestSchedules;
+import gg.moonrise.quests.domain.time.QuestClock;
 import org.bukkit.Bukkit;
 
 import java.time.DayOfWeek;

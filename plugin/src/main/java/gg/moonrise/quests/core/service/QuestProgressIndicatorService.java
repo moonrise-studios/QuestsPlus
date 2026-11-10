@@ -7,7 +7,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.indicator.QuestProgressIndicator;
 import gg.moonrise.quests.indicator.QuestProgressIndicatorContext;
-import gg.moonrise.quests.model.GlobalQuestState;
+import gg.moonrise.quests.domain.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.util.QuestSchedules;
 import gg.moonrise.quests.util.QuestTokens;

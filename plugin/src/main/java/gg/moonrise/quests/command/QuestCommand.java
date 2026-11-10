@@ -24,7 +24,7 @@ import gg.moonrise.quests.core.service.QuestSlotService;
 import gg.moonrise.quests.core.service.QuestStreakService;
 import gg.moonrise.quests.core.service.QuestTextService;
 import gg.moonrise.quests.core.service.QuestUsageService;
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.util.QuestNames;

@@ -2,7 +2,7 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.engine.paper.scheduler.Scheduler;
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.event.QuestProgressEvent;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;

@@ -1,7 +1,7 @@
 package gg.moonrise.quests.indicator;
 
 import net.kyori.adventure.text.Component;
-import gg.moonrise.quests.model.GlobalQuestState;
+import gg.moonrise.quests.domain.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import org.bukkit.entity.Player;
 

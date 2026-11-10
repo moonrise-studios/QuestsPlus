@@ -3,7 +3,7 @@ package gg.moonrise.quests.infrastructure.time;
 import gg.moonrise.moss.spring.SpringComponent;
 
 import java.time.Clock;
-import gg.moonrise.quests.core.service.QuestClock;
+import gg.moonrise.quests.domain.time.QuestClock;
 
 /**
  * {@link QuestClock} backed by the system clock in the server's default time zone.

@@ -1,13 +1,13 @@
 package gg.moonrise.quests.infrastructure.persistence;
 
-import gg.moonrise.quests.model.GlobalQuestContribution;
-import gg.moonrise.quests.model.GlobalQuestState;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestCompletionStats;
-import gg.moonrise.quests.model.QuestDifficulty;
-import gg.moonrise.quests.model.QuestMilestone;
-import gg.moonrise.quests.model.QuestMilestoneClaim;
-import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
+import gg.moonrise.quests.domain.model.GlobalQuestContribution;
+import gg.moonrise.quests.domain.model.GlobalQuestState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.QuestCompletionStats;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.QuestMilestone;
+import gg.moonrise.quests.domain.model.QuestMilestoneClaim;
+import gg.moonrise.quests.domain.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.junit.jupiter.api.DynamicTest;

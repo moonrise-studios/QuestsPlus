@@ -1,7 +1,7 @@
 package gg.moonrise.quests.infrastructure.persistence;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.model.QuestStreakState;
+import gg.moonrise.quests.domain.model.QuestStreakState;
 import lombok.RequiredArgsConstructor;
 
 import java.sql.Connection;

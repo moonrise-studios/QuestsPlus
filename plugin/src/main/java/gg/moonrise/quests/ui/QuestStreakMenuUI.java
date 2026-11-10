@@ -4,9 +4,9 @@ import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.StreakMenu;
 import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestStreakMilestone;
-import gg.moonrise.quests.model.QuestStreakState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.QuestStreakMilestone;
+import gg.moonrise.quests.domain.model.QuestStreakState;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 

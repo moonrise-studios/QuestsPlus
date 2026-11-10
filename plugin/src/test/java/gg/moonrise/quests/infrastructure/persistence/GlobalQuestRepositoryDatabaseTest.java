@@ -1,7 +1,7 @@
 package gg.moonrise.quests.infrastructure.persistence;
 
-import gg.moonrise.quests.model.GlobalQuestContribution;
-import gg.moonrise.quests.model.GlobalQuestState;
+import gg.moonrise.quests.domain.model.GlobalQuestContribution;
+import gg.moonrise.quests.domain.model.GlobalQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.junit.jupiter.api.AfterEach;

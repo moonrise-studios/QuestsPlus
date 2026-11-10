@@ -6,7 +6,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.config.StreakMenu;
 import gg.moonrise.quests.config.StreakMilestoneConfig;
 import gg.moonrise.quests.config.Streaks;
-import gg.moonrise.quests.model.QuestStreakState;
+import gg.moonrise.quests.domain.model.QuestStreakState;
 import gg.moonrise.quests.infrastructure.persistence.QuestStreakRepository;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;

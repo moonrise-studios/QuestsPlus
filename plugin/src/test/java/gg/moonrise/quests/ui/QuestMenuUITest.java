@@ -5,7 +5,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.QuestMenuItems;
 import gg.moonrise.quests.core.service.QuestMenuLayout;
 import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.Material;

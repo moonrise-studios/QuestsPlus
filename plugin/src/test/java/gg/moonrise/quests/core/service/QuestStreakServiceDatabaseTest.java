@@ -1,7 +1,7 @@
 package gg.moonrise.quests.core.service;
 
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.model.QuestStreakState;
+import gg.moonrise.quests.domain.model.QuestStreakState;
 import gg.moonrise.quests.infrastructure.persistence.QuestStreakRepository;
 import gg.moonrise.quests.infrastructure.persistence.SqlProvider;
 import gg.moonrise.quests.infrastructure.persistence.SqliteTestHarness;

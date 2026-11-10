@@ -1,4 +1,4 @@
-package gg.moonrise.quests.model;
+package gg.moonrise.quests.domain.model;
 
 public record QuestResetEligibility(int completed, int required) {
 

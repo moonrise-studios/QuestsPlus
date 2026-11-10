@@ -1,4 +1,4 @@
-package gg.moonrise.quests.model;
+package gg.moonrise.quests.domain.model;
 
 /**
  * Result of recording a paid quest reset and deleting the player's quests for the window.

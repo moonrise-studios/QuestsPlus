@@ -2,8 +2,8 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestResetEligibility;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.QuestResetEligibility;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;

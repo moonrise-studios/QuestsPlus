@@ -1,4 +1,4 @@
-package gg.moonrise.quests.model;
+package gg.moonrise.quests.domain.model;
 
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;

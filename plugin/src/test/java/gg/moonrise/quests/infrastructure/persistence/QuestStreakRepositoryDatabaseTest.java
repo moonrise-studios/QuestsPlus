@@ -1,6 +1,6 @@
 package gg.moonrise.quests.infrastructure.persistence;
 
-import gg.moonrise.quests.model.QuestStreakState;
+import gg.moonrise.quests.domain.model.QuestStreakState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

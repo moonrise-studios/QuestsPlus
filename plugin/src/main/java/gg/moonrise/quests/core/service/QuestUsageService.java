@@ -4,7 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.QuestResetMenu;
-import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
+import gg.moonrise.quests.domain.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.infrastructure.persistence.QuestRepository;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;

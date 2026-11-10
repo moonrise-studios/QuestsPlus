@@ -1,4 +1,4 @@
-package gg.moonrise.quests.model;
+package gg.moonrise.quests.domain.model;
 
 public record QuestMilestoneClaim(
         String difficultyId,

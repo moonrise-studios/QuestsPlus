@@ -5,9 +5,9 @@ import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.MilestoneMenu;
 import gg.moonrise.quests.core.service.MenuTokens;
 import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestDifficulty;
-import gg.moonrise.quests.model.QuestMilestone;
+import gg.moonrise.quests.domain.model.PlayerQuestState;
+import gg.moonrise.quests.domain.model.QuestDifficulty;
+import gg.moonrise.quests.domain.model.QuestMilestone;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
