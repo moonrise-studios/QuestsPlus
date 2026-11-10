@@ -73,6 +73,7 @@ dependencies {
     testRuntimeOnly(libs.configLib)
     runtimeLibraries.forEach { library -> testRuntimeOnly(library) }
     testRuntimeOnly(libs.roseStacker)
+    testImplementation(libs.archunit)
 
     // Lombok
     compileOnly(libs.lombok)
