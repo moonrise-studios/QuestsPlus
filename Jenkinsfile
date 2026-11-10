@@ -13,8 +13,9 @@ pipeline {
             }
         }
 
-        // The build compiles with a Java 21 toolchain (plugin/build.gradle.kts, sdk/build.gradle.kts),
-        // so the agent needs a JDK 21 that Gradle can find. Gradle itself runs on Java 21 or newer.
+        // Gradle runs on the agent's Java (21 or newer). The code compiles and tests with a Java 21 toolchain
+        // (plugin/build.gradle.kts, sdk/build.gradle.kts); when the agent has no JDK 21, the foojay resolver in
+        // settings.gradle.kts downloads one into ~/.gradle/jdks on the first run.
         stage('Verify Java 21') {
             steps {
                 sh '''
