@@ -16,6 +16,7 @@ import gg.moonrise.quests.config.SharedMessagesFile;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestResetEligibility;
 import gg.moonrise.quests.model.QuestSelectionStatus;
+import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestType;
 import org.bukkit.entity.Player;
@@ -259,9 +260,9 @@ class QuestPremiumSlotAccessTest {
         QuestRepository repository = mock(QuestRepository.class);
         QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
-        when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
+        when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1)).thenReturn(CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.Applied(1)));
 
-        assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), service.usage().recordQuestResetPurchaseAndReset(playerId, "daily").join());
+        assertEquals(new QuestResetPurchaseOutcome.Applied(1), service.usage().recordQuestResetPurchaseAndReset(playerId, "daily").join());
         assertEquals(1, service.usage().cachedQuestResetPurchasesUsed(playerId, "daily"));
         assertEquals(0, service.usage().questResetPurchasesRemaining(playerId, "daily"));
         verify(repository).recordQuestResetPurchaseAndReset(playerId, "daily", 1);
@@ -278,9 +279,9 @@ class QuestPremiumSlotAccessTest {
         QuestServices service = questServices(configProvider(config), repository);
         UUID playerId = UUID.randomUUID();
         when(repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1))
-                .thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
+                .thenReturn(CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.LimitReached()));
 
-        assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), service.usage().recordQuestResetPurchaseAndReset(playerId, "daily").join());
+        assertEquals(new QuestResetPurchaseOutcome.LimitReached(), service.usage().recordQuestResetPurchaseAndReset(playerId, "daily").join());
         assertEquals(0, service.usage().cachedQuestResetPurchasesUsed(playerId, "daily"));
         assertEquals(1, service.usage().questResetPurchasesRemaining(playerId, "daily"));
     }

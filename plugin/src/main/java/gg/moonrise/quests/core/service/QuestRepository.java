@@ -8,6 +8,7 @@ import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.model.QuestMilestoneClaim;
 import gg.moonrise.quests.model.QuestMilestone;
+import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.util.QuestRowCodec;
 
@@ -124,9 +125,9 @@ public class QuestRepository {
      * Counts a quest reset purchase and deletes the player's quests for the reset window, in one transaction.
      * Nothing is written when the player has already used {@code limit} resets for the window.
      */
-    public CompletableFuture<ResetPurchaseOutcome> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey, int limit) {
+    public CompletableFuture<QuestResetPurchaseOutcome> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey, int limit) {
         if (limit <= 0) {
-            return CompletableFuture.completedFuture(new ResetPurchaseOutcome.LimitReached());
+            return CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.LimitReached());
         }
         return sqlProvider.supplyInTransaction(playerId, connection -> {
             try (PreparedStatement ensureUsage = connection.prepareStatement(sqlProvider.currentDatabase().insertQuestResetUsageIfAbsentSql())) {
@@ -139,7 +140,7 @@ public class QuestRepository {
                 resetUsage.setString(2, resetKey);
                 resetUsage.setInt(3, limit);
                 if (resetUsage.executeUpdate() != 1) {
-                    return new ResetPurchaseOutcome.LimitReached();
+                    return new QuestResetPurchaseOutcome.LimitReached();
                 }
             }
             try (PreparedStatement deleteQuests = connection.prepareStatement("""
@@ -150,7 +151,7 @@ public class QuestRepository {
                 deleteQuests.setString(2, resetKey);
                 deleteQuests.executeUpdate();
             }
-            return new ResetPurchaseOutcome.Applied(readUsedCount(connection, RESETS_TABLE, playerId, resetKey));
+            return new QuestResetPurchaseOutcome.Applied(readUsedCount(connection, RESETS_TABLE, playerId, resetKey));
         });
     }
 
@@ -427,24 +428,6 @@ public class QuestRepository {
          * The quest being replaced no longer exists. Nothing was changed.
          */
         record QuestMissing() implements RerollOutcome {
-        }
-    }
-
-    /**
-     * Result of {@link #recordQuestResetPurchaseAndReset(UUID, String, int)}.
-     */
-    public sealed interface ResetPurchaseOutcome {
-
-        /**
-         * The purchase was counted and the quests were deleted; {@code used} is the updated reset count.
-         */
-        record Applied(int used) implements ResetPurchaseOutcome {
-        }
-
-        /**
-         * The player had no resets left for the window. Nothing was changed.
-         */
-        record LimitReached() implements ResetPurchaseOutcome {
         }
     }
 

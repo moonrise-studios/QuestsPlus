@@ -7,6 +7,7 @@ import gg.moonrise.quests.model.QuestCompletionStats;
 import gg.moonrise.quests.model.QuestDifficulty;
 import gg.moonrise.quests.model.QuestMilestone;
 import gg.moonrise.quests.model.QuestMilestoneClaim;
+import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.junit.jupiter.api.DynamicTest;
@@ -99,9 +100,9 @@ class ExternalSqlRepositoryDatabaseTest {
                     repository.loadExecutedMilestones(playerId).join().stream().sorted().toList()
             );
 
-            assertEquals(new QuestRepository.ResetPurchaseOutcome.Applied(1), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
+            assertEquals(new QuestResetPurchaseOutcome.Applied(1), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
             assertEquals(List.of(), repository.loadQuests(playerId, "daily").join());
-            assertEquals(new QuestRepository.ResetPurchaseOutcome.LimitReached(), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
+            assertEquals(new QuestResetPurchaseOutcome.LimitReached(), repository.recordQuestResetPurchaseAndReset(playerId, "daily", 1).join());
         } finally {
             provider.onDisable();
         }

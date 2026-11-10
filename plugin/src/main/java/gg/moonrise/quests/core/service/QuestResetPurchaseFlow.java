@@ -5,6 +5,7 @@ import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestResetEligibility;
+import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
 import gg.moonrise.quests.util.QuestNumberFormatter;
@@ -155,7 +156,7 @@ public class QuestResetPurchaseFlow {
             QuestResetEligibility eligibility,
             QuestMenuService menus
     ) {
-        CompletableFuture<QuestRepository.ResetPurchaseOutcome> reset;
+        CompletableFuture<QuestResetPurchaseOutcome> reset;
         try {
             reset = usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), resetKey);
         } catch (RuntimeException exception) {
@@ -168,11 +169,11 @@ public class QuestResetPurchaseFlow {
                 return;
             }
             switch (outcome) {
-                case QuestRepository.ResetPurchaseOutcome.Applied applied -> settleResetPurchase(player, null, online -> {
+                case QuestResetPurchaseOutcome.Applied applied -> settleResetPurchase(player, null, online -> {
                     sendResetSuccess(online, currency, eligibility, resetKey);
                     menus.openDailyQuests(online);
                 });
-                case QuestRepository.ResetPurchaseOutcome.LimitReached limitReached -> settleResetPurchase(player, currency, online -> {
+                case QuestResetPurchaseOutcome.LimitReached limitReached -> settleResetPurchase(player, currency, online -> {
                     sendResetLimitReached(online, eligibility);
                     menus.openDailyQuests(online);
                 });

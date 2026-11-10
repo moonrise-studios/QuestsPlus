@@ -6,6 +6,7 @@ import gg.moonrise.engine.paper.scheduler.impl.SyncScheduler;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.model.PlayerQuestState;
 import gg.moonrise.quests.model.QuestResetEligibility;
+import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
@@ -134,7 +135,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void notAppliedResetRefundsWhenPlayerLoggedOutBeforeCompletion() {
-        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.LimitReached()));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
@@ -186,7 +187,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void appliedResetDoesNotRefundWhenPlayerLoggedOut() {
-        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.Applied(1)));
         entityOutcomes.add(SchedulerOutcome.RUN);
         entityOutcomes.add(SchedulerOutcome.ALREADY_RETIRED);
 
@@ -211,7 +212,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void appliedResetWhileOnlineReopensDailyQuestsWithoutRefund() {
-        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.Applied(1)));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.Applied(1)));
 
         purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 
@@ -223,7 +224,7 @@ class QuestResetPurchaseFlowTest {
 
     @Test
     public void limitReachedWhileOnlineRefundsAndReopensDailyQuests() {
-        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached()));
+        when(usageService.recordQuestResetPurchaseAndReset(player.getUniqueId(), RESET_KEY)).thenReturn(CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.LimitReached()));
 
         purchaseFlow.purchase(player, QuestCurrencies.VAULT, menus);
 

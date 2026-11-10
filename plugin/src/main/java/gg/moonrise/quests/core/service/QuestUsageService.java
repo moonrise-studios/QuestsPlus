@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.config.QuestResetMenu;
+import gg.moonrise.quests.model.QuestResetPurchaseOutcome;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.entity.Player;
 
@@ -93,19 +94,19 @@ public class QuestUsageService {
         return Math.max(0, questResetDailyLimit() - cachedQuestResetPurchasesUsed(playerId, resetKey));
     }
 
-    public CompletableFuture<QuestRepository.ResetPurchaseOutcome> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey) {
+    public CompletableFuture<QuestResetPurchaseOutcome> recordQuestResetPurchaseAndReset(UUID playerId, String resetKey) {
         int limit = questResetDailyLimit();
         if (limit <= 0) {
-            return CompletableFuture.completedFuture(new QuestRepository.ResetPurchaseOutcome.LimitReached());
+            return CompletableFuture.completedFuture(new QuestResetPurchaseOutcome.LimitReached());
         }
         return questRepository.recordQuestResetPurchaseAndReset(playerId, resetKey, limit)
                 .thenApply(outcome -> {
                     switch (outcome) {
-                        case QuestRepository.ResetPurchaseOutcome.Applied applied -> {
+                        case QuestResetPurchaseOutcome.Applied applied -> {
                             resetPurchaseUsageCache.put(new ResetPurchaseUsageKey(playerId, resetKey), applied.used());
                             questService.invalidateState(playerId);
                         }
-                        case QuestRepository.ResetPurchaseOutcome.LimitReached limitReached -> {
+                        case QuestResetPurchaseOutcome.LimitReached limitReached -> {
                             // Nothing was written, so the cached usage and quests stay valid.
                         }
                     }
