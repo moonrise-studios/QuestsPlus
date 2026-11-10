@@ -1,7 +1,7 @@
 package gg.moonrise.quests.type;
 
-import gg.moonrise.quests.core.service.QuestProgressService;
-import gg.moonrise.quests.core.service.QuestResetService;
+import gg.moonrise.quests.application.quest.QuestProgressService;
+import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.World;

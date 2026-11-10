@@ -2,6 +2,7 @@ package gg.moonrise.quests.core.service;
 
 import gg.moonrise.moss.spring.SpringComponent;
 import gg.moonrise.quests.sdk.GoalHandler;
+import gg.moonrise.quests.application.quest.QuestDefinitionService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 

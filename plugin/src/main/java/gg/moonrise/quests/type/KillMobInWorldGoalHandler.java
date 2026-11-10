@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.core.service.QuestProgressService;
-import gg.moonrise.quests.core.service.QuestResetService;
+import gg.moonrise.quests.application.quest.QuestProgressService;
+import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import lombok.extern.slf4j.Slf4j;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;

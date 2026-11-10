@@ -2,8 +2,8 @@ package gg.moonrise.quests.integration;
 
 import dev.rosewood.rosestacker.event.EntityStackMultipleDeathEvent;
 import gg.moonrise.engine.paper.scheduler.Scheduler;
-import gg.moonrise.quests.core.service.QuestProgressService;
-import gg.moonrise.quests.core.service.QuestResetService;
+import gg.moonrise.quests.application.quest.QuestProgressService;
+import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.type.KillAllMobsGoalHandler;
 import gg.moonrise.quests.type.KillMobGoalHandler;

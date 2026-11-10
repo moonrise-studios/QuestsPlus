@@ -1,8 +1,8 @@
 package gg.moonrise.quests.type;
 
 import com.destroystokyo.paper.event.player.PlayerLaunchProjectileEvent;
-import gg.moonrise.quests.core.service.QuestProgressService;
-import gg.moonrise.quests.core.service.QuestResetService;
+import gg.moonrise.quests.application.quest.QuestProgressService;
+import gg.moonrise.quests.application.reset.QuestResetService;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;

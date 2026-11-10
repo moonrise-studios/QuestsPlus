@@ -6,6 +6,7 @@ import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
+import gg.moonrise.quests.application.indicator.QuestProgressIndicatorContext;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import org.junit.jupiter.api.AfterEach;

@@ -11,6 +11,8 @@ import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.core.service.ConfigProvider;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import gg.moonrise.quests.util.QuestTokens;
+import gg.moonrise.quests.application.indicator.QuestProgressIndicator;
+import gg.moonrise.quests.application.indicator.QuestProgressIndicatorContext;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 

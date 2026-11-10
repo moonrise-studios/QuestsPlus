@@ -1,9 +1,9 @@
 package gg.moonrise.quests.listener;
 
-import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
-import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
-import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
+import gg.moonrise.quests.application.indicator.QuestIndicatorPreferenceService;
+import gg.moonrise.quests.application.indicator.QuestProgressIndicatorService;
+import gg.moonrise.quests.application.reset.QuestResetService;
+import gg.moonrise.quests.application.quest.QuestService;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;

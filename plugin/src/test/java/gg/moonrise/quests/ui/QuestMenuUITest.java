@@ -3,7 +3,7 @@ package gg.moonrise.quests.ui;
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
 import gg.moonrise.quests.core.service.QuestMenuItems;
-import gg.moonrise.quests.core.service.QuestMenuLayout;
+import gg.moonrise.quests.application.quest.QuestMenuLayout;
 import gg.moonrise.quests.core.service.QuestMenuService;
 import gg.moonrise.quests.domain.model.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;

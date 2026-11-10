@@ -10,6 +10,8 @@ import net.kyori.adventure.bossbar.BossBar;
 import gg.moonrise.quests.config.BossBarProgressIndicator;
 import gg.moonrise.quests.config.ProgressIndicators;
 import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.application.indicator.QuestProgressIndicator;
+import gg.moonrise.quests.application.indicator.QuestProgressIndicatorContext;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
