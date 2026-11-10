@@ -7,7 +7,7 @@ import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
 
-final class CraftProgress {
+public final class CraftProgress {
 
     private CraftProgress() {
     }

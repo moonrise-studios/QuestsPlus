@@ -1,14 +1,15 @@
 package gg.moonrise.quests.type;
 
 import gg.moonrise.moss.spring.SpringComponent;
-import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
+import gg.moonrise.quests.core.service.quest.QuestProgressService;
+import gg.moonrise.quests.core.service.reset.QuestResetService;
 import gg.moonrise.quests.sdk.GoalHandler;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestDefinition;
 import gg.moonrise.quests.sdk.model.QuestType;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import gg.moonrise.quests.util.QuestDisplayNames;
+import lombok.RequiredArgsConstructor;
 import org.bukkit.Material;
 import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Entity;
@@ -17,26 +18,20 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
-import org.springframework.context.annotation.Lazy;
 
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 @SpringComponent
+@RequiredArgsConstructor
 public class MilkMobGoalHandler implements GoalHandler {
 
     public static final String MOB_TYPE = "mob-type";
     public static final String GOAL_AMOUNT = "goal-amount";
 
-    private final QuestService questService;
+    private final QuestProgressService progressService;
     private final QuestResetService resetService;
-
-    public MilkMobGoalHandler(@Lazy QuestService questService, @Lazy QuestResetService resetService) {
-        this.questService = questService;
-        this.resetService = resetService;
-    }
 
     @Override
     public QuestType type() {
@@ -58,8 +53,7 @@ public class MilkMobGoalHandler implements GoalHandler {
         }
 
         for (String value : definition.selectorValues().get(MOB_TYPE)) {
-            EntityType entityType = parseEntityType(value);
-            if (!isMilkableType(entityType)) {
+            if (QuestTypeSupport.parseEntityType(value).filter(MilkMobGoalHandler::isMilkableType).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid milkable mob-type value " + value);
             }
         }
@@ -73,10 +67,9 @@ public class MilkMobGoalHandler implements GoalHandler {
 
     @Override
     public GeneratedQuest createGeneratedQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        EntityType entityType = parseEntityType(variables.get(MOB_TYPE));
-        if (!isMilkableType(entityType)) {
-            throw new IllegalArgumentException(definition.id() + " generated invalid milkable mob-type " + variables.get(MOB_TYPE));
-        }
+        EntityType entityType = QuestTypeSupport.parseEntityType(variables.get(MOB_TYPE))
+                .filter(MilkMobGoalHandler::isMilkableType)
+                .orElseThrow(() -> new IllegalArgumentException(definition.id() + " generated invalid milkable mob-type " + variables.get(MOB_TYPE)));
 
         Map<String, String> canonicalVariables = new LinkedHashMap<>(variables);
         canonicalVariables.put(MOB_TYPE, entityType.name());
@@ -125,23 +118,12 @@ public class MilkMobGoalHandler implements GoalHandler {
             return;
         }
 
-        questService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
+        progressService.progressMatching(event.getPlayer(), type(), resetService.currentResetKey(), quest ->
                 entityType.name().equalsIgnoreCase(quest.variables().get(MOB_TYPE))
         );
     }
 
     private static boolean isMilkableType(EntityType entityType) {
         return entityType == EntityType.COW || entityType == EntityType.GOAT || entityType == EntityType.MOOSHROOM;
-    }
-
-    private static EntityType parseEntityType(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return EntityType.valueOf(value.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
     }
 }

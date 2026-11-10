@@ -2,18 +2,14 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.ChestMenu;
 import gg.moonrise.engine.paper.gui.button.Button;
-import gg.moonrise.engine.paper.item.ItemBuilder;
-import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.PlayerQuestState;
-import gg.moonrise.quests.model.QuestDifficulty;
-import gg.moonrise.quests.model.QuestMilestone;
+import gg.moonrise.quests.config.menu.MilestoneMenu;
+import gg.moonrise.quests.entity.PlayerQuestState;
+import gg.moonrise.quests.entity.QuestDifficulty;
+import gg.moonrise.quests.entity.QuestMilestone;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.IntStream;
 
 public class QuestMilestoneMenuUI extends ChestMenu {
 
@@ -24,10 +20,10 @@ public class QuestMilestoneMenuUI extends ChestMenu {
     public QuestMilestoneMenuUI(Player player, QuestMenuService menuService, PlayerQuestState state, QuestDifficulty difficulty, int page) {
         super(player, title(menuService, difficulty), rows(menuService.config().getMilestoneMenu()));
 
-        Config.MilestoneMenu menu = menuService.config().getMilestoneMenu();
-        int totalSlots = rows(menu) * 9;
+        MilestoneMenu menu = menuService.config().getMilestoneMenu();
+        int totalSlots = MenuSlots.totalSlots(rows(menu));
         int safePage = Math.max(0, page);
-        Set<Integer> occupiedSlots = new HashSet<>();
+        MenuSlots menuSlots = new MenuSlots(this::addButton, totalSlots);
 
         List<Integer> milestoneSlots = menu.getMilestoneSlots();
         List<QuestMilestone> milestones = difficulty.milestones();
@@ -40,32 +36,32 @@ public class QuestMilestoneMenuUI extends ChestMenu {
             if (slot >= totalSlots) {
                 continue;
             }
-            addTrackedButton(occupiedSlots, totalSlots, slot, Button.builder()
-                    .item(viewer -> menuService.buildMilestoneItem(state, difficulty, milestone))
+            menuSlots.add(slot, Button.builder()
+                    .item(viewer -> menuService.items().buildMilestoneItem(state, difficulty, milestone))
                     .build());
         }
 
         if (safePage > 0 && menu.getPreviousPageSlot() < totalSlots) {
             int previousPage = safePage - 1;
-            addTrackedButton(occupiedSlots, totalSlots, menu.getPreviousPageSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(
+            menuSlots.add(menu.getPreviousPageSlot(), Button.builder()
+                    .item(viewer -> menuService.items().buildTokenItem(
                             menu.getPreviousPageButton(),
-                            new QuestMenuService.MapTokens()
+                            new MenuTokens()
                                     .putNumber("page", safePage + 1)
                                     .putNumber("previous_page", previousPage + 1)
                                     .putNumber("next_page", safePage + 2),
-                            org.bukkit.Material.ARROW
+                            Material.ARROW
                     ))
                     .action((button, clicker, event) -> new QuestMilestoneMenuUI(clicker, menuService, state, difficulty, previousPage).open())
                     .build());
         }
 
         if (menu.getBackButton().isEnabled() && menu.getBackButton().getSlot() < totalSlots) {
-            addTrackedButton(occupiedSlots, totalSlots, menu.getBackButton().getSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(
+            menuSlots.add(menu.getBackButton().getSlot(), Button.builder()
+                    .item(viewer -> menuService.items().buildTokenItem(
                             menu.getBackButton().getItem(),
-                            new QuestMenuService.MapTokens().putNumber("page", safePage + 1),
-                            org.bukkit.Material.ARROW
+                            new MenuTokens().putNumber("page", safePage + 1),
+                            Material.ARROW
                     ))
                     .action((button, clicker, event) -> menuService.openMilestoneSelector(clicker))
                     .build());
@@ -73,20 +69,20 @@ public class QuestMilestoneMenuUI extends ChestMenu {
 
         if (endIndex < milestones.size() && menu.getNextPageSlot() < totalSlots) {
             int nextPage = safePage + 1;
-            addTrackedButton(occupiedSlots, totalSlots, menu.getNextPageSlot(), Button.builder()
-                    .item(viewer -> menuService.buildTokenItem(
+            menuSlots.add(menu.getNextPageSlot(), Button.builder()
+                    .item(viewer -> menuService.items().buildTokenItem(
                             menu.getNextPageButton(),
-                            new QuestMenuService.MapTokens()
+                            new MenuTokens()
                                     .putNumber("page", safePage + 1)
                                     .putNumber("previous_page", safePage)
                                     .putNumber("next_page", nextPage + 1),
-                            org.bukkit.Material.ARROW
+                            Material.ARROW
                     ))
                     .action((button, clicker, event) -> new QuestMilestoneMenuUI(clicker, menuService, state, difficulty, nextPage).open())
                     .build());
         }
 
-        addFillers(menuService, menu.getFiller(), totalSlots, occupiedSlots);
+        menuSlots.fill(menuService, menu.getFiller());
     }
 
     private static String title(QuestMenuService menuService, QuestDifficulty difficulty) {
@@ -96,27 +92,7 @@ public class QuestMilestoneMenuUI extends ChestMenu {
                 .replace("<difficulty_id>", difficulty.id());
     }
 
-    private static int rows(Config.MilestoneMenu menu) {
-        return Math.clamp(menu.getRows(), 1, 6);
-    }
-
-    private Button fillerButton(QuestMenuService menuService, Config.MenuItem item) {
-        return Button.builder()
-                .item(player -> ItemBuilder.of(menuService.buildMenuItem(item)).hideToolTip(true).build())
-                .build();
-    }
-
-    private void addTrackedButton(Set<Integer> occupiedSlots, int totalSlots, int slot, Button button) {
-        if (slot < 0 || slot >= totalSlots) {
-            return;
-        }
-        addButton(slot, button);
-        occupiedSlots.add(slot);
-    }
-
-    private void addFillers(QuestMenuService menuService, Config.MenuItem item, int totalSlots, Set<Integer> occupiedSlots) {
-        IntStream.range(0, totalSlots)
-                .filter(slot -> !occupiedSlots.contains(slot))
-                .forEach(slot -> addButton(slot, fillerButton(menuService, item)));
+    private static int rows(MilestoneMenu menu) {
+        return MenuSlots.clampRows(menu.getRows());
     }
 }

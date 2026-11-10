@@ -2,8 +2,7 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.QuestResetEligibility;
+import gg.moonrise.quests.entity.QuestResetEligibility;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyKey;
@@ -17,6 +16,7 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -46,6 +46,10 @@ class QuestResetPurchaseUITest {
     @Test
     public void purchaseMenuShowsOnlyAvailableCurrencyButtonsAndBackNavigation() {
         QuestMenuService menuService = mock(QuestMenuService.class);
+        QuestMenuItems items = mock(QuestMenuItems.class);
+        when(menuService.items()).thenReturn(items);
+        QuestResetCurrencies currencies = mock(QuestResetCurrencies.class);
+        when(menuService.currencies()).thenReturn(currencies);
         Config config = new Config();
         QuestCurrency stars = currency("stars");
         QuestCurrency hidden = currency("hidden");
@@ -53,15 +57,15 @@ class QuestResetPurchaseUITest {
         QuestCurrencyButton hiddenButton = QuestCurrencyButton.of(15, "BARRIER", "<red>Hidden", List.of("<gray>Unavailable."));
         QuestResetEligibility eligibility = new QuestResetEligibility(3, 3);
         when(menuService.config()).thenReturn(config);
-        when(menuService.questResetCurrencies()).thenReturn(List.of(stars, hidden));
-        when(menuService.questResetPaymentButton(stars)).thenReturn(starsButton);
-        when(menuService.questResetPaymentButton(hidden)).thenReturn(hiddenButton);
-        when(menuService.canShowQuestResetPayment(stars)).thenReturn(true);
-        when(menuService.canShowQuestResetPayment(hidden)).thenReturn(false);
-        when(menuService.buildQuestResetPurchaseItem(player, starsButton, stars, eligibility)).thenReturn(new ItemStack(Material.NETHER_STAR));
-        when(menuService.buildTokenItem(eq(config.getMenu().getResetMenu().getBackButton().getItem()), any(QuestMenuService.MapTokens.class), eq(Material.ARROW)))
+        when(currencies.questResetCurrencies()).thenReturn(List.of(stars, hidden));
+        when(currencies.questResetPaymentButton(stars)).thenReturn(Optional.of(starsButton));
+        when(currencies.questResetPaymentButton(hidden)).thenReturn(Optional.of(hiddenButton));
+        when(currencies.canShowQuestResetPayment(stars)).thenReturn(true);
+        when(currencies.canShowQuestResetPayment(hidden)).thenReturn(false);
+        when(items.buildQuestResetPurchaseItem(player, starsButton, stars, eligibility)).thenReturn(new ItemStack(Material.NETHER_STAR));
+        when(items.buildTokenItem(eq(config.getMenu().getResetMenu().getBackButton().getItem()), any(MenuTokens.class), eq(Material.ARROW)))
                 .thenReturn(new ItemStack(Material.ARROW));
-        when(menuService.buildMenuItem(config.getMenu().getResetMenu().getFiller())).thenReturn(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
+        when(items.buildMenuItem(config.getMenu().getResetMenu().getFiller())).thenReturn(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
 
         QuestResetPurchaseUI ui = new QuestResetPurchaseUI(player, menuService, eligibility);
 

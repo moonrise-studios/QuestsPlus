@@ -1,6 +1,6 @@
 package gg.moonrise.quests.ui;
 
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.entity.QuestDifficulty;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -9,11 +9,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
-final class DifficultySelectorSlots {
+public final class DifficultySelectorSlots {
 
     private DifficultySelectorSlots() {
     }
@@ -53,11 +54,10 @@ final class DifficultySelectorSlots {
                 continue;
             }
 
-            Integer fallback = nextFallback(fallbacks, totalSlots, occupiedSlots);
-            if (fallback != null) {
+            nextFallback(fallbacks, totalSlots, occupiedSlots).ifPresent(fallback -> {
                 resolved.put(difficulty, fallback);
                 occupiedSlots.add(fallback);
-            }
+            });
         }
 
         return resolved;
@@ -67,12 +67,12 @@ final class DifficultySelectorSlots {
         return slot >= 0 && slot < totalSlots && !occupiedSlots.contains(slot);
     }
 
-    private static Integer nextFallback(List<Integer> fallbackSlots, int totalSlots, Set<Integer> occupiedSlots) {
+    private static OptionalInt nextFallback(List<Integer> fallbackSlots, int totalSlots, Set<Integer> occupiedSlots) {
         for (Integer fallbackSlot : fallbackSlots) {
             if (fallbackSlot != null && isAvailable(fallbackSlot, totalSlots, occupiedSlots)) {
-                return fallbackSlot;
+                return OptionalInt.of(fallbackSlot);
             }
         }
-        return null;
+        return OptionalInt.empty();
     }
 }

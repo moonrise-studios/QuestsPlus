@@ -7,12 +7,16 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.kyori.adventure.bossbar.BossBar;
-import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.indicator.BossBarProgressIndicator;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
+import gg.moonrise.quests.config.ConfigProvider;
+import gg.moonrise.quests.core.service.indicator.QuestProgressIndicator;
+import gg.moonrise.quests.core.service.indicator.QuestProgressIndicatorContext;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +37,16 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
     }
 
     @Override
+    public boolean isEnabled(ProgressIndicators config) {
+        return settings(config).isEnabled();
+    }
+
+    @Override
+    public String titleTemplate(ProgressIndicators config) {
+        return settings(config).getTitle();
+    }
+
+    @Override
     public void show(QuestProgressIndicatorContext context) {
         Player player = context.player();
         Scheduler.entity(player).run(task -> {
@@ -42,7 +56,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
 
             hide(player);
 
-            Config.BossBarProgressIndicator config = config();
+            BossBarProgressIndicator config = config();
             BossBar bossBar = BossBar.bossBar(
                     context.title(),
                     (float) Math.clamp(context.progress(), 0.0D, 1.0D),
@@ -51,15 +65,37 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             );
             player.showBossBar(bossBar);
 
+            UUID playerId = player.getUniqueId();
             long durationSeconds = Math.max(1, config.getDurationSeconds());
-            ScheduledTask hideTask = Scheduler.entity(player).runDelayed(delayedTask -> {
-                ActiveBossBar active = activeBars.remove(player.getUniqueId());
-                if (active != null && player.isOnline()) {
-                    player.hideBossBar(active.bossBar());
-                }
-            }, Duration.ofSeconds(durationSeconds));
-            activeBars.put(player.getUniqueId(), new ActiveBossBar(bossBar, hideTask));
+            ScheduledTask hideTask = Scheduler.entity(player).runDelayed(
+                    delayedTask -> {
+                        if (removeIfCurrent(playerId, bossBar) && player.isOnline()) {
+                            player.hideBossBar(bossBar);
+                        }
+                    },
+                    () -> removeIfCurrent(playerId, bossBar),
+                    Duration.ofSeconds(durationSeconds)
+            );
+            if (hideTask == null) {
+                // The player's scheduler is retired, so the bar could never be hidden on time.
+                player.hideBossBar(bossBar);
+                return;
+            }
+            activeBars.put(playerId, new ActiveBossBar(bossBar, hideTask));
         });
+    }
+
+    @Override
+    public void clear(UUID playerId) {
+        ActiveBossBar active = activeBars.remove(playerId);
+        if (active == null) {
+            return;
+        }
+        active.hideTask().cancel();
+        Player player = Bukkit.getPlayer(playerId);
+        if (player != null && player.isOnline()) {
+            player.hideBossBar(active.bossBar());
+        }
     }
 
     @Override
@@ -89,11 +125,18 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
         player.hideBossBar(active.bossBar());
     }
 
-    private Config.BossBarProgressIndicator config() {
-        Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
-        return indicators == null || indicators.getBossBar() == null
-                ? new Config.BossBarProgressIndicator()
-                : indicators.getBossBar();
+    private boolean removeIfCurrent(UUID playerId, BossBar bossBar) {
+        ActiveBossBar active = activeBars.get(playerId);
+        return active != null && active.bossBar() == bossBar && activeBars.remove(playerId, active);
+    }
+
+    private BossBarProgressIndicator config() {
+        ProgressIndicators indicators = configProvider.get().getProgressIndicators();
+        return indicators == null ? new BossBarProgressIndicator() : settings(indicators);
+    }
+
+    private BossBarProgressIndicator settings(ProgressIndicators config) {
+        return config.getBossBar() == null ? new BossBarProgressIndicator() : config.getBossBar();
     }
 
     private BossBar.Color color(String raw) {
@@ -101,7 +144,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             return BossBar.Color.YELLOW;
         }
         try {
-            return BossBar.Color.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+            return BossBar.Color.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             log.warn("Invalid QuestsPlus bossbar progress indicator color '{}'. Using YELLOW.", raw);
             return BossBar.Color.YELLOW;
@@ -113,7 +156,7 @@ public class BossBarQuestProgressIndicator implements QuestProgressIndicator, Di
             return BossBar.Overlay.PROGRESS;
         }
         try {
-            return BossBar.Overlay.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+            return BossBar.Overlay.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             log.warn("Invalid QuestsPlus bossbar progress indicator overlay '{}'. Using PROGRESS.", raw);
             return BossBar.Overlay.PROGRESS;

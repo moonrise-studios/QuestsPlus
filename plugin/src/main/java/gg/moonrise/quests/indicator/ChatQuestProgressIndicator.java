@@ -6,9 +6,13 @@ import gg.moonrise.moss.spring.SpringComponent;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.indicator.ChatProgressIndicator;
+import gg.moonrise.quests.config.indicator.ProgressIndicators;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.util.QuestNumberFormatter;
+import gg.moonrise.quests.util.QuestTokens;
+import gg.moonrise.quests.core.service.indicator.QuestProgressIndicator;
+import gg.moonrise.quests.core.service.indicator.QuestProgressIndicatorContext;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -34,22 +38,53 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
     }
 
     @Override
+    public boolean isEnabled(ProgressIndicators config) {
+        return settings(config).isEnabled();
+    }
+
+    @Override
+    public String titleTemplate(ProgressIndicators config) {
+        return settings(config).getLine();
+    }
+
+    @Override
     public void show(QuestProgressIndicatorContext context) {
-        Config.ChatProgressIndicator config = config();
+        ChatProgressIndicator config = config();
         if (!config.isEnabled()) {
             return;
         }
 
         Player player = context.player();
         UUID playerId = player.getUniqueId();
-        PendingBatch batch = batches.computeIfAbsent(playerId, ignored -> new PendingBatch(scheduleFlush(player)));
+        PendingBatch created = new PendingBatch();
+        PendingBatch existing = batches.putIfAbsent(playerId, created);
+        PendingBatch batch = existing == null ? created : existing;
         batch.record(context);
+        if (existing != null) {
+            return;
+        }
+
+        ScheduledTask flushTask = scheduleFlush(player, created);
+        if (flushTask == null) {
+            // The player's scheduler is already retired, so the flush can never run.
+            batches.remove(playerId, created);
+            return;
+        }
+        created.flushTask(flushTask);
+    }
+
+    @Override
+    public void clear(UUID playerId) {
+        PendingBatch batch = batches.remove(playerId);
+        if (batch != null) {
+            batch.cancel();
+        }
     }
 
     @Override
     public void clearAll() {
         for (PendingBatch batch : batches.values()) {
-            batch.flushTask().cancel();
+            batch.cancel();
         }
         batches.clear();
     }
@@ -59,14 +94,18 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
         clearAll();
     }
 
-    private ScheduledTask scheduleFlush(Player player) {
+    private ScheduledTask scheduleFlush(Player player, PendingBatch batch) {
+        UUID playerId = player.getUniqueId();
         long intervalSeconds = Math.max(1, config().getIntervalSeconds());
-        return Scheduler.entity(player).runDelayed(task -> flush(player.getUniqueId()), Duration.ofSeconds(intervalSeconds));
+        return Scheduler.entity(player).runDelayed(
+                task -> flush(playerId, batch),
+                () -> batches.remove(playerId, batch),
+                Duration.ofSeconds(intervalSeconds)
+        );
     }
 
-    private void flush(UUID playerId) {
-        PendingBatch batch = batches.remove(playerId);
-        if (batch == null) {
+    private void flush(UUID playerId, PendingBatch batch) {
+        if (!batches.remove(playerId, batch)) {
             return;
         }
 
@@ -75,7 +114,7 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
             return;
         }
 
-        Config.ChatProgressIndicator config = config();
+        ChatProgressIndicator config = config();
         Map<BatchKey, BatchEntry> entries = batch.entries();
         if (entries.isEmpty()) {
             return;
@@ -86,23 +125,17 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
             player.sendMessage(miniMessage.deserialize(header));
         }
         for (BatchEntry entry : entries.values()) {
-            player.sendMessage(miniMessage.deserialize(applyTokens(config.getLine(), entry.placeholders())));
+            player.sendMessage(miniMessage.deserialize(QuestTokens.apply(config.getLine(), entry.placeholders())));
         }
     }
 
-    private Config.ChatProgressIndicator config() {
-        Config.ProgressIndicators indicators = configProvider.get().getProgressIndicators();
-        return indicators == null || indicators.getChat() == null
-                ? new Config.ChatProgressIndicator()
-                : indicators.getChat();
+    private ChatProgressIndicator config() {
+        ProgressIndicators indicators = configProvider.get().getProgressIndicators();
+        return indicators == null ? new ChatProgressIndicator() : settings(indicators);
     }
 
-    private String applyTokens(String template, Map<String, String> values) {
-        String output = template == null ? "" : template;
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            output = output.replace("<" + entry.getKey() + ">", entry.getValue());
-        }
-        return output;
+    private ChatProgressIndicator settings(ProgressIndicators config) {
+        return config.getChat() == null ? new ChatProgressIndicator() : config.getChat();
     }
 
     private record BatchKey(QuestProgressIndicatorContext.Scope scope, UUID instanceId) {
@@ -113,15 +146,23 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
 
     private static final class PendingBatch {
 
-        private final ScheduledTask flushTask;
         private final Map<BatchKey, BatchEntry> entries = new LinkedHashMap<>();
+        private ScheduledTask flushTask;
+        private boolean cancelled;
 
-        private PendingBatch(ScheduledTask flushTask) {
+        private synchronized void flushTask(ScheduledTask flushTask) {
+            if (cancelled) {
+                flushTask.cancel();
+                return;
+            }
             this.flushTask = flushTask;
         }
 
-        private ScheduledTask flushTask() {
-            return flushTask;
+        private synchronized void cancel() {
+            cancelled = true;
+            if (flushTask != null) {
+                flushTask.cancel();
+            }
         }
 
         private synchronized void record(QuestProgressIndicatorContext context) {
@@ -133,9 +174,7 @@ public class ChatQuestProgressIndicator implements QuestProgressIndicator, Disab
             Map<String, String> values = new LinkedHashMap<>(context.placeholders());
             values.put("previous_progress", QuestNumberFormatter.format(previousProgress));
             values.put("previous-progress", QuestNumberFormatter.format(previousProgress));
-            values.put("progress", QuestNumberFormatter.format(context.quest().progress()));
-            values.put("goal_amount", QuestNumberFormatter.format(context.quest().goalAmount()));
-            values.put("goal-amount", QuestNumberFormatter.format(context.quest().goalAmount()));
+            QuestTokens.putQuestNumbers(values, context.quest(), true);
             entries.put(key, new BatchEntry(Map.copyOf(values)));
         }
 

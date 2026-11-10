@@ -2,8 +2,8 @@ package gg.moonrise.quests.ui;
 
 import gg.moonrise.engine.paper.gui.button.Button;
 import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.model.PlayerQuestState;
+import gg.moonrise.quests.core.service.quest.QuestMenuLayout;
+import gg.moonrise.quests.entity.PlayerQuestState;
 import gg.moonrise.quests.sdk.model.GeneratedQuest;
 import gg.moonrise.quests.sdk.model.QuestTypes;
 import org.bukkit.Material;
@@ -17,6 +17,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,28 +46,30 @@ class QuestMenuUITest {
     @Test
     public void dailyMenuPlacesQuestStatesUtilityButtonsAndFillersInExpectedSlots() {
         QuestMenuService menuService = mock(QuestMenuService.class);
+        QuestMenuItems items = mock(QuestMenuItems.class);
+        when(menuService.items()).thenReturn(items);
         Config config = new Config();
         GeneratedQuest activeQuest = quest(player.getUniqueId(), 0);
         PlayerQuestState state = new PlayerQuestState(player.getUniqueId(), "daily", List.of(activeQuest));
         when(menuService.config()).thenReturn(config);
-        when(menuService.globalQuestSlot()).thenReturn(15);
-        when(menuService.totalVisibleQuestSlots()).thenReturn(4);
-        when(menuService.canAccessSlot(player, 0)).thenReturn(true);
-        when(menuService.canAccessSlot(player, 1)).thenReturn(true);
-        when(menuService.canAccessSlot(player, 2)).thenReturn(false);
-        when(menuService.canAccessSlot(player, 3)).thenReturn(true);
-        when(menuService.canShowMilestoneButton()).thenReturn(true);
-        when(menuService.canShowStreakButton()).thenReturn(true);
-        when(menuService.canShowQuestResetButton()).thenReturn(true);
-        when(menuService.buildGlobalQuestItem(player, null)).thenReturn(new ItemStack(Material.NETHER_STAR));
-        when(menuService.buildQuestItem(player, activeQuest)).thenReturn(new ItemStack(Material.BOOK));
-        when(menuService.buildEmptyQuestSlotItem(1)).thenReturn(new ItemStack(Material.GRAY_DYE));
-        when(menuService.buildEmptyQuestSlotItem(3)).thenReturn(new ItemStack(Material.LIGHT_GRAY_DYE));
-        when(menuService.buildLockedPremiumQuestSlotItem(2)).thenReturn(new ItemStack(Material.BARRIER));
-        when(menuService.buildMenuItem(config.getMenu().getMilestoneButton().getItem())).thenReturn(new ItemStack(Material.NETHER_STAR));
-        when(menuService.buildMenuItem(config.getMenu().getStreakButton().getItem())).thenReturn(new ItemStack(Material.BLAZE_POWDER));
-        when(menuService.buildQuestResetButtonItem(player, state)).thenReturn(new ItemStack(Material.AMETHYST_SHARD));
-        when(menuService.buildMenuItem(config.getMenu().getFiller())).thenReturn(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
+        // Three daily slots and one premium slot visible.
+        when(items.menuLayout()).thenReturn(new QuestMenuLayout(27, 15, Set.of(15, 18, 22, 26), List.of(10, 11, 12, 13, 14, 16), 3, 1));
+        when(items.canAccessSlot(player, 0)).thenReturn(true);
+        when(items.canAccessSlot(player, 1)).thenReturn(true);
+        when(items.canAccessSlot(player, 2)).thenReturn(false);
+        when(items.canAccessSlot(player, 3)).thenReturn(true);
+        when(items.canShowMilestoneButton()).thenReturn(true);
+        when(items.canShowStreakButton()).thenReturn(true);
+        when(items.canShowQuestResetButton()).thenReturn(true);
+        when(items.buildGlobalQuestItem(player, null)).thenReturn(new ItemStack(Material.NETHER_STAR));
+        when(items.buildQuestItem(player, activeQuest)).thenReturn(new ItemStack(Material.BOOK));
+        when(items.buildEmptyQuestSlotItem(1)).thenReturn(new ItemStack(Material.GRAY_DYE));
+        when(items.buildEmptyQuestSlotItem(3)).thenReturn(new ItemStack(Material.LIGHT_GRAY_DYE));
+        when(items.buildLockedPremiumQuestSlotItem(2)).thenReturn(new ItemStack(Material.BARRIER));
+        when(items.buildMenuItem(config.getMenu().getMilestoneButton().getItem())).thenReturn(new ItemStack(Material.NETHER_STAR));
+        when(items.buildMenuItem(config.getMenu().getStreakButton().getItem())).thenReturn(new ItemStack(Material.BLAZE_POWDER));
+        when(items.buildQuestResetButtonItem(player, state)).thenReturn(new ItemStack(Material.AMETHYST_SHARD));
+        when(items.buildMenuItem(config.getMenu().getFiller())).thenReturn(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
 
         QuestMenuUI ui = new QuestMenuUI(player, menuService, state, null);
 

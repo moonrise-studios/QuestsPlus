@@ -1,8 +1,11 @@
 package gg.moonrise.quests.currency;
 
 import gg.moonrise.moss.spring.Enableable;
-import gg.moonrise.quests.config.Config;
-import gg.moonrise.quests.core.service.ConfigProvider;
+import gg.moonrise.quests.config.currency.Currencies;
+import gg.moonrise.quests.config.menu.MenuButton;
+import gg.moonrise.quests.config.menu.MenuItem;
+import gg.moonrise.quests.config.currency.VaultCurrencyConfig;
+import gg.moonrise.quests.config.ConfigProvider;
 import gg.moonrise.quests.sdk.currency.QuestCurrencies;
 import gg.moonrise.quests.sdk.currency.QuestCurrency;
 import gg.moonrise.quests.sdk.currency.QuestCurrencyButton;
@@ -15,6 +18,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
+
+import java.util.Optional;
 
 @Slf4j(topic = "QuestsPlus")
 @RequiredArgsConstructor
@@ -46,10 +51,10 @@ public class VaultCurrency implements QuestCurrency, Enableable {
 
     @Override
     public QuestCurrencyButton button() {
-        Config.MenuButton button = config().getButton();
-        Config.MenuButton fallback = new Config.VaultCurrency().getButton();
-        Config.MenuButton resolvedButton = button == null ? fallback : button;
-        Config.MenuItem item = resolvedButton.getItem() == null ? fallback.getItem() : resolvedButton.getItem();
+        MenuButton button = config().getButton();
+        MenuButton fallback = new VaultCurrencyConfig().getButton();
+        MenuButton resolvedButton = button == null ? fallback : button;
+        MenuItem item = resolvedButton.getItem() == null ? fallback.getItem() : resolvedButton.getItem();
         return QuestCurrencyButton.of(resolvedButton.getSlot(), item.getMaterial(), item.getName(), item.getLore());
     }
 
@@ -83,7 +88,7 @@ public class VaultCurrency implements QuestCurrency, Enableable {
 
     @Override
     public boolean isAvailable() {
-        return economy != null || resolveEconomy() != null;
+        return economy != null || resolveEconomy().isPresent();
     }
 
     @Override
@@ -91,23 +96,23 @@ public class VaultCurrency implements QuestCurrency, Enableable {
         resolveEconomy();
     }
 
-    private Economy resolveEconomy() {
+    private Optional<Economy> resolveEconomy() {
         Plugin vault = Bukkit.getPluginManager().getPlugin("Vault");
         if (vault == null || !vault.isEnabled()) {
-            return null;
+            return Optional.empty();
         }
 
         RegisteredServiceProvider<Economy> provider = Bukkit.getServicesManager().getRegistration(Economy.class);
         if (provider == null) {
-            return null;
+            return Optional.empty();
         }
 
         economy = provider.getProvider();
-        return economy;
+        return Optional.ofNullable(economy);
     }
 
-    private Config.VaultCurrency config() {
-        Config.Currencies currencies = configProvider.get().getCurrencies();
-        return currencies == null || currencies.getVault() == null ? new Config.VaultCurrency() : currencies.getVault();
+    private VaultCurrencyConfig config() {
+        Currencies currencies = configProvider.get().getCurrencies();
+        return currencies == null || currencies.getVault() == null ? new VaultCurrencyConfig() : currencies.getVault();
     }
 }

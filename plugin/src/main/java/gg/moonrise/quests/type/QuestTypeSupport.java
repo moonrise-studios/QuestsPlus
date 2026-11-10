@@ -10,20 +10,24 @@ import gg.moonrise.quests.sdk.util.QuestPlaceholders;
 import gg.moonrise.quests.util.QuestDisplayNames;
 import org.bukkit.Material;
 import org.bukkit.block.BlockType;
+import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ItemType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
-final class QuestTypeSupport {
+public final class QuestTypeSupport {
 
-    static final String BLOCK_TYPE = "block-type";
-    static final String COLOR = "color";
-    static final String GOAL_AMOUNT = "goal-amount";
-    static final String ITEM_TYPE = "item-type";
+    public static final String BLOCK_TYPE = "block-type";
+    public static final String COLOR = "color";
+    public static final String GOAL_AMOUNT = "goal-amount";
+    public static final String ITEM_TYPE = "item-type";
+    public static final String MOB_TYPE = "mob-type";
 
     private QuestTypeSupport() {
     }
@@ -44,14 +48,9 @@ final class QuestTypeSupport {
     }
 
     public static void validateBlockTypeAndGoalAmount(QuestDefinition definition) {
-        if (!definition.selectorValues().containsKey(BLOCK_TYPE)) {
-            throw new IllegalArgumentException(definition.id() + " is missing variable " + BLOCK_TYPE);
-        }
-        if (!definition.selectorValues().containsKey(GOAL_AMOUNT)) {
-            throw new IllegalArgumentException(definition.id() + " is missing variable " + GOAL_AMOUNT);
-        }
+        requireVariables(definition, BLOCK_TYPE, GOAL_AMOUNT);
         for (String value : definition.selectorValues().get(BLOCK_TYPE)) {
-            if (parseBlockType(value) == null) {
+            if (parseBlockType(value).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid block-type value " + value);
             }
         }
@@ -59,18 +58,44 @@ final class QuestTypeSupport {
     }
 
     public static void validateItemTypeAndGoalAmount(QuestDefinition definition) {
-        if (!definition.selectorValues().containsKey(ITEM_TYPE)) {
-            throw new IllegalArgumentException(definition.id() + " is missing variable " + ITEM_TYPE);
-        }
-        if (!definition.selectorValues().containsKey(GOAL_AMOUNT)) {
-            throw new IllegalArgumentException(definition.id() + " is missing variable " + GOAL_AMOUNT);
-        }
+        requireVariables(definition, ITEM_TYPE, GOAL_AMOUNT);
         for (String value : definition.selectorValues().get(ITEM_TYPE)) {
-            if (parseItemType(value) == null) {
+            if (parseItemType(value).isEmpty()) {
                 throw new IllegalArgumentException(definition.id() + " has invalid item-type value " + value);
             }
         }
         validateGoalAmounts(definition);
+    }
+
+    public static void validateMobTypeAndGoalAmount(QuestDefinition definition) {
+        requireVariables(definition, MOB_TYPE, GOAL_AMOUNT);
+        validateMobTypes(definition);
+        validateGoalAmounts(definition);
+    }
+
+    public static void requireVariables(QuestDefinition definition, String... keys) {
+        for (String key : keys) {
+            if (!definition.selectorValues().containsKey(key)) {
+                throw new IllegalArgumentException(definition.id() + " is missing variable " + key);
+            }
+        }
+    }
+
+    public static void validateMobTypes(QuestDefinition definition) {
+        for (String value : definition.selectorValues().get(MOB_TYPE)) {
+            if (parseEntityType(value).filter(EntityType::isAlive).isEmpty()) {
+                throw new IllegalArgumentException(definition.id() + " has invalid mob-type value " + value);
+            }
+        }
+    }
+
+    public static void validateGoalAmounts(QuestDefinition definition) {
+        for (String value : definition.selectorValues().get(GOAL_AMOUNT)) {
+            int amount = parsePositiveInt(value, definition.id());
+            if (amount <= 0) {
+                throw new IllegalArgumentException(definition.id() + " has non-positive goal-amount value " + value);
+            }
+        }
     }
 
     public static GeneratedQuest createGoalAmountQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
@@ -79,10 +104,8 @@ final class QuestTypeSupport {
     }
 
     public static GeneratedQuest createBlockTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        BlockType blockType = parseBlockType(variables.get(BLOCK_TYPE));
-        if (blockType == null) {
-            throw new IllegalArgumentException(definition.id() + " generated invalid block-type " + variables.get(BLOCK_TYPE));
-        }
+        BlockType blockType = parseBlockType(variables.get(BLOCK_TYPE))
+                .orElseThrow(() -> new IllegalArgumentException(definition.id() + " generated invalid block-type " + variables.get(BLOCK_TYPE)));
 
         Map<String, String> canonicalVariables = new LinkedHashMap<>(variables);
         canonicalVariables.put(BLOCK_TYPE, blockType.getKey().toString());
@@ -91,10 +114,8 @@ final class QuestTypeSupport {
     }
 
     public static GeneratedQuest createItemTypeQuest(QuestDefinition definition, UUID playerId, String resetKey, Map<String, String> variables) {
-        ItemType itemType = parseItemType(variables.get(ITEM_TYPE));
-        if (itemType == null) {
-            throw new IllegalArgumentException(definition.id() + " generated invalid item-type " + variables.get(ITEM_TYPE));
-        }
+        ItemType itemType = parseItemType(variables.get(ITEM_TYPE))
+                .orElseThrow(() -> new IllegalArgumentException(definition.id() + " generated invalid item-type " + variables.get(ITEM_TYPE)));
 
         Map<String, String> canonicalVariables = new LinkedHashMap<>(variables);
         canonicalVariables.put(ITEM_TYPE, itemType.getKey().toString());
@@ -128,6 +149,19 @@ final class QuestTypeSupport {
         return values;
     }
 
+    public static Map<String, String> mobTypePlaceholders(GeneratedQuest quest) {
+        Map<String, String> values = variablePlaceholders(quest);
+        String mobType = quest.variables().get(MOB_TYPE);
+        if (mobType != null) {
+            String displayName = QuestDisplayNames.typeName(mobType, quest.goalAmount());
+            values.put(MOB_TYPE, displayName);
+            values.put("mob_type", displayName);
+            values.put("mob-type-raw", mobType);
+            values.put("mob_type_raw", mobType);
+        }
+        return values;
+    }
+
     public static int parsePositiveInt(String value, String definitionId) {
         try {
             return Integer.parseInt(value);
@@ -136,62 +170,64 @@ final class QuestTypeSupport {
         }
     }
 
-    public static BlockType parseBlockType(String value) {
+    public static Optional<BlockType> parseBlockType(@Nullable String value) {
         if (value == null || value.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return RegistryAccess.registryAccess()
+            return Optional.ofNullable(RegistryAccess.registryAccess()
                     .getRegistry(RegistryKey.BLOCK)
-                    .get(normalizeKey(value));
+                    .get(normalizeKey(value)));
         } catch (InvalidKeyException exception) {
-            return null;
+            return Optional.empty();
         }
     }
 
-    public static ItemType parseItemType(String value) {
+    public static Optional<ItemType> parseItemType(@Nullable String value) {
         if (value == null || value.isBlank()) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return RegistryAccess.registryAccess()
+            return Optional.ofNullable(RegistryAccess.registryAccess()
                     .getRegistry(RegistryKey.ITEM)
-                    .get(normalizeKey(value));
+                    .get(normalizeKey(value)));
         } catch (InvalidKeyException exception) {
-            return null;
+            return Optional.empty();
         }
     }
 
-    public static String blockTypeKey(Material material) {
+    public static Optional<EntityType> parseEntityType(@Nullable String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(EntityType.valueOf(value.trim().toUpperCase(Locale.ROOT)));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public static Optional<String> blockTypeKey(@Nullable Material material) {
         if (material == null || !material.isBlock()) {
-            return null;
+            return Optional.empty();
         }
-        BlockType blockType = material.asBlockType();
-        return blockType == null ? null : blockType.getKey().toString();
+        return Optional.ofNullable(material.asBlockType())
+                .map(blockType -> blockType.getKey().toString());
     }
 
-    public static String itemTypeKey(ItemStack itemStack) {
+    public static Optional<String> itemTypeKey(@Nullable ItemStack itemStack) {
         if (itemStack == null || itemStack.isEmpty()) {
-            return null;
+            return Optional.empty();
         }
         return itemTypeKey(itemStack.getType());
     }
 
-    public static String itemTypeKey(Material material) {
+    public static Optional<String> itemTypeKey(@Nullable Material material) {
         if (material == null || !material.isItem()) {
-            return null;
+            return Optional.empty();
         }
-        ItemType itemType = material.asItemType();
-        return itemType == null ? null : itemType.getKey().toString();
-    }
-
-    private static void validateGoalAmounts(QuestDefinition definition) {
-        for (String value : definition.selectorValues().get(GOAL_AMOUNT)) {
-            int amount = parsePositiveInt(value, definition.id());
-            if (amount <= 0) {
-                throw new IllegalArgumentException(definition.id() + " has non-positive goal-amount value " + value);
-            }
-        }
+        return Optional.ofNullable(material.asItemType())
+                .map(itemType -> itemType.getKey().toString());
     }
 
     private static Map<String, String> variablePlaceholders(GeneratedQuest quest) {

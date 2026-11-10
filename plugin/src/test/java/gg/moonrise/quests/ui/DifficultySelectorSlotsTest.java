@@ -1,6 +1,6 @@
 package gg.moonrise.quests.ui;
 
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.entity.QuestDifficulty;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

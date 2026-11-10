@@ -10,35 +10,40 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import gg.moonrise.quests.core.service.ConfigProvider;
-import gg.moonrise.quests.core.service.GlobalQuestService;
-import gg.moonrise.quests.core.service.QuestIndicatorPreferenceService;
-import gg.moonrise.quests.core.service.QuestDefinitionService;
-import gg.moonrise.quests.core.service.QuestMenuService;
-import gg.moonrise.quests.core.service.QuestProgressIndicatorService;
-import gg.moonrise.quests.core.service.QuestApiService;
-import gg.moonrise.quests.core.service.QuestResetService;
-import gg.moonrise.quests.core.service.QuestService;
-import gg.moonrise.quests.core.service.QuestStreakService;
-import gg.moonrise.quests.core.service.SqlProvider;
-import gg.moonrise.quests.model.QuestDifficulty;
+import gg.moonrise.quests.config.ConfigProvider;
+import gg.moonrise.quests.core.service.global.GlobalQuestService;
+import gg.moonrise.quests.core.service.indicator.QuestIndicatorPreferenceService;
+import gg.moonrise.quests.core.service.quest.QuestDefinitionService;
+import gg.moonrise.quests.ui.QuestMenuService;
+import gg.moonrise.quests.core.service.indicator.QuestProgressIndicatorService;
+import gg.moonrise.quests.core.service.quest.QuestProgressService;
+import gg.moonrise.quests.core.service.reload.QuestReloadService;
+import gg.moonrise.quests.core.service.reset.QuestResetService;
+import gg.moonrise.quests.core.service.quest.QuestService;
+import gg.moonrise.quests.core.service.quest.QuestSlotService;
+import gg.moonrise.quests.core.service.streak.QuestStreakService;
+import gg.moonrise.quests.core.service.quest.QuestTextService;
+import gg.moonrise.quests.core.service.quest.QuestUsageService;
+import gg.moonrise.quests.entity.QuestDifficulty;
 import gg.moonrise.quests.sdk.model.QuestProgressResult;
 import gg.moonrise.quests.sdk.model.QuestType;
+import gg.moonrise.quests.util.QuestNames;
 import gg.moonrise.quests.util.QuestNumberFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.context.CommandContext;
-import org.incendo.cloud.suggestion.SuggestionProvider;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 @Slf4j(topic = "QuestsPlus")
 @SpringComponent
@@ -48,25 +53,21 @@ public class QuestCommand implements PaperCommand {
     private final ConfigProvider configProvider;
     private final QuestDefinitionService definitionService;
     private final QuestService questService;
+    private final QuestSlotService slotService;
+    private final QuestUsageService usageService;
+    private final QuestProgressService progressService;
+    private final QuestTextService textService;
     private final QuestMenuService menuService;
     private final QuestResetService resetService;
     private final QuestStreakService streakService;
-    private final SqlProvider sqlProvider;
+    private final QuestReloadService reloadService;
     private final GlobalQuestService globalQuestService;
     private final QuestProgressIndicatorService progressIndicatorService;
     private final QuestIndicatorPreferenceService indicatorPreferenceService;
-    private final QuestApiService apiService;
 
-    @Override
-    public void onRegister(CommandManager<CommandSourceStack> commandManager) {
-        commandManager.parserRegistry().registerSuggestionProvider(
-                "online-players",
-                SuggestionProvider.blockingStrings((context, input) -> Bukkit.getOnlinePlayers().stream().map(Player::getName).toList())
-        );
-        commandManager.parserRegistry().registerSuggestionProvider(
-                "quest-difficulties",
-                SuggestionProvider.blockingStrings((context, input) -> definitionService.difficulties().stream().map(QuestDifficulty::id).toList())
-        );
+    private enum CurrencyAdjustment {
+        GIVE,
+        TAKE
     }
 
     @Command("q|quests")
@@ -88,16 +89,16 @@ public class QuestCommand implements PaperCommand {
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenAccept(state -> Scheduler.entity(player).run(task -> {
                     if (player.isOnline()) {
-                        if (questService.accessibleQuests(player, state).isEmpty()) {
+                        if (slotService.accessibleQuests(player, state).isEmpty()) {
                             configProvider.get().getMessages().getNoQuests().send(player);
                         } else {
-                            questService.sendProgress(player, state);
+                            textService.sendProgress(player, state);
                         }
                     }
                 }))
                 .exceptionally(throwable -> {
                     log.error("Failed to load QuestsPlus progress for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to load quest progress right now."));
+                    Scheduler.entity(player).run(task -> configProvider.get().getMessages().getProgressLoadFailed().send(player));
                     return null;
                 });
     }
@@ -112,12 +113,12 @@ public class QuestCommand implements PaperCommand {
         questService.ensurePlayerStateAsync(player, resetKey)
                 .thenAccept(state -> Scheduler.entity(player).run(task -> {
                     if (player.isOnline()) {
-                        questService.sendCompletedCount(player, state);
+                        textService.sendCompletedCount(player, state);
                     }
                 }))
                 .exceptionally(throwable -> {
                     log.error("Failed to load QuestsPlus completed count for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to load completed quest count right now."));
+                    Scheduler.entity(player).run(task -> configProvider.get().getMessages().getCompletedCountLoadFailed().send(player));
                     return null;
                 });
     }
@@ -164,7 +165,7 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        String normalizedType = indicatorPreferenceService.normalize(type);
+        String normalizedType = QuestNames.constantKey(type);
         List<QuestIndicatorPreferenceService.Scope> scopes = indicatorScopes(scope);
         if (scopes.isEmpty()) {
             configProvider.get().getMessages().getIndicatorUnavailable().send(player, Placeholder.unparsed("indicator", scope));
@@ -179,7 +180,7 @@ public class QuestCommand implements PaperCommand {
                     }))
                     .exceptionally(throwable -> {
                         log.error("Failed to clear QuestsPlus indicator preference for {}.", player.getUniqueId(), throwable);
-                        Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to update quest indicator preference."));
+                        Scheduler.entity(player).run(task -> configProvider.get().getMessages().getIndicatorUpdateFailed().send(player));
                         return null;
                     });
             return;
@@ -202,13 +203,13 @@ public class QuestCommand implements PaperCommand {
                 }))
                 .exceptionally(throwable -> {
                     log.error("Failed to update QuestsPlus indicator preference for {}.", player.getUniqueId(), throwable);
-                    Scheduler.entity(player).run(task -> player.sendRichMessage("<red>Failed to update quest indicator preference."));
+                    Scheduler.entity(player).run(task -> configProvider.get().getMessages().getIndicatorUpdateFailed().send(player));
                     return null;
                 });
     }
 
-    private java.util.concurrent.CompletableFuture<Void> updateIndicatorPreferences(Player player, List<QuestIndicatorPreferenceService.Scope> scopes, String normalizedType) {
-        java.util.concurrent.CompletableFuture<Void> future = java.util.concurrent.CompletableFuture.completedFuture(null);
+    private CompletableFuture<Void> updateIndicatorPreferences(Player player, List<QuestIndicatorPreferenceService.Scope> scopes, String normalizedType) {
+        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         for (QuestIndicatorPreferenceService.Scope scope : scopes) {
             future = future.thenCompose(unused -> QuestIndicatorPreferenceService.DEFAULT.equals(normalizedType)
                     ? indicatorPreferenceService.clearPreference(player.getUniqueId(), scope)
@@ -218,7 +219,7 @@ public class QuestCommand implements PaperCommand {
     }
 
     private List<QuestIndicatorPreferenceService.Scope> indicatorScopes(String scope) {
-        String normalized = indicatorPreferenceService.normalize(scope);
+        String normalized = QuestNames.constantKey(scope);
         if (normalized.isBlank() || "BOTH".equals(normalized) || "ALL".equals(normalized)) {
             return List.of(QuestIndicatorPreferenceService.Scope.PERSONAL, QuestIndicatorPreferenceService.Scope.GLOBAL);
         }
@@ -247,21 +248,13 @@ public class QuestCommand implements PaperCommand {
     @Command("qa|questsadmin reload")
     @Permission("questsplus.admin")
     public void reload(CommandSourceStack source) {
-        try {
-            configProvider.reload();
-            definitionService.reload();
-            resetService.reload();
-            if (!sqlProvider.reload()) {
-                throw new IllegalStateException("SQL reload failed");
+        CommandSender sender = source.getSender();
+        reloadService.reload().thenAccept(outcome -> runForSender(sender, () -> {
+            switch (outcome) {
+                case QuestReloadService.ReloadOutcome.Reloaded reloaded -> configProvider.get().getMessages().getReloadSuccess().send(sender);
+                case QuestReloadService.ReloadOutcome.Failed failed -> configProvider.get().getMessages().getReloadFailed().send(sender);
             }
-            apiService.reload();
-            globalQuestService.reload();
-            questService.claimRetroactiveMilestonesForOnlinePlayers();
-            configProvider.get().getMessages().getReloadSuccess().send(source.getSender());
-        } catch (RuntimeException exception) {
-            log.error("Failed to reload QuestsPlus.", exception);
-            configProvider.get().getMessages().getReloadFailed().send(source.getSender());
-        }
+        }));
     }
 
     @Command("qa|questsadmin listtypes")
@@ -287,7 +280,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to reset QuestsPlus daily quests for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to reset that player's quests."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getResetPlayerFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -300,7 +293,7 @@ public class QuestCommand implements PaperCommand {
             configProvider.get().getMessages().getPlayerNotFound().send(source.getSender(), Placeholder.unparsed("player", playerName));
             return;
         }
-        questService.completeDailyQuests(target, resetService.currentResetKey())
+        progressService.completeDailyQuests(target, resetService.currentResetKey())
                 .thenAccept(completed -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getCompleteDailyPlayer().send(
                         source.getSender(),
                         Placeholder.unparsed("player", target.getName()),
@@ -308,7 +301,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to complete QuestsPlus daily quests for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to complete that player's daily quests."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getCompleteDailyPlayerFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -326,11 +319,12 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        QuestType type = parseRegisteredQuestType(questType);
-        if (type == null) {
+        Optional<QuestType> parsedType = parseRegisteredQuestType(questType);
+        if (parsedType.isEmpty()) {
             configProvider.get().getMessages().getInvalidQuestType().send(source.getSender(), Placeholder.unparsed("quest_type", questType));
             return;
         }
+        QuestType type = parsedType.get();
 
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -338,7 +332,7 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        List<QuestProgressResult> results = questService.progressAdminGoal(target, resetService.currentResetKey(), amount, type);
+        List<QuestProgressResult> results = progressService.progressAdminGoal(target, resetService.currentResetKey(), amount, type);
         if (results.isEmpty()) {
             configProvider.get().getMessages().getAdminProgressNotActive().send(
                     source.getSender(),
@@ -371,11 +365,12 @@ public class QuestCommand implements PaperCommand {
             return;
         }
 
-        QuestType type = parseRegisteredQuestType(questType);
-        if (type == null) {
+        Optional<QuestType> parsedType = parseRegisteredQuestType(questType);
+        if (parsedType.isEmpty()) {
             configProvider.get().getGlobalQuests().getMessages().getInvalidQuestType().send(source.getSender(), Placeholder.unparsed("quest_type", questType));
             return;
         }
+        QuestType type = parsedType.get();
 
         Player target = Bukkit.getPlayerExact(playerName);
         if (target == null) {
@@ -408,7 +403,7 @@ public class QuestCommand implements PaperCommand {
                 .thenRun(() -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getGlobalQuestRefreshed().send(source.getSender())))
                 .exceptionally(throwable -> {
                     log.error("Failed to refresh QuestsPlus global quest.", throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to refresh the active global quest."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getGlobalQuestRefreshFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -421,14 +416,14 @@ public class QuestCommand implements PaperCommand {
             configProvider.get().getMessages().getPlayerNotFound().send(source.getSender(), Placeholder.unparsed("player", playerName));
             return;
         }
-        questService.resetRerolls(target.getUniqueId(), resetService.currentResetKey())
+        usageService.resetRerolls(target.getUniqueId(), resetService.currentResetKey())
                 .thenRun(() -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getRerollsReset().send(
                         source.getSender(),
                         Placeholder.unparsed("player", target.getName())
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to reset QuestsPlus rerolls for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to reset that player's rerolls."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getRerollsResetFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -436,50 +431,40 @@ public class QuestCommand implements PaperCommand {
     @Command("qa|questsadmin shield give <amount> <player>")
     @Permission("questsplus.admin")
     public void shieldGive(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, amount, playerName);
+        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, CurrencyAdjustment.GIVE, amount, playerName);
     }
 
     @Command("qa|questsadmin shield take <amount> <player>")
     @Permission("questsplus.admin")
     public void shieldTake(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, -amount, playerName);
+        adjustCurrency(source, QuestStreakService.StreakCurrency.SHIELD, CurrencyAdjustment.TAKE, amount, playerName);
     }
 
     @Command("qa|questsadmin recovery give <amount> <player>")
     @Permission("questsplus.admin")
     public void recoveryGive(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, amount, playerName);
+        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, CurrencyAdjustment.GIVE, amount, playerName);
     }
 
     @Command("qa|questsadmin recovery take <amount> <player>")
     @Permission("questsplus.admin")
     public void recoveryTake(CommandSourceStack source, @Argument("amount") int amount, @Argument(value = "player", suggestions = "online-players") @Greedy String playerName) {
+        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, CurrencyAdjustment.TAKE, amount, playerName);
+    }
+
+    private void adjustCurrency(
+            CommandSourceStack source,
+            QuestStreakService.StreakCurrency currency,
+            CurrencyAdjustment adjustment,
+            int amount,
+            String playerName
+    ) {
         if (amount <= 0) {
             configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
             return;
         }
-        adjustCurrency(source, QuestStreakService.StreakCurrency.RECOVERY, -amount, playerName);
-    }
-
-    private void adjustCurrency(CommandSourceStack source, QuestStreakService.StreakCurrency currency, int delta, String playerName) {
         if (!streakService.isEnabled()) {
-            source.getSender().sendRichMessage("<red>Quest streaks are disabled.");
-            return;
-        }
-        if (delta == 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
+            configProvider.get().getMessages().getQuestStreaksDisabled().send(source.getSender());
             return;
         }
         Player target = Bukkit.getPlayerExact(playerName);
@@ -487,15 +472,8 @@ public class QuestCommand implements PaperCommand {
             configProvider.get().getMessages().getPlayerNotFound().send(source.getSender(), Placeholder.unparsed("player", playerName));
             return;
         }
-        if (delta < 0 && delta == Integer.MIN_VALUE) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
-        int amount = Math.abs(delta);
-        if (amount <= 0) {
-            configProvider.get().getMessages().getInvalidAdminProgressAmount().send(source.getSender());
-            return;
-        }
+        // amount is positive, so negating it for a take can never overflow.
+        int delta = adjustment == CurrencyAdjustment.GIVE ? amount : -amount;
         streakService.adjustCurrency(target.getUniqueId(), currency, delta)
                 .thenAccept(balance -> runForSender(source.getSender(), () -> configProvider.get().getMessages().getStreakCurrencyUpdated().send(
                         source.getSender(),
@@ -505,7 +483,7 @@ public class QuestCommand implements PaperCommand {
                 )))
                 .exceptionally(throwable -> {
                     log.error("Failed to adjust QuestsPlus streak currency for {}.", target.getUniqueId(), throwable);
-                    runForSender(source.getSender(), () -> source.getSender().sendRichMessage("<red>Failed to update streak currency."));
+                    runForSender(source.getSender(), () -> configProvider.get().getMessages().getStreakCurrencyUpdateFailed().send(source.getSender()));
                     return null;
                 });
     }
@@ -525,60 +503,52 @@ public class QuestCommand implements PaperCommand {
 
     @Suggestions("online-players")
     public Iterable<String> onlinePlayerSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        return matchingSuggestions(Bukkit.getOnlinePlayers().stream().map(Player::getName), input);
     }
 
     @Suggestions("quest-difficulties")
     public Iterable<String> questDifficultySuggestions(CommandContext<CommandSourceStack> context, String input) {
-        return definitionService.difficulties().stream().map(QuestDifficulty::id).toList();
+        return matchingSuggestions(definitionService.difficulties().stream().map(QuestDifficulty::id), input);
     }
 
     @Suggestions("quest-types")
     public Iterable<String> questTypeSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        String normalizedInput = normalizeSuggestionInput(input);
-        return definitionService.registeredTypes().stream()
-                .map(QuestType::key)
-                .sorted()
-                .filter(key -> normalizedInput.isBlank() || key.startsWith(normalizedInput))
-                .toList();
+        return matchingSuggestions(definitionService.registeredTypes().stream().map(QuestType::key).sorted(), input);
     }
 
     @Suggestions("quest-indicator-scopes")
     public Iterable<String> questIndicatorScopeSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        String normalizedInput = normalizeSuggestionInput(input);
-        return java.util.stream.Stream.of("Main", "Both", "Global")
-                .filter(scope -> normalizedInput.isBlank() || normalizeSuggestionInput(scope).startsWith(normalizedInput))
-                .toList();
+        return matchingSuggestions(Stream.of("Main", "Both", "Global"), input);
     }
 
     @Suggestions("quest-indicators")
     public Iterable<String> questIndicatorSuggestions(CommandContext<CommandSourceStack> context, String input) {
-        String normalizedInput = normalizeSuggestionInput(input);
-        return java.util.stream.Stream.concat(
-                        java.util.stream.Stream.of(QuestIndicatorPreferenceService.DEFAULT, QuestIndicatorPreferenceService.OFF),
-                        progressIndicatorService.availableIndicatorTypes().stream()
-                )
-                .distinct()
-                .filter(key -> normalizedInput.isBlank() || key.startsWith(normalizedInput))
+        Stream<String> indicators = Stream.concat(
+                Stream.of(QuestIndicatorPreferenceService.DEFAULT, QuestIndicatorPreferenceService.OFF),
+                progressIndicatorService.availableIndicatorTypes().stream()
+        );
+        return matchingSuggestions(indicators.distinct(), input);
+    }
+
+    /**
+     * Keeps the candidates whose normalized form contains the normalized input anywhere, so matching
+     * ignores case, spaces, and dashes. Candidates are returned unchanged.
+     */
+    private List<String> matchingSuggestions(Stream<String> candidates, String input) {
+        String needle = QuestNames.constantKey(input);
+        return candidates
+                .filter(candidate -> QuestNames.constantKey(candidate).contains(needle))
                 .toList();
     }
 
-    private String normalizeSuggestionInput(String input) {
-        return java.util.Objects.requireNonNullElse(input, "")
-                .trim()
-                .toUpperCase(java.util.Locale.ROOT)
-                .replace('-', '_')
-                .replace(' ', '_')
-                .replaceAll("[^A-Z0-9_]", "");
-    }
-
-    private QuestType parseRegisteredQuestType(String questType) {
+    private Optional<QuestType> parseRegisteredQuestType(String questType) {
+        QuestType type;
         try {
-            QuestType type = QuestType.of(questType);
-            return definitionService.handlerIfRegistered(type).isPresent() ? type : null;
+            type = QuestType.of(questType);
         } catch (IllegalArgumentException exception) {
-            return null;
+            return Optional.empty();
         }
+        return definitionService.handlerIfRegistered(type).map(handler -> type);
     }
 
     private Component typeListLine(String owner, List<QuestType> types) {
